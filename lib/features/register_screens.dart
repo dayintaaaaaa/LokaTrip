@@ -175,13 +175,115 @@ class _RegisterScreensState extends State<RegisterScreens> {
                       SizedBox(height: 20),
 
                       // button register
-                      
+                      Center(
+                        child: SizedBox(
+                          width: 200,
+                          height: 44,
+                          child: ElevatedButton(
+                            onPressed: _register, 
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColor.kuning,
+                              foregroundColor: AppColor.putih,
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                            ),
+                            child: Text(
+                              'Sign in',
+                              style: GoogleFonts.manrope(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(height: 10),
+
+                      // sudah punya akun
+                      Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Apakah kamu sudah punya akun?  ',
+                              style: GoogleFonts.manrope(
+                                fontSize: 12,
+                                color: AppColor.abu,
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: _keLogin,
+                              child: Text(
+                                'Login',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColor.biru,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                )
+                ),
+
+                SizedBox(height: 150),
+
+                // logo
+                Image.asset('assets/images/LokaTrip-logo-no-van.png', width: 90),
+
+                SizedBox(height: 24),
               ],
             ),
           )
+        ),
+      ),
+    );
+  }
+
+  // Label diatas field
+  Widget _label(String teks) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 8),
+      child: Text(
+        teks,
+        style: GoogleFonts.manrope(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: AppColor.hitam,
+        ),
+      ),
+    );
+  }
+
+  // Gaya field input
+  InputDecoration _inputDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: GoogleFonts.manrope(
+        fontSize: 12,
+        color: AppColor.abu,
+      ),
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 14,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: AppColor.ungu.withValues(alpha: 0.4)
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: AppColor.ungu,
+          width: 1.5
         ),
       ),
     );
