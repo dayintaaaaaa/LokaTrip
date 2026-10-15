@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/app_color.dart';
+import '../features/user/home_screens.dart';
+import '../features/user/wisata_screens.dart';
+import '../features/user/pesanan_screens.dart';
+import '../features/user/promo_screens.dart';
+import '../features/user/akun_screens.dart';
 
 class _NavItem {
   final String label;
@@ -11,12 +16,10 @@ class _NavItem {
 
 class BottomNavigator extends StatelessWidget {
   final int currentIndex;
-  final ValueChanged<int> onTap;
 
   const BottomNavigator({
     super.key,
     required this.currentIndex,
-    required this.onTap,
   });
 
   static const _items = [
@@ -26,6 +29,28 @@ class BottomNavigator extends StatelessWidget {
     _NavItem('Promo', Icons.local_offer_outlined, Icons.local_offer),
     _NavItem('Akun', Icons.person_outline, Icons.person),
   ];
+
+  void _pindah(BuildContext context, int index) {
+    if (index == currentIndex) return; // sudah di halaman ini
+
+    final Widget tujuan = switch (index) {
+      0 => const HomeScreens(),
+      1 => const WisataScreens(),
+      2 => const PesananScreens(),
+      3 => const PromoScreens(),
+      _ => const AkunScreens(),
+    };
+
+    // pindah tanpa animasi supaya terasa seperti ganti tab
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => tujuan,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +78,7 @@ class BottomNavigator extends StatelessWidget {
 
               return Expanded(
                 child: InkWell(
-                  onTap: () => onTap(i),
+                  onTap: () => _pindah(context, i),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

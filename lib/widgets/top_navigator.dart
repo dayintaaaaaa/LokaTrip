@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/app_color.dart';
+import '../features/user/akun_screens.dart';
+import '../features/user/notifikasi_screens.dart';
 
 class TopNavigator extends StatelessWidget {
-  final VoidCallback? onNotifTap;
-  final VoidCallback? onProfilTap;
-
-  const TopNavigator({
-    super.key,
-    this.onNotifTap,
-    this.onProfilTap,
-  });
+  const TopNavigator({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +20,12 @@ class TopNavigator extends StatelessWidget {
 
           // notifikasi
           IconButton(
-            onPressed: onNotifTap, 
+            onPressed: () {
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (_) => const NotifikasiScreens()),
+              );
+            }, 
             icon: Icon(
               Icons.notifications_none,
               color: AppColor.ungu,
@@ -35,7 +35,16 @@ class TopNavigator extends StatelessWidget {
 
           // avatar profile
           GestureDetector(
-            onTap: onProfilTap,
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (_, __, ___) => const AkunScreens(),
+                  transitionDuration: Duration.zero,
+                  reverseTransitionDuration: Duration.zero,
+                ),
+              );
+            },
             child: CircleAvatar(
               radius: 14,
               backgroundColor: AppColor.biru,
