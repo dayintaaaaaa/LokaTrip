@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/app_color.dart';
+import '../core/session_manager.dart';
 import '../features/user/home_screens.dart';
 import '../features/login_screens.dart';
 
@@ -29,9 +30,15 @@ class _RegisterScreensState extends State<RegisterScreens> {
     super.dispose();
   }
 
-  void _register() {
-    // nanti diganti proses daftar nyang beneran (kirim ke backend)
-    _keLogin();
+  Future<void> _register() async {
+    // nanti diganti proses daftar sungguhan (kirim ke backend)
+    await SessionManager.setLoggedIn();
+
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const HomeScreens()),
+    );
   }
 
   void _keLogin() {
@@ -123,8 +130,10 @@ class _RegisterScreensState extends State<RegisterScreens> {
                       TextField(
                         controller: _usernameController,
                         style: GoogleFonts.manrope(fontSize: 12),
-                        decoration: _inputDecoration('masukkan usernamem'),
+                        decoration: _inputDecoration('masukkan username'),
                       ),
+
+                      SizedBox(height: 15),
 
                       // email
                       _label('Email'),

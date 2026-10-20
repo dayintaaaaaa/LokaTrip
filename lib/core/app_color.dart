@@ -7,4 +7,5 @@ class AppColor {
   static const putih = Color(0xFFFFFFFF);
   static const hitam = Color(0xFF000000);
   static const abu = Color(0xFF9E9E9E);
+  static const latar = Color(0xFFFBF9FF);
 }
