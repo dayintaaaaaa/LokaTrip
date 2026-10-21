@@ -8,3 +8,10 @@ String formatRupiah(int angka) {
   }
   return 'Rp $buf';
 }
+
+// 31000 -> "31k", 2400 -> "2.4k", 850 -> "850"
+String ringkasAngka(int n) {
+  if (n < 1000) return '$n';
+  final k = n / 1000;
+  return k == k.roundToDouble() ? '${k.round()}k' : '${k.toStringAsFixed(1)}k';
+}

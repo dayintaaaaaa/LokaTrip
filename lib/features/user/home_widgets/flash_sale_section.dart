@@ -1,13 +1,13 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/app_color.dart';
 import '../../../core/format_rupiah.dart';
 import '../../../models/wisata.dart';
 import '../../../widgets/gambar_wisata.dart';
-import '../../user/home_widgets/section_title.dart';
+import '../../../widgets/hitung_mundur.dart';
+import 'section_title.dart';
 
-class FlashSaleSection extends StatefulWidget {
+class FlashSaleSection extends StatelessWidget {
   final List<Wisata> daftar;
   final DateTime berakhirPada;
 
@@ -18,41 +18,9 @@ class FlashSaleSection extends StatefulWidget {
   });
 
   @override
-  State<FlashSaleSection> createState() => _FlashSaleSectionState();
-}
-
-class _FlashSaleSectionState extends State<FlashSaleSection> {
-  Timer? _timer;
-  Duration _sisa = Duration.zero;
-
-  @override
-  void initState() {
-    super.initState();
-    _hitung();
-    // perbarui sisa waktu tiap 1 detik
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(_hitung);
-    });
-  }
-
-  void _hitung() {
-    final selisih = widget.berakhirPada.difference(DateTime.now());
-    _sisa = selisih.isNegative ? Duration.zero : selisih;
-    if (_sisa == Duration.zero) _timer?.cancel();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel(); // wajib: hentikan timer saat widget dihapus
-    super.dispose();
-  }
-
-  String _dua(int n) => n.toString().padLeft(2, '0');
-
-  @override
   Widget build(BuildContext context) {
-    final lebarKartu = MediaQuery.of(context).size.width * 0.72;
+    final lebarKartu =
+        (MediaQuery.of(context).size.width * 0.72).clamp(240.0, 320.0).toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,42 +42,40 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: widget.daftar.length,
+            itemCount: daftar.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, i) =>
-                _kartu(widget.daftar[i], lebarKartu),
+            itemBuilder: (_, i) => _kartu(daftar[i], lebarKartu),
           ),
         ),
       ],
     );
   }
 
-  // chip timer: jam : menit : detik
+  // chip timer: jam : menit : detik (angkanya dihitung oleh HitungMundur)
   Widget _chipTimer() {
-    final jam = _sisa.inHours;
-    final menit = _sisa.inMinutes.remainder(60);
-    final detik = _sisa.inSeconds.remainder(60);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.access_time_rounded, size: 12, color: AppColor.putih),
-          const SizedBox(width: 4),
-          Text(
-            '${_dua(jam)} : ${_dua(menit)} : ${_dua(detik)}',
-            style: GoogleFonts.manrope(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: AppColor.putih,
+    return HitungMundur(
+      berakhirPada: berakhirPada,
+      builder: (jam, menit, detik) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A2E),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.access_time_rounded, size: 12, color: AppColor.putih),
+            const SizedBox(width: 4),
+            Text(
+              '$jam : $menit : $detik',
+              style: GoogleFonts.manrope(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppColor.putih,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
