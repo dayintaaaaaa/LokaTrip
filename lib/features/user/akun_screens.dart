@@ -9,6 +9,10 @@ import '../login_screens.dart';
 import 'edit_profile_screens.dart';
 import 'tukar_poin_screens.dart';
 import 'riwayat_poin_screens.dart';
+import 'wishlist_screens.dart';
+import 'verifikasi_screens.dart';
+import 'keamanan_akun_screens.dart';
+import 'snk_screens.dart';
 
 class AkunScreens extends StatefulWidget {
   const AkunScreens({super.key});
@@ -85,6 +89,9 @@ class _AkunScreensState extends State<AkunScreens> {
                             warna: AppColor.ungu,
                             angka: '$_jumlahUlasan',
                             label: 'Ulasan Wisata',
+                            onTap: () {
+                              // TODO: arahkan ke halaman Ulasan Wisata
+                            },
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -94,6 +101,12 @@ class _AkunScreensState extends State<AkunScreens> {
                             warna: AppColor.kuning,
                             angka: '$_jumlahWishlist',
                             label: 'Wishlist Liburan',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const WishlistScreens(),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -109,7 +122,7 @@ class _AkunScreensState extends State<AkunScreens> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const EditProfileScreens(),
+                            builder: (_) => const VerifikasiIdentitasScreens(),
                           ),
                         ),
                       ),
@@ -135,17 +148,23 @@ class _AkunScreensState extends State<AkunScreens> {
                         icon: Icons.lock_outline,
                         judul: 'Keamanan Akun & PIN',
                         subjudul: 'Atur Password',
-                        onTap: () {
-                          // TODO: halaman keamanan akun
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const KeamananAkunScreens(),
+                          ),
+                        ),
                       ),
                       _MenuTile(
                         icon: Icons.shield_outlined,
                         judul: 'Syarat & Kebijakan Privasi',
                         subjudul: 'LokaTrip versi 3.14.0',
-                        onTap: () {
-                          // TODO: halaman kebijakan privasi
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SnkScreens(),
+                          ),
+                        ),
                       ),
                     ]),
 
@@ -262,39 +281,44 @@ class _AkunScreensState extends State<AkunScreens> {
     required Color warna,
     required String angka,
     required String label,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: _cardDecoration(),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: warna.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: _cardDecoration(),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: warna.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18, color: warna),
             ),
-            child: Icon(icon, size: 18, color: warna),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                angka,
-                style: GoogleFonts.manrope(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: AppColor.hitam,
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  angka,
+                  style: GoogleFonts.manrope(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColor.hitam,
+                  ),
                 ),
-              ),
-              Text(
-                label,
-                style: GoogleFonts.manrope(fontSize: 10, color: AppColor.abu),
-              ),
-            ],
-          ),
-        ],
+                Text(
+                  label,
+                  style: GoogleFonts.manrope(fontSize: 10, color: AppColor.abu),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

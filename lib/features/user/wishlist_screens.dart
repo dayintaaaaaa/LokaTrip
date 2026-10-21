@@ -315,7 +315,6 @@ class _WishlistScreensState extends State<WishlistScreens> {
                 size: 48, color: AppColor.putih.withValues(alpha: 0.5)),
           ),
 
-          // overlay gelap di bawah supaya teks rating terbaca
           Positioned(
             left: 0,
             right: 0,
