@@ -1,44 +1,37 @@
 import 'package:flutter/material.dart';
 import '../core/app_color.dart';
 
-// Tombol hati bulat di atas gambar kartu. Baru tampilan, belum disimpan.
-class TombolFavorit extends StatefulWidget {
-  final bool awal;
-  final ValueChanged<bool>? onChanged;
+// Tombol hati bulat di atas gambar kartu.
+// State dipegang oleh parent (mis. w.favorit), widget ini hanya menampilkan.
+class TombolFavorit extends StatelessWidget {
+  final bool favorit;
+  final VoidCallback? onTap;
 
-  const TombolFavorit({super.key, this.awal = false, this.onChanged});
-
-  @override
-  State<TombolFavorit> createState() => _TombolFavoritState();
-}
-
-class _TombolFavoritState extends State<TombolFavorit> {
-  late bool _aktif;
-
-  @override
-  void initState() {
-    super.initState();
-    _aktif = widget.awal;
-  }
+  const TombolFavorit({
+    super.key,
+    this.favorit = true,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        setState(() => _aktif = !_aktif);
-        widget.onChanged?.call(_aktif);
-      },
-      child: Container(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
         width: 28,
         height: 28,
         decoration: BoxDecoration(
-          color: AppColor.putih.withValues(alpha: 0.95),
+          color: favorit
+              ? AppColor.kuning
+              : AppColor.putih.withValues(alpha: 0.95),
           shape: BoxShape.circle,
         ),
         child: Icon(
-          _aktif ? Icons.favorite : Icons.favorite_border,
-          size: 16,
-          color: _aktif ? AppColor.kuning : AppColor.abu,
+          Icons.favorite,
+          size: 15,
+          color: favorit ? AppColor.putih : AppColor.abu,
         ),
       ),
     );
