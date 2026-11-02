@@ -72,7 +72,7 @@ class TopNavigator extends StatelessWidget {
                   Navigator.pushReplacement(
                     context,
                     PageRouteBuilder(
-                      pageBuilder: (_, __, ___) => const AkunScreens(),
+                      pageBuilder: (_, _, _) => const AkunScreens(),
                       transitionDuration: Duration.zero,
                       reverseTransitionDuration: Duration.zero,
                     ),

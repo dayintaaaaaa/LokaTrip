@@ -18,7 +18,7 @@ class TerpopulerWisata extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lebarKartu =
-        (MediaQuery.of(context).size.width * 0.75).clamp(240.0, 320.0).toDouble();
+        (MediaQuery.of(context).size.width * 0.62).clamp(220.0, 270.0).toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -33,7 +33,7 @@ class TerpopulerWisata extends StatelessWidget {
             // nanti: buka daftar lengkap
           },
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
 
         if (daftar.isEmpty)
           Padding(
@@ -45,12 +45,12 @@ class TerpopulerWisata extends StatelessWidget {
           )
         else
           SizedBox(
-            height: 340,
+            height: 270,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20),
               itemCount: daftar.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
               itemBuilder: (_, i) => _kartu(daftar[i], lebarKartu),
             ),
           ),
@@ -64,7 +64,7 @@ class TerpopulerWisata extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColor.putih,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColor.abu.withValues(alpha: 0.25)),
       ),
       child: Column(
@@ -72,15 +72,15 @@ class TerpopulerWisata extends StatelessWidget {
         children: [
           // gambar + rating + hati
           SizedBox(
-            height: 150,
+            height: 105,
             child: Stack(
               fit: StackFit.expand,
               children: [
                 GambarWisata(path: w.gambar),
                 if (w.rating != null)
                   Positioned(
-                    top: 10,
-                    left: 10,
+                    top: 8,
+                    left: 8,
                     child: BadgeRating(
                       rating: w.rating!,
                       ulasan: w.jumlahUlasan == null
@@ -88,7 +88,7 @@ class TerpopulerWisata extends StatelessWidget {
                           : ringkasAngka(w.jumlahUlasan!),
                     ),
                   ),
-                const Positioned(top: 8, right: 8, child: TombolFavorit()),
+                Positioned(top: 2, right: 2, child: TombolFavorit(wisataId: w.id)),
               ],
             ),
           ),
@@ -96,7 +96,7 @@ class TerpopulerWisata extends StatelessWidget {
           // isi kartu
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -104,22 +104,22 @@ class TerpopulerWisata extends StatelessWidget {
                   Row(
                     children: [
                       Icon(Icons.location_on_outlined,
-                          size: 13, color: AppColor.ungu),
-                      const SizedBox(width: 4),
+                          size: 12, color: AppColor.ungu),
+                      const SizedBox(width: 3),
                       Expanded(
                         child: Text(
                           w.lokasi,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.manrope(
-                            fontSize: 10,
+                            fontSize: 9,
                             color: AppColor.abu,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
 
                   // nama
                   Text(
@@ -127,12 +127,12 @@ class TerpopulerWisata extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.manrope(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: AppColor.hitam,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
 
                   // chip tipe + poin
                   if (w.tipe != null || w.poin != null)
@@ -141,7 +141,7 @@ class TerpopulerWisata extends StatelessWidget {
                         if (w.tipe != null)
                           _chip(Icons.check_circle, w.tipe!, AppColor.biru),
                         if (w.tipe != null && w.poin != null)
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 4),
                         if (w.poin != null)
                           _chip(
                             Icons.monetization_on_outlined,
@@ -166,7 +166,7 @@ class TerpopulerWisata extends StatelessWidget {
                               Text(
                                 formatRupiah(w.hargaAsli!),
                                 style: GoogleFonts.manrope(
-                                  fontSize: 11,
+                                  fontSize: 9,
                                   color: AppColor.abu,
                                   decoration: TextDecoration.lineThrough,
                                 ),
@@ -174,7 +174,7 @@ class TerpopulerWisata extends StatelessWidget {
                             Text(
                               formatRupiah(w.harga),
                               style: GoogleFonts.outfit(
-                                fontSize: 17,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w700,
                                 color: AppColor.ungu,
                               ),
@@ -190,18 +190,20 @@ class TerpopulerWisata extends StatelessWidget {
                           backgroundColor: AppColor.ungu,
                           foregroundColor: AppColor.putih,
                           elevation: 0,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 12,
+                            horizontal: 12,
+                            vertical: 8,
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                         child: Text(
                           'Beli Tiket',
                           style: GoogleFonts.manrope(
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -219,21 +221,21 @@ class TerpopulerWisata extends StatelessWidget {
 
   Widget _chip(IconData ikon, String teks, Color warna) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: warna.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: warna.withValues(alpha: 0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(ikon, size: 11, color: warna),
-          const SizedBox(width: 4),
+          Icon(ikon, size: 10, color: warna),
+          const SizedBox(width: 3),
           Text(
             teks,
             style: GoogleFonts.manrope(
-              fontSize: 9,
+              fontSize: 8,
               fontWeight: FontWeight.w700,
               color: warna,
             ),

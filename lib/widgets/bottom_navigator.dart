@@ -45,7 +45,7 @@ class BottomNavigator extends StatelessWidget {
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => tujuan,
+        pageBuilder: (_, _, _) => tujuan,
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
       ),

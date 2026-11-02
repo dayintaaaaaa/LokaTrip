@@ -54,7 +54,7 @@ class _KeamananAkunScreensState extends State<KeamananAkunScreens> {
                       trailing: Switch(
                         value: _biometrik,
                         onChanged: (v) => setState(() => _biometrik = v),
-                        activeColor: AppColor.putih,
+                        activeThumbColor: AppColor.putih,
                         activeTrackColor: AppColor.ungu,
                         inactiveThumbColor: AppColor.putih,
                         inactiveTrackColor: AppColor.abu.withValues(alpha: 0.4),
@@ -258,7 +258,7 @@ class _KeamananAkunScreensState extends State<KeamananAkunScreens> {
                 ],
               ),
             ),
-            if (trailing != null) trailing,
+            ?trailing,
             if (trailing is! Switch && tampilChevron)
               const Icon(Icons.chevron_right, size: 16, color: AppColor.hitam),
           ],
