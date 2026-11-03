@@ -19,6 +19,8 @@ class Wisata {
   final String? labelGambar; // label kecil di atas gambar
   final String? termasuk; // contoh: 'Termasuk Tiket Masuk & Sarapan'
   final String? satuanHarga; // contoh: '/orang', '/malam'
+  final List<String> fitur; // chip kecil, contoh: ['Bisa Reschedule']
+  final String? bonus; // contoh: 'Bonus Cashback 10% Poin Loka'
 
   const Wisata({
     required this.id,
@@ -41,6 +43,8 @@ class Wisata {
     this.labelGambar,
     this.termasuk,
     this.satuanHarga,
+    this.fitur = const [],
+    this.bonus,
   });
 
   // persen diskon dihitung otomatis dari dua harga

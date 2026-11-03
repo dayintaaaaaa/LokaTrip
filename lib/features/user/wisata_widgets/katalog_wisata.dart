@@ -105,8 +105,8 @@ class KatalogWisata extends StatelessWidget {
                       ),
                     ),
                   Positioned(
-                    top: 2,
-                    right: 2,
+                    top: 4,
+                    right: 6,
                     child: TombolFavorit(wisataId: w.id),
                   ),
                 ],

@@ -7,6 +7,7 @@ import '../../../widgets/badge_rating.dart';
 import '../../../widgets/gambar_wisata.dart';
 import '../../../widgets/tombol_favorit.dart';
 import '../home_widgets/section_title.dart';
+import '../../user/destinasi_populer_screens.dart';
 
 class TerpopulerWisata extends StatelessWidget {
   final List<Wisata> daftar;
@@ -17,8 +18,9 @@ class TerpopulerWisata extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lebarKartu =
-        (MediaQuery.of(context).size.width * 0.62).clamp(220.0, 270.0).toDouble();
+    final lebarKartu = (MediaQuery.of(context).size.width * 0.62)
+        .clamp(220.0, 270.0)
+        .toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -30,7 +32,12 @@ class TerpopulerWisata extends StatelessWidget {
           ikonAksi: Icons.chevron_right,
           ikonDiAkhir: true,
           onLihatSemua: () {
-            // nanti: buka daftar lengkap
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const DestinasiPopulerScreens(),
+              ),
+            );
           },
         ),
         const SizedBox(height: 12),
@@ -88,7 +95,11 @@ class TerpopulerWisata extends StatelessWidget {
                           : ringkasAngka(w.jumlahUlasan!),
                     ),
                   ),
-                Positioned(top: 2, right: 2, child: TombolFavorit(wisataId: w.id)),
+                Positioned(
+                  top: 4,
+                  right: 6,
+                  child: TombolFavorit(wisataId: w.id),
+                ),
               ],
             ),
           ),
@@ -103,8 +114,11 @@ class TerpopulerWisata extends StatelessWidget {
                   // lokasi
                   Row(
                     children: [
-                      Icon(Icons.location_on_outlined,
-                          size: 12, color: AppColor.ungu),
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 12,
+                        color: AppColor.ungu,
+                      ),
                       const SizedBox(width: 3),
                       Expanded(
                         child: Text(

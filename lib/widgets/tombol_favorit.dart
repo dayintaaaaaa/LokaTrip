@@ -25,14 +25,12 @@ class TombolFavorit extends StatelessWidget {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: aktif
-                      ? AppColor.kuning
-                      : AppColor.putih.withValues(alpha: 0.95),
+                  color: aktif ? AppColor.kuning : AppColor.putih,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  aktif ? Icons.favorite : Icons.favorite_border,
-                  size: 16,
+                  Icons.favorite,
+                  size: 15,
                   color: aktif ? AppColor.putih : AppColor.abu,
                 ),
               ),

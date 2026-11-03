@@ -1,43 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
+import '../../core/favorite_store.dart';
 import '../../core/format.dart';
+import '../../core/format_rupiah.dart' show ringkasAngka;
+import '../../models/wisata.dart';
+import '../../models/wisata_dummy.dart';
+import '../../widgets/gambar_wisata.dart';
 import '../../widgets/sub_app_bar.dart';
-
-// TODO: ganti model ini dengan model dari backend
-class _Wisata {
-  final String judul;
-  final String lokasi;
-  final String rating;
-  final String ulasan;
-  final String kategori;
-  final String badge; // "Diskon 25%", "Popular Choice", dst
-  final Color badgeWarna;
-  final Color badgeTeks;
-  final String chipInfo; // "Tiket Instan QR", "Konfirmasi Instan", dst
-  final IconData chipIcon;
-  final int hargaCoret;
-  final int harga;
-  final Color warnaGambar;
-  bool favorit;
-
-  _Wisata({
-    required this.judul,
-    required this.lokasi,
-    required this.rating,
-    required this.ulasan,
-    required this.kategori,
-    required this.badge,
-    required this.badgeWarna,
-    required this.badgeTeks,
-    required this.chipInfo,
-    required this.chipIcon,
-    required this.hargaCoret,
-    required this.harga,
-    required this.warnaGambar,
-    this.favorit = true,
-  });
-}
+import '../../widgets/tombol_favorit.dart';
 
 class WishlistScreens extends StatefulWidget {
   const WishlistScreens({super.key});
@@ -47,74 +18,20 @@ class WishlistScreens extends StatefulWidget {
 }
 
 class _WishlistScreensState extends State<WishlistScreens> {
-  // TODO: ganti dengan data dari backend
-  final List<_Wisata> _daftar = [
-    _Wisata(
-      judul: 'Candi Borobudur Sunrise Tour',
-      lokasi: 'Magelang, Jawa Tengah',
-      rating: '4.9',
-      ulasan: '2.4k ulasan',
-      kategori: 'Budaya & Heritage',
-      badge: 'Diskon 25%',
-      badgeWarna: AppColor.kuning,
-      badgeTeks: AppColor.ungu,
-      chipInfo: 'Tiket Instan QR',
-      chipIcon: Icons.qr_code_2,
-      hargaCoret: 500000,
-      harga: 375000,
-      warnaGambar: AppColor.kuning,
-    ),
-    _Wisata(
-      judul: 'Nusa Penida Island Tour & Snorkeling',
-      lokasi: 'Nusa Penida, Bali',
-      rating: '4.8',
-      ulasan: '1.8k ulasan',
-      kategori: 'Bahari & Snorkel',
-      badge: 'Diskon 15%',
-      badgeWarna: AppColor.kuning,
-      badgeTeks: AppColor.ungu,
-      chipInfo: 'Konfirmasi Instan',
-      chipIcon: Icons.bolt,
-      hargaCoret: 650000,
-      harga: 550000,
-      warnaGambar: AppColor.biru,
-    ),
-    _Wisata(
-      judul: 'Bromo Milky Way & Sunrise Jeep Tour',
-      lokasi: 'Probolinggo, Jawa Timur',
-      rating: '4.9',
-      ulasan: '3.1k ulasan',
-      kategori: 'Alam & Petualangan',
-      badge: 'Popular Choice',
-      badgeWarna: AppColor.ungu,
-      badgeTeks: AppColor.putih,
-      chipInfo: 'Tiket Instan QR',
-      chipIcon: Icons.qr_code_2,
-      hargaCoret: 480000,
-      harga: 420000,
-      warnaGambar: AppColor.ungu,
-    ),
-    _Wisata(
-      judul: 'Waterbom Bali All-Day Pass',
-      lokasi: 'Kuta, Badung, Bali',
-      rating: '4.8',
-      ulasan: '4.2k ulasan',
-      kategori: 'Wahana & Rekreasi',
-      badge: 'Diskon 20%',
-      badgeWarna: AppColor.kuning,
-      badgeTeks: AppColor.ungu,
-      chipInfo: 'Konfirmasi Langsung',
-      chipIcon: Icons.location_on_outlined,
-      hargaCoret: 395000,
-      harga: 315000,
-      warnaGambar: AppColor.biru,
-    ),
-  ];
+  // Daftar diambil sekali saat halaman dibuka: wisata yang sedang difavoritkan.
+  // Kalau hati ditekan lagi di sini, kartunya tetap tampil (hati jadi putih)
+  // sampai halaman ditutup, jadi masih bisa dibatalkan.
+  late final List<Wisata> _daftar;
+
+  @override
+  void initState() {
+    super.initState();
+    final ids = Set<int>.from(FavoritStore.ids.value);
+    _daftar = WisataDummy.semuaWisata.where((w) => ids.contains(w.id)).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final tersimpan = _daftar.where((w) => w.favorit).length;
-
     return Scaffold(
       backgroundColor: AppColor.latar,
       body: Column(
@@ -140,15 +57,25 @@ class _WishlistScreensState extends State<WishlistScreens> {
                   ],
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '$tersimpan Wisata Tersimpan',
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    color: AppColor.abu,
-                  ),
+
+                // jumlah ikut berubah saat hati ditekan
+                ValueListenableBuilder<Set<int>>(
+                  valueListenable: FavoritStore.ids,
+                  builder: (context, ids, _) {
+                    final tersimpan =
+                        _daftar.where((w) => ids.contains(w.id)).length;
+                    return Text(
+                      '$tersimpan Wisata Tersimpan',
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        color: AppColor.abu,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
-                ..._daftar.map(_kartu),
+
+                if (_daftar.isEmpty) _kosong() else ..._daftar.map(_kartu),
               ],
             ),
           ),
@@ -157,7 +84,33 @@ class _WishlistScreensState extends State<WishlistScreens> {
     );
   }
 
-  Widget _kartu(_Wisata w) {
+  Widget _kosong() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 60),
+      child: Column(
+        children: [
+          const Icon(Icons.favorite_border, size: 40, color: AppColor.abu),
+          const SizedBox(height: 8),
+          Text(
+            'Belum ada wisata tersimpan',
+            style: GoogleFonts.manrope(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColor.abu,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Tekan ikon hati di kartu wisata untuk menyimpannya',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.manrope(fontSize: 10, color: AppColor.abu),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _kartu(Wisata w) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
@@ -182,7 +135,7 @@ class _WishlistScreensState extends State<WishlistScreens> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  w.judul,
+                  w.nama,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
@@ -197,11 +150,15 @@ class _WishlistScreensState extends State<WishlistScreens> {
                     const Icon(Icons.location_on_outlined,
                         size: 12, color: AppColor.ungu),
                     const SizedBox(width: 3),
-                    Text(
-                      w.lokasi,
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        color: AppColor.abu,
+                    Expanded(
+                      child: Text(
+                        w.lokasi,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          color: AppColor.abu,
+                        ),
                       ),
                     ),
                   ],
@@ -214,14 +171,15 @@ class _WishlistScreensState extends State<WishlistScreens> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Rp ${formatAngka(w.hargaCoret)}',
-                            style: GoogleFonts.manrope(
-                              fontSize: 10,
-                              color: AppColor.abu,
-                              decoration: TextDecoration.lineThrough,
+                          if (w.hargaAsli != null)
+                            Text(
+                              'Rp ${formatAngka(w.hargaAsli!)}',
+                              style: GoogleFonts.manrope(
+                                fontSize: 10,
+                                color: AppColor.abu,
+                                decoration: TextDecoration.lineThrough,
+                              ),
                             ),
-                          ),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.baseline,
                             textBaseline: TextBaseline.alphabetic,
@@ -241,13 +199,14 @@ class _WishlistScreensState extends State<WishlistScreens> {
                                   color: AppColor.ungu,
                                 ),
                               ),
-                              Text(
-                                ' /org',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 10,
-                                  color: AppColor.abu,
+                              if (w.satuanHarga != null)
+                                Text(
+                                  ' ${w.satuanHarga}',
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 10,
+                                    color: AppColor.abu,
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ],
@@ -292,29 +251,39 @@ class _WishlistScreensState extends State<WishlistScreens> {
     );
   }
 
-  Widget _gambar(_Wisata w) {
+  IconData _ikonTipe(String tipe) {
+    final t = tipe.toLowerCase();
+    if (t.contains('qr')) return Icons.qr_code_2;
+    if (t.contains('instan') || t.contains('instant')) return Icons.bolt;
+    return Icons.check_circle_outline;
+  }
+
+  Widget _gambar(Wisata w) {
+    // label kiri atas: diskon kalau ada, kalau tidak 'Popular Choice'
+    // untuk rating tinggi
+    String? teksBadge;
+    Color warnaBadge = AppColor.kuning;
+    Color warnaTeksBadge = AppColor.ungu;
+    if (w.diskonPersen > 0) {
+      teksBadge = 'Diskon ${w.diskonPersen}%';
+    } else if ((w.rating ?? 0) >= 4.9) {
+      teksBadge = 'Popular Choice';
+      warnaBadge = AppColor.ungu;
+      warnaTeksBadge = AppColor.putih;
+    }
+
+    final labelKategori = w.kategori ?? w.subkategori;
+
     return SizedBox(
       height: 150,
       width: double.infinity,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // TODO: ganti dengan Image.network(gambarDariBackend, fit: BoxFit.cover)
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  w.warnaGambar.withValues(alpha: 0.6),
-                  w.warnaGambar.withValues(alpha: 0.9),
-                ],
-              ),
-            ),
-            child: Icon(Icons.landscape_outlined,
-                size: 48, color: AppColor.putih.withValues(alpha: 0.5)),
-          ),
+          // gambar (placeholder sama dengan halaman lain)
+          GambarWisata(path: w.gambar),
 
+          // bayangan gelap di bawah supaya teks rating terbaca
           Positioned(
             left: 0,
             right: 0,
@@ -340,73 +309,59 @@ class _WishlistScreensState extends State<WishlistScreens> {
             left: 10,
             child: Row(
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: w.badgeWarna,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    w.badge,
-                    style: GoogleFonts.manrope(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      color: w.badgeTeks,
+                if (teksBadge != null)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: warnaBadge,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      teksBadge,
+                      style: GoogleFonts.manrope(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: warnaTeksBadge,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColor.putih.withValues(alpha: 0.92),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(w.chipIcon, size: 11, color: AppColor.ungu),
-                      const SizedBox(width: 3),
-                      Text(
-                        w.chipInfo,
-                        style: GoogleFonts.manrope(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: AppColor.ungu,
+                if (teksBadge != null && w.tipe != null)
+                  const SizedBox(width: 6),
+                if (w.tipe != null)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColor.putih.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_ikonTipe(w.tipe!),
+                            size: 11, color: AppColor.ungu),
+                        const SizedBox(width: 3),
+                        Text(
+                          w.tipe!,
+                          style: GoogleFonts.manrope(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: AppColor.ungu,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
               ],
             ),
           ),
 
-          // tombol love
+          // tombol love: sama dengan kartu di halaman Wisata
           Positioned(
-            top: 8,
-            right: 10,
-            child: GestureDetector(
-              onTap: () {
-                // TODO: panggil API hapus/tambah wishlist
-                setState(() => w.favorit = !w.favorit);
-              },
-              child: Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: w.favorit ? AppColor.kuning : AppColor.putih,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.favorite,
-                  size: 15,
-                  color: w.favorit ? AppColor.putih : AppColor.abu,
-                ),
-              ),
-            ),
+            top: 4,
+            right: 6,
+            child: TombolFavorit(wisataId: w.id),
           ),
 
           // rating + kategori
@@ -416,42 +371,47 @@ class _WishlistScreensState extends State<WishlistScreens> {
             bottom: 8,
             child: Row(
               children: [
-                const Icon(Icons.star_rounded,
-                    size: 14, color: AppColor.kuning),
-                const SizedBox(width: 3),
-                Text(
-                  w.rating,
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: AppColor.putih,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '(${w.ulasan})',
-                  style: GoogleFonts.manrope(
-                    fontSize: 9,
-                    color: AppColor.putih.withValues(alpha: 0.85),
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColor.hitam.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    w.kategori,
+                if (w.rating != null) ...[
+                  const Icon(Icons.star_rounded,
+                      size: 14, color: AppColor.kuning),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${w.rating}',
                     style: GoogleFonts.manrope(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
                       color: AppColor.putih,
                     ),
                   ),
-                ),
+                  if (w.jumlahUlasan != null) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      '(${ringkasAngka(w.jumlahUlasan!)} ulasan)',
+                      style: GoogleFonts.manrope(
+                        fontSize: 9,
+                        color: AppColor.putih.withValues(alpha: 0.85),
+                      ),
+                    ),
+                  ],
+                ],
+                const Spacer(),
+                if (labelKategori != null)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColor.hitam.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      labelKategori,
+                      style: GoogleFonts.manrope(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: AppColor.putih,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

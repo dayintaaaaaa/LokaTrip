@@ -4,6 +4,8 @@ import '../../../core/app_color.dart';
 import '../../../core/format_rupiah.dart';
 import '../../../models/wisata.dart';
 import '../../../widgets/gambar_wisata.dart';
+import '../../../widgets/tombol_favorit.dart';
+import '../../user/destinasi_populer_screens.dart';
 import 'section_title.dart';
 
 class DestinasiPopuler extends StatelessWidget {
@@ -13,8 +15,9 @@ class DestinasiPopuler extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lebarKartu =
-      (MediaQuery.of(context).size.width * 0.75).clamp(240.0, 320.0).toDouble();
+    final lebarKartu = (MediaQuery.of(context).size.width * 0.75)
+        .clamp(240.0, 320.0)
+        .toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -24,7 +27,12 @@ class DestinasiPopuler extends StatelessWidget {
           subjudul: 'Pilihan favorit para traveler pekan ini',
           warnaAksen: AppColor.biru,
           onLihatSemua: () {
-            // nanti: buka halaman Wisata
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const DestinasiPopulerScreens(),
+              ),
+            );
           },
         ),
         const SizedBox(height: 14),
@@ -46,25 +54,18 @@ class DestinasiPopuler extends StatelessWidget {
   }
 }
 
-class _KartuPopuler extends StatefulWidget {
+class _KartuPopuler extends StatelessWidget {
   final Wisata wisata;
   final double lebar;
 
   const _KartuPopuler({required this.wisata, required this.lebar});
 
   @override
-  State<_KartuPopuler> createState() => _KartuPopulerState();
-}
-
-class _KartuPopulerState extends State<_KartuPopuler> {
-  bool _favorit = false;
-
-  @override
   Widget build(BuildContext context) {
-    final w = widget.wisata;
+    final w = wisata;
 
     return Container(
-      width: widget.lebar,
+      width: lebar,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColor.putih,
@@ -119,27 +120,11 @@ class _KartuPopulerState extends State<_KartuPopuler> {
                     ),
                   ),
 
+                // hati: sama dengan halaman Wisata dan Wishlist
                 Positioned(
-                  top: 8,
-                  right: 8,
-                  child: GestureDetector(
-                    onTap: () => setState(() => _favorit = !_favorit),
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: AppColor.putih.withValues(alpha: 0.9),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        _favorit ? Icons.favorite : Icons.favorite_border,
-                        size: 16,
-                        color: _favorit
-                            ? const Color(0xFFE5484D)
-                            : AppColor.abu,
-                      ),
-                    ),
-                  ),
+                  top: 4,
+                  right: 6,
+                  child: TombolFavorit(wisataId: w.id),
                 ),
               ],
             ),
@@ -167,8 +152,11 @@ class _KartuPopulerState extends State<_KartuPopuler> {
                       ),
                     ),
                     if (w.rating != null) ...[
-                      Icon(Icons.star_rounded,
-                          size: 13, color: AppColor.kuning),
+                      Icon(
+                        Icons.star_rounded,
+                        size: 13,
+                        color: AppColor.kuning,
+                      ),
                       const SizedBox(width: 2),
                       Text(
                         '${w.rating}',
@@ -207,8 +195,11 @@ class _KartuPopulerState extends State<_KartuPopuler> {
                 // lokasi
                 Row(
                   children: [
-                    Icon(Icons.location_on_outlined,
-                        size: 13, color: AppColor.ungu),
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 13,
+                      color: AppColor.ungu,
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
@@ -225,10 +216,7 @@ class _KartuPopulerState extends State<_KartuPopuler> {
                 ),
 
                 const SizedBox(height: 10),
-                Divider(
-                  height: 1,
-                  color: AppColor.abu.withValues(alpha: 0.25),
-                ),
+                Divider(height: 1, color: AppColor.abu.withValues(alpha: 0.25)),
                 const SizedBox(height: 10),
 
                 // harga + chip refund

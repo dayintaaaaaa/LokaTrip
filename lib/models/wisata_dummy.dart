@@ -7,6 +7,18 @@ class WisataDummy {
     const Duration(hours: 4, minutes: 28, seconds: 10),
   );
 
+  // gabungan semua wisata, dipakai Wishlist untuk mencari id yang difavoritkan.
+  // id harus unik antar daftar.
+  static List<Wisata> get semuaWisata => [
+    ...flashSale,
+    ...populer,
+    ...tripAkhirPekan,
+    ...flashKilat,
+    ...terpopuler,
+    ...katalog,
+    ...destinasiPopuler,
+  ];
+
   static const List<Wisata> flashSale = [
     Wisata(
       id: 1,
@@ -148,7 +160,7 @@ class WisataDummy {
     ),
   ];
 
-    static const List<Wisata> terpopuler = [
+  static const List<Wisata> terpopuler = [
     Wisata(
       id: 301,
       nama: 'Candi Borobudur Heritage & Sunrise Pass',
@@ -221,6 +233,79 @@ class WisataDummy {
       rating: 4.7,
       jumlahUlasan: 2100,
       satuanHarga: '/orang',
+    ),
+  ];
+
+  static const List<Wisata> destinasiPopuler = [
+    Wisata(
+      id: 501,
+      nama: 'Candi Borobudur Heritage & Sunrise Access',
+      lokasi: 'Magelang, Jawa Tengah',
+      kota: 'Jawa Tengah',
+      subkategori: 'Cagar Budaya UNESCO',
+      labelGambar: '#1 TERLARIS MINGGU INI',
+      harga: 65000,
+      hargaAsli: 75000,
+      rating: 4.9,
+      jumlahUlasan: 14200,
+      satuanHarga: '/orang',
+      fitur: ['Konfirmasi Instan', 'Bisa Reschedule'],
+      bonus: 'Bonus Cashback 10% Poin Loka',
+    ),
+    Wisata(
+      id: 502,
+      nama: 'Garuda Wisnu Kencana (GWK) Cultural Park',
+      lokasi: 'Badung, Bali',
+      kota: 'Bali',
+      subkategori: 'Taman Budaya & Teater',
+      labelGambar: '#2 Terpopuler Bali',
+      harga: 90000,
+      hargaAsli: 125000,
+      rating: 4.8,
+      jumlahUlasan: 3800,
+      satuanHarga: '/orang',
+      fitur: ['Tiket Masuk Langsung Scan', 'Gratis Masuk Area Artisan'],
+    ),
+    Wisata(
+      id: 503,
+      nama: 'Candi Prambanan & Pertunjukan Ramayana',
+      lokasi: 'Sleman, D.I. Yogyakarta',
+      kota: 'Yogyakarta',
+      subkategori: 'Wisata Sejarah',
+      labelGambar: '#3 Wisata Budaya',
+      harga: 65000,
+      hargaAsli: 85000,
+      rating: 4.8,
+      jumlahUlasan: 2400,
+      satuanHarga: '/orang',
+      fitur: ['E-Voucher Langsung Terbit', 'Termasuk Tiket Masuk'],
+    ),
+    Wisata(
+      id: 504,
+      nama: 'Jatim Park 3 & Dino Park Terusan',
+      lokasi: 'Batu, Jawa Timur',
+      kota: 'Jawa Timur',
+      subkategori: 'Theme Park & Edukasi',
+      labelGambar: 'Pilihan Keluarga',
+      harga: 98000,
+      hargaAsli: 140000,
+      rating: 4.8,
+      jumlahUlasan: 1900,
+      satuanHarga: '/orang',
+      fitur: ['Akses Terusan', 'Kids Friendly'],
+    ),
+    Wisata(
+      id: 505,
+      nama: 'Pantai Parangtritis Sunset Jeep Adventure',
+      lokasi: 'Bantul, Yogyakarta',
+      kota: 'Yogyakarta',
+      subkategori: 'Outdoor Adventure',
+      labelGambar: '#5 Wisata Adrenalin',
+      harga: 320000,
+      rating: 4.8,
+      jumlahUlasan: 850,
+      satuanHarga: '/jeep',
+      fitur: ['Gratis Driver & BBM', 'Termasuk Asuransi'],
     ),
   ];
 }
