@@ -7,7 +7,7 @@ import '../../widgets/sub_app_bar.dart';
 // TODO: ganti model ini dengan model dari backend
 class _Mutasi {
   final String judul;
-  final String waktu;
+  final DateTime waktu;
   final int jumlah; // negatif = poin terpakai, positif = poin masuk
   final int sisa;
 
@@ -21,28 +21,105 @@ class _GrupBulan {
   const _GrupBulan(this.bulan, this.items);
 }
 
-class RiwayatPoinScreens extends StatelessWidget {
+class RiwayatPoinScreens extends StatefulWidget {
   const RiwayatPoinScreens({super.key});
 
+  @override
+  State<RiwayatPoinScreens> createState() => _RiwayatPoinScreensState();
+}
+
+class _RiwayatPoinScreensState extends State<RiwayatPoinScreens> {
   final int _saldoAktif = 24500;
   final int _akanKedaluwarsa = 1200;
   final String _tglKedaluwarsa = '31 Des 2024';
 
-  static const List<_GrupBulan> _data = [
+  // rentang tanggal yang dipilih user (null = tampilkan semua)
+  DateTimeRange? _rentang;
+
+  static const _namaBulan = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+  ];
+
+  static final List<_GrupBulan> _data = [
     _GrupBulan('OKTOBER 2024', [
-      _Mutasi('Tukar Voucher Wisata', '24 Okt 2024 • 14:20 WIB', -8000, 24500),
-      _Mutasi('Cashback Tiket Waterbom Bali', '23 Okt 2024 • 10:15 WIB', 2400, 32500),
-      _Mutasi('Ulasan Foto Candi Borobudur', '18 Okt 2024 • 19:40 WIB', 500, 30100),
+      _Mutasi('Tukar Voucher Wisata', DateTime(2024, 10, 24, 14, 20), -8000, 24500),
+      _Mutasi('Cashback Tiket Waterbom Bali', DateTime(2024, 10, 23, 10, 15), 2400, 32500),
+      _Mutasi('Ulasan Foto Candi Borobudur', DateTime(2024, 10, 18, 19, 40), 500, 30100),
     ]),
     _GrupBulan('SEPTEMBER 2024', [
-      _Mutasi('Reward Misi Jelajah Nusantara', '30 Sep 2024 • 23:59 WIB', 2000, 29600),
-      _Mutasi('Potongan Tiket GWK Bali', '15 Sep 2024 • 08:30 WIB', -5000, 27600),
-      _Mutasi('Bonus Ulang Tahun Anggota', '14 Agu 2024 • 00:00 WIB', 1000, 32600),
+      _Mutasi('Reward Misi Jelajah Nusantara', DateTime(2024, 9, 30, 23, 59), 2000, 29600),
+      _Mutasi('Potongan Tiket GWK Bali', DateTime(2024, 9, 15, 8, 30), -5000, 27600),
+      _Mutasi('Bonus Ulang Tahun Anggota', DateTime(2024, 8, 14, 0, 0), 1000, 32600),
     ]),
   ];
 
+  // ---------------- format tanggal ----------------
+  String _tgl(DateTime d) => '${d.day} ${_namaBulan[d.month - 1]} ${d.year}';
+
+  String _jam(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+  String _waktuLengkap(DateTime d) => '${_tgl(d)} • ${_jam(d)} WIB';
+
+  // ---------------- kalender ----------------
+  Future<void> _pilihTanggal() async {
+    // TODO: kalau sudah pakai data backend, ganti ke 3 bulan terakhir
+    final semua = _data.expand((g) => g.items).map((m) => m.waktu).toList()
+      ..sort();
+    final awalData = DateTime(semua.first.year, semua.first.month, semua.first.day);
+    final akhirData = DateTime(semua.last.year, semua.last.month, semua.last.day);
+
+    final hasil = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2023),
+      lastDate: DateTime.now(),
+      initialDateRange:
+          _rentang ?? DateTimeRange(start: awalData, end: akhirData),
+      helpText: 'Pilih rentang tanggal',
+      saveText: 'Terapkan',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColor.ungu,
+              onPrimary: AppColor.putih,
+              onSurface: AppColor.hitam,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (hasil != null) {
+      setState(() => _rentang = hasil);
+    }
+  }
+
+  // data setelah difilter, grup yang kosong dibuang
+  List<_GrupBulan> get _tampil {
+    final r = _rentang;
+    if (r == null) return _data;
+
+    final awal = DateTime(r.start.year, r.start.month, r.start.day);
+    final akhir = DateTime(r.end.year, r.end.month, r.end.day, 23, 59, 59);
+
+    return _data
+        .map((g) => _GrupBulan(
+              g.bulan,
+              g.items
+                  .where((m) => !m.waktu.isBefore(awal) && !m.waktu.isAfter(akhir))
+                  .toList(),
+            ))
+        .where((g) => g.items.isNotEmpty)
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final tampil = _tampil;
+
     return Scaffold(
       backgroundColor: AppColor.latar,
       body: Column(
@@ -50,11 +127,12 @@ class RiwayatPoinScreens extends StatelessWidget {
           SubAppBar(
             title: 'Riwayat Poin',
             trailing: IconButton(
-              onPressed: () {
-                // TODO: filter berdasarkan tanggal
-              },
-              icon: const Icon(Icons.calendar_today_outlined,
-                  size: 20, color: AppColor.hitam),
+              onPressed: _pilihTanggal,
+              icon: Icon(
+                Icons.calendar_today_outlined,
+                size: 20,
+                color: _rentang != null ? AppColor.ungu : AppColor.hitam,
+              ),
             ),
           ),
           Expanded(
@@ -62,8 +140,20 @@ class RiwayatPoinScreens extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
                 _ringkasan(),
+
+                // chip rentang tanggal aktif
+                if (_rentang != null) ...[
+                  const SizedBox(height: 12),
+                  _chipRentang(_rentang!),
+                ],
+
                 const SizedBox(height: 12),
-                ..._data.map(_grup),
+
+                if (tampil.isEmpty)
+                  _kosong()
+                else
+                  ...tampil.map(_grup),
+
                 const SizedBox(height: 16),
                 Center(
                   child: Column(
@@ -95,6 +185,80 @@ class RiwayatPoinScreens extends StatelessWidget {
     );
   }
 
+  // ---------------- chip rentang tanggal ----------------
+  Widget _chipRentang(DateTimeRange r) {
+    final sama = r.start == r.end;
+    final teks = sama ? _tgl(r.start) : '${_tgl(r.start)} – ${_tgl(r.end)}';
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.only(left: 12, right: 6, top: 6, bottom: 6),
+        decoration: BoxDecoration(
+          color: AppColor.ungu.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.calendar_today_outlined,
+                size: 12, color: AppColor.ungu),
+            const SizedBox(width: 6),
+            Text(
+              teks,
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColor.ungu,
+              ),
+            ),
+            const SizedBox(width: 4),
+            // hapus filter
+            GestureDetector(
+              onTap: () => setState(() => _rentang = null),
+              child: const Padding(
+                padding: EdgeInsets.all(2),
+                child: Icon(Icons.close, size: 15, color: AppColor.ungu),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------- kosong ----------------
+  Widget _kosong() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      decoration: BoxDecoration(
+        color: AppColor.putih,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.event_busy_outlined,
+              size: 36, color: AppColor.abu.withValues(alpha: 0.7)),
+          const SizedBox(height: 10),
+          Text(
+            'Tidak ada transaksi',
+            style: GoogleFonts.manrope(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColor.hitam,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Coba pilih rentang tanggal yang lain',
+            style: GoogleFonts.manrope(fontSize: 11, color: AppColor.abu),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------- ringkasan saldo ----------------
   Widget _ringkasan() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -190,6 +354,7 @@ class RiwayatPoinScreens extends StatelessWidget {
     );
   }
 
+  // ---------------- grup per bulan ----------------
   Widget _grup(_GrupBulan g) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -246,6 +411,7 @@ class RiwayatPoinScreens extends StatelessWidget {
     );
   }
 
+  // ---------------- satu baris mutasi ----------------
   Widget _baris(_Mutasi m) {
     final keluar = m.jumlah < 0;
     final warna = keluar ? AppColor.kuning : AppColor.biru;
@@ -283,7 +449,7 @@ class RiwayatPoinScreens extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  m.waktu,
+                  _waktuLengkap(m.waktu),
                   style: GoogleFonts.manrope(fontSize: 9, color: AppColor.abu),
                 ),
               ],

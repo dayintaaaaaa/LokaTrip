@@ -40,7 +40,7 @@ class SnkScreens extends StatelessWidget {
     ),
   ];
 
-  static const List<_Pasal> _pasal = [
+    static const List<_Pasal> _pasal = [
     _Pasal(
       Icons.badge_outlined,
       '1. Ketentuan Akun & Syarat Usia',
@@ -55,19 +55,31 @@ class SnkScreens extends StatelessWidget {
       Icons.storage_outlined,
       '2. Pengumpulan & Penggunaan Data Pribadi',
       'Nama, NIK KTP, geolokasi, dan rekaman pembayaran',
-      ['Isi pasal 2 diambil dari backend.'], // TODO
+      [
+        '2.1. LokaTrip mengumpulkan nama lengkap, NIK KTP atau nomor paspor, tanggal lahir, nomor telepon, email, dan lokasi perangkat hanya untuk keperluan penerbitan e-tiket, verifikasi identitas, dan perlindungan asuransi perjalanan.',
+        '2.2. Seluruh data identitas dienkripsi 256-bit dan hanya dibagikan kepada pengelola destinasi, maskapai, atau mitra resmi yang terkait langsung dengan pesanan Anda.',
+        '2.3. LokaTrip tidak menjual data pribadi kepada pihak mana pun. Anda dapat meminta perbaikan atau penghapusan data sesuai UU PDP No. 27 Tahun 2022 melalui menu bantuan.',
+      ],
     ),
     _Pasal(
       Icons.autorenew,
       '3. Pembatalan, Reschedule & Refund',
       'Prosedur pengembalian dana tiket & keadaan kahar (force majeure)',
-      ['Isi pasal 3 diambil dari backend.'], // TODO
+      [
+        '3.1. Setiap pemesanan bersifat final. Pembatalan karena kendala pribadi, perubahan rencana, atau cuaca biasa tidak dapat dikembalikan dananya.',
+        '3.2. Pengembalian dana hanya diberikan jika destinasi atau penyelenggara membatalkan layanan, atau terjadi keadaan kahar resmi seperti penutupan destinasi oleh pemerintah, bencana alam, atau larangan perjalanan.',
+        '3.3. Dana yang disetujui dikembalikan ke metode pembayaran awal atau dalam bentuk Loka-Poin, paling lambat 14 hari kerja setelah pengajuan diverifikasi.',
+      ],
     ),
     _Pasal(
       Icons.copyright_outlined,
       '4. Hak Kekayaan Intelektual & Mitra Resmi',
       'Lisensi foto atraksi, hak cipta materi, & sertifikasi pengelola',
-      ['Isi pasal 4 diambil dari backend.'], // TODO
+      [
+        '4.1. Seluruh foto, teks, logo, dan desain di aplikasi LokaTrip dilindungi hak cipta dan tidak boleh disalin atau diperjualbelikan tanpa izin tertulis.',
+        '4.2. Foto atraksi wisata digunakan berdasarkan lisensi dari pengelola destinasi dan kontributor resmi, termasuk foto ulasan yang diunggah pengguna dengan persetujuan.',
+        '4.3. Seluruh atraksi dan layanan yang dijual berasal dari mitra yang telah melewati proses verifikasi dan sertifikasi pengelola LokaTrip.',
+      ],
     ),
   ];
 
@@ -135,7 +147,7 @@ class SnkScreens extends StatelessWidget {
                   const SizedBox(height: 10),
                   ...List.generate(
                     _pasal.length,
-                    (i) => _kartuPasal(_pasal[i], terbuka: i == 0),
+                    (i) => _kartuPasal(_pasal[i]),
                   ),
 
                   const SizedBox(height: 12),

@@ -31,12 +31,124 @@ class _AkunScreensState extends State<AkunScreens> {
   final int _jumlahWishlist = 12;
   final int _eTiketAktif = 2;
 
+  // ---------------- dialog konfirmasi logout ----------------
+  Future<bool> _konfirmasiLogout() async {
+    final hasil = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: AppColor.putih,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColor.ungu.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.logout_rounded,
+                    size: 26, color: AppColor.ungu),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Keluar dari akun?',
+                style: GoogleFonts.manrope(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColor.hitam,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Kamu perlu masuk lagi untuk melihat pesanan dan promo.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  color: AppColor.abu,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColor.ungu,
+                        side: const BorderSide(color: AppColor.ungu),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Text(
+                        'Batal',
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColor.ungu,
+                        foregroundColor: AppColor.putih,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Text(
+                        'Keluar',
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // tap di luar dialog dianggap batal
+    return hasil ?? false;
+  }
+
+  // ---------------- proses logout ----------------
   Future<void> _logout() async {
+    final yakin = await _konfirmasiLogout();
+    if (!yakin) return;
+
     await SessionManager.logout();
     if (!mounted) return;
+
+    // pindah ke login dengan fade, semua halaman sebelumnya dihapus
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const LoginScreens()),
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const LoginScreens(),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 350),
+      ),
       (route) => false,
     );
   }
