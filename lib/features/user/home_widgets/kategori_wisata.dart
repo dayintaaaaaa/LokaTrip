@@ -2,17 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/app_color.dart';
 import '../../../models/kategori.dart';
+import '../../user/kategori_screens.dart';
 import 'section_title.dart';
 
 class KategoriWisata extends StatelessWidget {
   final bool tampilJudul;
   final int maxBaris; // jumlah baris maksimal label kategori
 
-  const KategoriWisata({
-    super.key,
-    this.tampilJudul = true,
-    this.maxBaris = 1,
-  });
+  const KategoriWisata({super.key, this.tampilJudul = true, this.maxBaris = 1});
 
   // 7 kategori + tile "Semua Kategori" di akhir
   static const _data = [...Kategori.daftar, Kategori.semua];
@@ -44,7 +41,15 @@ class KategoriWisata extends StatelessWidget {
               final k = _data[i];
               return InkWell(
                 onTap: () {
-                  // nanti: buka halaman wisata untuk kategori ini
+                  // tile "Semua Kategori" belum punya halaman
+                  if (k == Kategori.semua) return;
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => KategoriScreens(kategori: k),
+                    ),
+                  );
                 },
                 borderRadius: BorderRadius.circular(14),
                 child: Column(

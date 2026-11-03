@@ -9,6 +9,7 @@ class Wisata {
   final int? jumlahUlasan;
   final String? tipe; // contoh: 'Instant Pass', 'Konfirmasi Instan'
   final String? kategori; // harus sama dengan nama di Kategori.daftar
+  final String? jenis; // pengelompokan chip di halaman kategori
   final String? subkategori; // contoh: 'Petualangan Offroad & Pantai'
   final int? sisaTiket;
   final int? terjualPersen; // untuk progress bar flash sale (0-100)
@@ -33,6 +34,7 @@ class Wisata {
     this.jumlahUlasan,
     this.tipe,
     this.kategori,
+    this.jenis,
     this.subkategori,
     this.sisaTiket,
     this.terjualPersen,
