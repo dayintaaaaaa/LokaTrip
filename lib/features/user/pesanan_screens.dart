@@ -4,6 +4,7 @@ import '../../core/app_color.dart';
 import '../../core/pesanan_model.dart';
 import '../../widgets/bottom_navigator.dart';
 import 'ulasan_wisata_screens.dart';
+import 'home_screens.dart';
 
 TextStyle _gaya(
   double size, {
@@ -280,14 +281,29 @@ class _PesananScreensState extends State<PesananScreens> {
       child: Row(
         children: [
           IconButton(
-            onPressed: () => Navigator.maybePop(context),
-            icon: const Icon(Icons.arrow_back, size: 22, color: AppColor.hitam),
+            onPressed: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const HomeScreens(),
+                ),
+                (route) => false,
+              );
+            },
+            icon: const Icon(
+              Icons.arrow_back,
+              size: 22,
+              color: AppColor.hitam,
+            ),
           ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Pesanan Saya', style: _gaya(16, w: FontWeight.w800)),
+                Text(
+                  'Pesanan Saya',
+                  style: _gaya(16, w: FontWeight.w800),
+                ),
                 if (!_tabAktif)
                   Text(
                     '${_hitung(false, null)} Tiket Selesai Dikunjungi',
