@@ -9,8 +9,10 @@ class Wisata {
   final int? jumlahUlasan;
   final String? tipe; // contoh: 'Instant Pass', 'Konfirmasi Instan'
   final String? kategori; // harus sama dengan nama di Kategori.daftar
+  final List<String> kategoriLain; // kategori tambahan tempat wisata ini tampil
   final String? jenis; // pengelompokan chip di halaman kategori
   final String? subkategori; // contoh: 'Petualangan Offroad & Pantai'
+  final String? deskripsi; // kalimat singkat di bawah judul kartu
   final int? sisaTiket;
   final int? terjualPersen; // untuk progress bar flash sale (0-100)
   final int? poin; // contoh: 450 -> "+450 Poin"
@@ -34,8 +36,10 @@ class Wisata {
     this.jumlahUlasan,
     this.tipe,
     this.kategori,
+    this.kategoriLain = const [],
     this.jenis,
     this.subkategori,
+    this.deskripsi,
     this.sisaTiket,
     this.terjualPersen,
     this.poin,

@@ -9,6 +9,7 @@ import '../../widgets/bottom_navigator.dart';
 import 'kategori_widgets/banner_kategori.dart';
 import 'kategori_widgets/kartu_kategori.dart';
 import 'kategori_widgets/kartu_atraksi.dart';
+import 'kategori_widgets/kartu_tur.dart';
 
 class KategoriScreens extends StatefulWidget {
   final Kategori kategori;
@@ -36,7 +37,11 @@ class _KategoriScreensState extends State<KategoriScreens> {
 
   // semua wisata di kategori ini
   List<Wisata> get _daftarKategori => WisataDummy.semuaWisata
-      .where((w) => w.kategori == widget.kategori.nama)
+      .where(
+        (w) =>
+            w.kategori == widget.kategori.nama ||
+            w.kategoriLain.contains(widget.kategori.nama),
+      )
       .toList();
 
   // chip jenis dibuat otomatis dari data (urutan sesuai kemunculan)
@@ -130,18 +135,29 @@ class _KategoriScreensState extends State<KategoriScreens> {
     );
   }
 
-  // kategori yang kartunya menampilkan lokasi di bawah gambar
+  // gaya kartu per kategori; yang tidak terdaftar memakai gaya Candi
   static const _kartuLokasiDiBawah = {'Atraksi & Rekreasi'};
+  static const _kartuTur = {'Tur & Open Trip'};
+  static const _diskonSebagaiOff = {'Waterpark & Kolam'};
 
   Widget _kartu(Wisata w) {
     void bukaDetail() {
       // nanti: buka halaman Detail Wisata
     }
 
-    if (_kartuLokasiDiBawah.contains(widget.kategori.nama)) {
+    final nama = widget.kategori.nama;
+
+    if (_kartuLokasiDiBawah.contains(nama)) {
       return KartuAtraksi(wisata: w, onTap: bukaDetail);
     }
-    return KartuKategori(wisata: w, onTap: bukaDetail);
+    if (_kartuTur.contains(nama)) {
+      return KartuTur(wisata: w, onTap: bukaDetail);
+    }
+    return KartuKategori(
+      wisata: w,
+      onTap: bukaDetail,
+      diskonOff: _diskonSebagaiOff.contains(nama),
+    );
   }
 
   Widget _header() {

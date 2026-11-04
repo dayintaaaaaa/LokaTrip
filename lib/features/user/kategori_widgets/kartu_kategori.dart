@@ -10,7 +10,14 @@ class KartuKategori extends StatelessWidget {
   final Wisata wisata;
   final VoidCallback? onTap;
 
-  const KartuKategori({super.key, required this.wisata, this.onTap});
+  final bool diskonOff; // true = chip biru "20% OFF", false = "Hemat 20%"
+
+  const KartuKategori({
+    super.key,
+    required this.wisata,
+    this.onTap,
+    this.diskonOff = false,
+  });
 
   static const _gelap = Color(0xFF1A1A2E);
   static const _hemat = Color(0xFF8A5A00);
@@ -50,12 +57,29 @@ class KartuKategori extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
 
+                  // deskripsi
+                  if (w.deskripsi != null) ...[
+                    Text(
+                      w.deskripsi!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        color: AppColor.abu,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+
                   // rating + ulasan + chip keterangan
                   Row(
                     children: [
                       if (w.rating != null) ...[
-                        Icon(Icons.star_rounded,
-                            size: 13, color: AppColor.kuning),
+                        Icon(
+                          Icons.star_rounded,
+                          size: 13,
+                          color: AppColor.kuning,
+                        ),
                         const SizedBox(width: 2),
                         Text(
                           '${w.rating}',
@@ -135,16 +159,25 @@ class KartuKategori extends StatelessWidget {
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppColor.kuning
-                                          .withValues(alpha: 0.25),
+                                      color: diskonOff
+                                          ? AppColor.biru.withValues(
+                                              alpha: 0.18,
+                                            )
+                                          : AppColor.kuning.withValues(
+                                              alpha: 0.25,
+                                            ),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      'Hemat ${w.diskonPersen}%',
+                                      diskonOff
+                                          ? '${w.diskonPersen}% OFF'
+                                          : 'Hemat ${w.diskonPersen}%',
                                       style: GoogleFonts.manrope(
                                         fontSize: 9,
                                         fontWeight: FontWeight.w800,
-                                        color: _hemat,
+                                        color: diskonOff
+                                            ? AppColor.ungu
+                                            : _hemat,
                                       ),
                                     ),
                                   ),
@@ -293,16 +326,16 @@ class KartuKategori extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: unggulan ? AppColor.kuning : AppColor.putih.withValues(alpha: 0.95),
+        color: unggulan
+            ? AppColor.kuning
+            : AppColor.putih.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            unggulan
-                ? Icons.local_fire_department_rounded
-                : Icons.account_balance_outlined,
+            _ikonBadge(teks, unggulan),
             size: 11,
             color: unggulan ? _gelap : AppColor.ungu,
           ),
@@ -336,5 +369,14 @@ class KartuKategori extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  IconData _ikonBadge(String teks, bool unggulan) {
+    final k = teks.toLowerCase();
+    if (unggulan) return Icons.local_fire_department_rounded;
+    if (k.contains('instant')) return Icons.bolt;
+    if (k.contains('tiket')) return Icons.confirmation_number_outlined;
+    if (k.contains('wahana') || k.contains('kolam')) return Icons.pool;
+    return Icons.account_balance_outlined;
   }
 }

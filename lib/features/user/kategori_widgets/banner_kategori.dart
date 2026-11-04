@@ -95,79 +95,132 @@ class BannerKategori extends StatelessWidget {
                   ),
                 ),
 
-                // kode + salin (hanya kalau ada kode)
+                // baris kode (hanya kalau ada kode)
                 if (promo.kode != null) ...[
                   const SizedBox(height: 10),
-                  _barisKode(context, promo.kode!),
+                  _barisKode(context),
                 ],
               ],
             ),
           ),
 
-          // tombol kanan (hanya kalau ada)
+          // slot kanan: tombol, atau ikon hias
           if (promo.tombol != null) ...[
             const SizedBox(width: 12),
-            _tombol(context, promo.tombol!),
+            _tombol(context),
+          ] else if (promo.ikon != null) ...[
+            const SizedBox(width: 12),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColor.putih.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(promo.ikon, size: 20, color: AppColor.putih),
+            ),
           ],
         ],
       ),
     );
   }
 
-  Widget _barisKode(BuildContext context, String kode) {
+  Future<void> _salin(BuildContext context, String kode) async {
+    await Clipboard.setData(ClipboardData(text: kode));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Kode $kode disalin'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Widget _barisKode(BuildContext context) {
+    final kode = promo.kode!;
+    final kotakPutih = promo.awalanKode != null;
+    final linkSalin =
+        !kotakPutih && promo.tombol == null && promo.catatan == null;
+
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: AppColor.kuning.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColor.kuning),
-          ),
-          child: Text(
-            kode,
+        if (kotakPutih) ...[
+          Text(
+            promo.awalanKode!,
             style: GoogleFonts.manrope(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-              color: AppColor.kuning,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppColor.putih,
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        Flexible(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: kotakPutih
+                  ? AppColor.putih
+                  : AppColor.kuning.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(8),
+              border: kotakPutih ? null : Border.all(color: AppColor.kuning),
+            ),
+            child: Text(
+              kode,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.manrope(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+                color: kotakPutih ? AppColor.ungu : AppColor.kuning,
+              ),
             ),
           ),
         ),
         const Spacer(),
-        GestureDetector(
-          onTap: () async {
-            await Clipboard.setData(ClipboardData(text: kode));
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Kode $kode disalin'),
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          },
-          child: Row(
-            children: [
-              Icon(Icons.copy_rounded, size: 13, color: AppColor.putih),
-              const SizedBox(width: 4),
-              Text(
-                'Salin Kode',
-                style: GoogleFonts.manrope(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: AppColor.putih,
+        if (promo.catatan != null)
+          Text(
+            promo.catatan!,
+            style: GoogleFonts.manrope(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: AppColor.putih,
+              decoration: TextDecoration.underline,
+              decorationColor: AppColor.putih,
+            ),
+          )
+        else if (linkSalin)
+          GestureDetector(
+            onTap: () => _salin(context, kode),
+            child: Row(
+              children: [
+                Icon(Icons.copy_rounded, size: 13, color: AppColor.putih),
+                const SizedBox(width: 4),
+                Text(
+                  'Salin Kode',
+                  style: GoogleFonts.manrope(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: AppColor.putih,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
       ],
     );
   }
 
-  Widget _tombol(BuildContext context, String teks) {
+  // tombol putih: menyalin kode kalau ada kode, selain itu klaim promo
+  Widget _tombol(BuildContext context) {
     return GestureDetector(
       onTap: () {
+        final kode = promo.kode;
+        if (kode != null) {
+          _salin(context, kode);
+          return;
+        }
         // nanti: simpan klaim promo ke akun user
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -183,7 +236,7 @@ class BannerKategori extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
-          teks,
+          promo.tombol!,
           style: GoogleFonts.manrope(
             fontSize: 12,
             fontWeight: FontWeight.w800,
