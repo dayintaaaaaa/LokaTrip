@@ -44,14 +44,16 @@ class _AkunScreensState extends State<AkunScreens> {
 
     final hasil = await showModalBottomSheet<bool>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppColor.putih,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-          child: Column(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               // handle
@@ -312,11 +314,12 @@ class _AkunScreensState extends State<AkunScreens> {
                     style: GoogleFonts.manrope(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
