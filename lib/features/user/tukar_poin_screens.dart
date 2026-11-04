@@ -92,13 +92,229 @@ class _TukarPoinScreensState extends State<TukarPoinScreens> {
     ),
   ];
 
-  void _tukar(_Kupon k) {
-    // TODO: panggil API penukaran poin
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Penukaran "${k.badge}" diproses',
-          style: GoogleFonts.manrope(),
+  // ---------------- alur penukaran ----------------
+  Future<void> _tukar(_Kupon k) async {
+    final yakin = await _dialogKonfirmasi(k);
+    if (!yakin || !mounted) return;
+
+    // TODO: panggil API penukaran poin.
+    // Hasil (diterima / ditolak) nanti dikirim backend lewat Notifikasi.
+    await _dialogDiproses();
+  }
+
+  Widget _ikonBulat(IconData icon, Color warna) {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        color: warna.withValues(alpha: 0.15),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, size: 28, color: warna),
+    );
+  }
+
+  Widget _barisInfo(String label, String nilai, {bool tebal = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.manrope(
+              fontSize: 11,
+              color: tebal ? AppColor.hitam : AppColor.abu,
+              fontWeight: tebal ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+          Text(
+            nilai,
+            style: GoogleFonts.manrope(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: tebal ? AppColor.ungu : AppColor.hitam,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // popup 1: konfirmasi
+  Future<bool> _dialogKonfirmasi(_Kupon k) async {
+    final sisa = _saldoPoin - k.harga;
+
+    final hasil = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: AppColor.putih,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ikonBulat(Icons.card_giftcard_rounded, AppColor.ungu),
+              const SizedBox(height: 14),
+              Text(
+                'Tukar Poin Sekarang?',
+                style: GoogleFonts.manrope(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColor.hitam,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                k.judul,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColor.hitam.withValues(alpha: 0.75),
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColor.ungu.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    _barisInfo('Harga kupon', '${formatAngka(k.harga)} Poin'),
+                    _barisInfo(
+                        'Saldo saat ini', '${formatAngka(_saldoPoin)} Poin'),
+                    Divider(
+                      height: 14,
+                      color: AppColor.abu.withValues(alpha: 0.3),
+                    ),
+                    _barisInfo('Sisa saldo', '${formatAngka(sisa)} Poin',
+                        tebal: true),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColor.ungu,
+                        side: const BorderSide(color: AppColor.ungu),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Text(
+                        'Batal',
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColor.ungu,
+                        foregroundColor: AppColor.putih,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Text(
+                        'Ya, Tukar',
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // tap di luar popup dianggap batal
+    return hasil ?? false;
+  }
+
+  // popup 2: sedang diproses
+  Future<void> _dialogDiproses() {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        backgroundColor: AppColor.putih,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ikonBulat(Icons.hourglass_top_rounded, AppColor.kuning),
+              const SizedBox(height: 14),
+              Text(
+                'Penukaran Sedang Diproses',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.manrope(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColor.hitam,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Mohon ditunggu ya. Hasil penukaran kamu akan kami kabari lewat Notifikasi.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  color: AppColor.abu,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColor.ungu,
+                    foregroundColor: AppColor.putih,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    'Oke, Mengerti',
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -110,7 +326,7 @@ class _TukarPoinScreensState extends State<TukarPoinScreens> {
       backgroundColor: AppColor.latar,
       body: Column(
         children: [
-          const SubAppBar(title: 'Keuntungan Lokaelite'),
+          const SubAppBar(title: 'Tukar Poin'),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),

@@ -1,6 +1,8 @@
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
+import '../../core/format.dart';
 import '../../core/session_manager.dart';
 import '../../widgets/top_navigator.dart';
 import '../../widgets/bottom_navigator.dart';
@@ -13,6 +15,8 @@ import 'wishlist_screens.dart';
 import 'verifikasi_screens.dart';
 import 'keamanan_akun_screens.dart';
 import 'snk_screens.dart';
+import 'pesanan_screens.dart';
+import 'ulasan_wisata_screens.dart';
 
 class AkunScreens extends StatefulWidget {
   const AkunScreens({super.key});
@@ -31,96 +35,286 @@ class _AkunScreensState extends State<AkunScreens> {
   final int _jumlahWishlist = 12;
   final int _eTiketAktif = 2;
 
-  // ---------------- dialog konfirmasi logout ----------------
+  // ---------------- bottom sheet konfirmasi logout ----------------
   Future<bool> _konfirmasiLogout() async {
-    final hasil = await showDialog<bool>(
+    final tebal = GoogleFonts.manrope(
+      fontWeight: FontWeight.w800,
+      color: AppColor.hitam,
+    );
+
+    final hasil = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: AppColor.putih,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+      backgroundColor: AppColor.putih,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // handle
               Container(
-                width: 56,
-                height: 56,
+                width: 44,
+                height: 4,
                 decoration: BoxDecoration(
-                  color: AppColor.ungu.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+                  color: AppColor.abu.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                child: const Icon(Icons.logout_rounded,
-                    size: 26, color: AppColor.ungu),
+              ),
+              const SizedBox(height: 22),
+
+              // ikon logout + gembok
+              SizedBox(
+                width: 80,
+                height: 80,
+                child: Stack(
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: AppColor.kuning.withValues(alpha: 0.18),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.logout_rounded,
+                            size: 32, color: AppColor.kuning),
+                      ),
+                    ),
+                    Positioned(
+                      right: 2,
+                      bottom: 2,
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: AppColor.putih,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColor.abu.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: const Icon(Icons.lock_outline,
+                            size: 13, color: AppColor.hitam),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
+
               Text(
-                'Keluar dari akun?',
+                'Keluar dari Akun?',
                 style: GoogleFonts.manrope(
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: AppColor.hitam,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Kamu perlu masuk lagi untuk melihat pesanan dan promo.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.manrope(
-                  fontSize: 12,
-                  color: AppColor.abu,
-                  height: 1.4,
+              const SizedBox(height: 10),
+
+              Text.rich(
+                TextSpan(
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    height: 1.55,
+                    color: AppColor.hitam.withValues(alpha: 0.6),
+                  ),
+                  children: [
+                    const TextSpan(text: 'Sesi Anda akan berakhir, namun semua '),
+                    TextSpan(text: 'tiket aktif,', style: tebal.copyWith(fontSize: 12)),
+                    const TextSpan(text: ' '),
+                    TextSpan(
+                        text: 'riwayat perjalanan',
+                        style: tebal.copyWith(fontSize: 12)),
+                    const TextSpan(text: ', dan '),
+                    TextSpan(
+                      text: '${formatAngka(_saldoPoin)} Loka-Poin',
+                      style: tebal.copyWith(fontSize: 12, color: AppColor.ungu),
+                    ),
+                    const TextSpan(
+                      text: ' Anda tetap tersimpan dengan aman di server kami.',
+                    ),
+                  ],
                 ),
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColor.ungu,
-                        side: const BorderSide(color: AppColor.ungu),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text(
-                        'Batal',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
+              const SizedBox(height: 18),
+
+              // kartu akun
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColor.ungu.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppColor.abu.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 20,
+                      backgroundColor: AppColor.biru,
+                      child: Icon(Icons.person, size: 22, color: AppColor.putih),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  _nama,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColor.hitam,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColor.kuning.withValues(alpha: 0.25),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: AppColor.kuning.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                                child: Text(
+                                  'GOLD TIER',
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColor.hitam,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _email,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.manrope(
+                              fontSize: 11,
+                              color: AppColor.abu,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColor.ungu,
-                        foregroundColor: AppColor.putih,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.check_circle,
+                        size: 14, color: AppColor.ungu),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Tersimpan',
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColor.ungu,
                       ),
-                      child: Text(
-                        'Keluar',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // info
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 1),
+                    child: Icon(Icons.info_outline,
+                        size: 13, color: AppColor.abu),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Masuk kembali kapan saja dengan nomor handphone atau email terdaftar.',
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        height: 1.4,
+                        color: AppColor.abu,
                       ),
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 18),
+
+              // tombol keluar
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColor.kuning.withValues(alpha: 0.45),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    icon: const Icon(Icons.logout_rounded, size: 18),
+                    label: Text(
+                      'Ya, Keluar Akun',
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColor.kuning,
+                      foregroundColor: AppColor.hitam,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // tombol batal
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColor.ungu.withValues(alpha: 0.06),
+                    foregroundColor: AppColor.hitam,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: BorderSide(
+                        color: AppColor.abu.withValues(alpha: 0.2),
+                      ),
+                    ),
+                  ),
+                  child: Text(
+                    'Batal & Tetap Masuk',
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -128,7 +322,7 @@ class _AkunScreensState extends State<AkunScreens> {
       ),
     );
 
-    // tap di luar dialog dianggap batal
+    // tap di luar sheet dianggap batal
     return hasil ?? false;
   }
 
@@ -201,9 +395,12 @@ class _AkunScreensState extends State<AkunScreens> {
                             warna: AppColor.ungu,
                             angka: '$_jumlahUlasan',
                             label: 'Ulasan Wisata',
-                            onTap: () {
-                              // TODO: arahkan ke halaman Ulasan Wisata
-                            },
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const UlasanWisataScreens(),
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -248,9 +445,12 @@ class _AkunScreensState extends State<AkunScreens> {
                         subjudul: '$_eTiketAktif E-Tiket aktif siap pakai',
                         trailing: const Icon(Icons.circle,
                             size: 8, color: AppColor.kuning),
-                        onTap: () {
-                          // TODO: arahkan ke riwayat pesanan
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const PesananScreens(),
+                          ),
+                        ),
                       ),
                     ]),
 
