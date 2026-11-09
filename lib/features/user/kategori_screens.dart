@@ -10,6 +10,7 @@ import 'kategori_widgets/banner_kategori.dart';
 import 'kategori_widgets/kartu_kategori.dart';
 import 'kategori_widgets/kartu_atraksi.dart';
 import 'kategori_widgets/kartu_tur.dart';
+import 'kategori_widgets/kartu_layanan.dart';
 
 class KategoriScreens extends StatefulWidget {
   final Kategori kategori;
@@ -136,6 +137,7 @@ class _KategoriScreensState extends State<KategoriScreens> {
   }
 
   // gaya kartu per kategori; yang tidak terdaftar memakai gaya Candi
+   // gaya kartu per kategori; yang tidak terdaftar memakai gaya Candi
   static const _kartuLokasiDiBawah = {'Atraksi & Rekreasi'};
   static const _kartuTur = {'Tur & Open Trip'};
   static const _diskonSebagaiOff = {'Waterpark & Kolam'};
@@ -152,6 +154,19 @@ class _KategoriScreensState extends State<KategoriScreens> {
     }
     if (_kartuTur.contains(nama)) {
       return KartuTur(wisata: w, onTap: bukaDetail);
+    }
+    if (nama == 'Playground') {
+      return KartuLayanan(wisata: w, onTap: bukaDetail, labelTombol: 'Pilih');
+    }
+    if (nama == 'Spa & Pijat') {
+      return KartuLayanan(wisata: w, onTap: bukaDetail, panahTombol: true);
+    }
+    if (nama == 'Alam & Outbound') {
+      return KartuLayanan(
+        wisata: w,
+        onTap: bukaDetail,
+        subkategoriDiGambar: true,
+      );
     }
     return KartuKategori(
       wisata: w,
@@ -178,7 +193,7 @@ class _KategoriScreensState extends State<KategoriScreens> {
                     style: GoogleFonts.manrope(fontSize: 13),
                     decoration: InputDecoration(
                       border: InputBorder.none,
-                      hintText: 'Cari di ${widget.kategori.nama}...',
+                      hintText: 'Cari di ${widget.kategori.judulHalaman}...',
                       hintStyle: GoogleFonts.manrope(
                         fontSize: 13,
                         color: AppColor.abu,
@@ -186,7 +201,7 @@ class _KategoriScreensState extends State<KategoriScreens> {
                     ),
                   )
                 : Text(
-                    widget.kategori.nama,
+                    widget.kategori.judulHalaman,
                     style: GoogleFonts.outfit(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,

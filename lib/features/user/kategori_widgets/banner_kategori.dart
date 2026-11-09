@@ -6,8 +6,9 @@ import '../../../models/promo_kategori.dart';
 
 class BannerKategori extends StatelessWidget {
   final PromoKategori promo;
+  final VoidCallback? onTombol; // kalau diisi, dipanggil saat tombol putih ditekan
 
-  const BannerKategori({super.key, required this.promo});
+  const BannerKategori({super.key, required this.promo, this.onTombol});
 
   static const _gelap = Color(0xFF1A1A2E);
 
@@ -216,6 +217,10 @@ class BannerKategori extends StatelessWidget {
   Widget _tombol(BuildContext context) {
     return GestureDetector(
       onTap: () {
+        if (onTombol != null) {
+          onTombol!();
+          return;
+        }
         final kode = promo.kode;
         if (kode != null) {
           _salin(context, kode);

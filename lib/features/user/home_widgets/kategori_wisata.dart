@@ -4,6 +4,7 @@ import '../../../core/app_color.dart';
 import '../../../models/kategori.dart';
 import '../../user/kategori_screens.dart';
 import 'section_title.dart';
+import '../../user/semua_kategori_screens.dart';
 
 class KategoriWisata extends StatelessWidget {
   final bool tampilJudul;
@@ -41,8 +42,15 @@ class KategoriWisata extends StatelessWidget {
               final k = _data[i];
               return InkWell(
                 onTap: () {
-                  // tile "Semua Kategori" belum punya halaman
-                  if (k == Kategori.semua) return;
+                  if (k == Kategori.semua) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SemuaKategoriScreens(),
+                      ),
+                    );
+                    return;
+                  }
 
                   Navigator.push(
                     context,
