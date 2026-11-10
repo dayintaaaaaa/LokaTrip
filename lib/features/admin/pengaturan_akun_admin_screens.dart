@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
 import '../../widgets/admin_bottom_navigator.dart';
+import '../../widgets/admin_notification_button.dart';
+import 'dashboard_admin_screens.dart';
+import 'laporan_admin_screens.dart';
+import 'mitra_admin_screens.dart';
+import 'notifikasi_admin_screens.dart';
+import 'perizinan_admin_screens.dart';
 
 class PengaturanAkunAdminScreens extends StatefulWidget {
   const PengaturanAkunAdminScreens({super.key});
@@ -14,16 +20,15 @@ class PengaturanAkunAdminScreens extends StatefulWidget {
 class _PengaturanAkunAdminScreensState
     extends State<PengaturanAkunAdminScreens> {
   // ── controllers ──────────────────────────────────────────────────────────
-  final _namaController =
-      TextEditingController(text: 'Administrator Utama');
-  final _emailController =
-      TextEditingController(text: 'admin@lokatrip.id');
-  final _teleponController =
-      TextEditingController(text: '+62 812-9842-1100');
+  final _namaController = TextEditingController(text: 'Administrator Utama');
+  final _emailController = TextEditingController(text: 'admin@lokatrip.id');
+  final _teleponController = TextEditingController(text: '+62 812-9842-1100');
   final _departemenController = TextEditingController(
-      text: 'Divisi Kelaikan & Regulasi Operasional Dishub LokaTrip');
+    text: 'Divisi Kelaikan & Regulasi Operasional Dishub LokaTrip',
+  );
   final _kantorController = TextEditingController(
-      text: 'Kantor Wilayah Operasional Jakarta Pusat');
+    text: 'Kantor Wilayah Operasional Jakarta Pusat',
+  );
 
   String _bahasa = 'Bahasa Indonesia (Standar Dinas)';
   String _zona = 'Asia/Jakarta (WIB) · UTC+07:00';
@@ -55,7 +60,9 @@ class _PengaturanAkunAdminScreensState
             Text(
               'Perubahan berhasil disimpan',
               style: GoogleFonts.manrope(
-                  fontSize: 13, fontWeight: FontWeight.w600),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -114,7 +121,21 @@ class _PengaturanAkunAdminScreensState
       ),
       bottomNavigationBar: AdminBottomNavigator(
         currentIndex: 4,
-        onTap: (_) {},
+        onTap: (index) {
+          final page = switch (index) {
+            0 => const DashboardAdminScreens(),
+            1 => const MitraAdminScreens(),
+            2 => const PerizinanAdminScreens(),
+            3 => const LaporanAdminScreens(),
+            _ => null,
+          };
+          if (page != null) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => page),
+            );
+          }
+        },
       ),
     );
   }
@@ -160,30 +181,12 @@ class _PengaturanAkunAdminScreensState
           ),
           const Spacer(),
           // Bell dengan badge merah
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                child: const Icon(
-                  Icons.notifications_none_rounded,
-                  size: 24,
-                  color: AppColor.hitam,
-                ),
-              ),
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
+          AdminNotificationButton(
+            color: AppColor.hitam,
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotifikasiAdminScreens()),
+            ),
           ),
           const SizedBox(width: 4),
           // Avatar icon
@@ -194,8 +197,11 @@ class _PengaturanAkunAdminScreensState
               color: AppColor.ungu,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.person_rounded,
-                size: 20, color: AppColor.putih),
+            child: const Icon(
+              Icons.person_rounded,
+              size: 20,
+              color: AppColor.putih,
+            ),
           ),
         ],
       ),
@@ -225,8 +231,11 @@ class _PengaturanAkunAdminScreensState
                   ),
                 ],
               ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded,
-                  size: 16, color: AppColor.hitam),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 16,
+                color: AppColor.hitam,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -258,8 +267,7 @@ class _PengaturanAkunAdminScreensState
           GestureDetector(
             onTap: _isSaving ? null : _simpan,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: AppColor.ungu,
                 borderRadius: BorderRadius.circular(20),
@@ -276,8 +284,11 @@ class _PengaturanAkunAdminScreensState
                             color: AppColor.putih,
                           ),
                         )
-                      : const Icon(Icons.check_circle_outline,
-                          size: 14, color: AppColor.putih),
+                      : const Icon(
+                          Icons.check_circle_outline,
+                          size: 14,
+                          color: AppColor.putih,
+                        ),
                   const SizedBox(width: 6),
                   Text(
                     'Simpan',
@@ -315,8 +326,11 @@ class _PengaturanAkunAdminScreensState
                     width: 2.5,
                   ),
                 ),
-                child: const Icon(Icons.person_rounded,
-                    size: 46, color: AppColor.ungu),
+                child: const Icon(
+                  Icons.person_rounded,
+                  size: 46,
+                  color: AppColor.ungu,
+                ),
               ),
               // Online dot
               Positioned(
@@ -328,8 +342,7 @@ class _PengaturanAkunAdminScreensState
                   decoration: BoxDecoration(
                     color: const Color(0xFF22C55E),
                     shape: BoxShape.circle,
-                    border:
-                        Border.all(color: AppColor.putih, width: 2),
+                    border: Border.all(color: AppColor.putih, width: 2),
                   ),
                 ),
               ),
@@ -347,11 +360,13 @@ class _PengaturanAkunAdminScreensState
                     decoration: BoxDecoration(
                       color: AppColor.ungu,
                       shape: BoxShape.circle,
-                      border:
-                          Border.all(color: AppColor.putih, width: 2),
+                      border: Border.all(color: AppColor.putih, width: 2),
                     ),
-                    child: const Icon(Icons.camera_alt_rounded,
-                        size: 14, color: AppColor.putih),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      size: 14,
+                      color: AppColor.putih,
+                    ),
                   ),
                 ),
               ),
@@ -360,8 +375,7 @@ class _PengaturanAkunAdminScreensState
           const SizedBox(height: 12),
           // Platform Administrator chip
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
               color: AppColor.ungu.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
@@ -369,8 +383,11 @@ class _PengaturanAkunAdminScreensState
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.shield_rounded,
-                    size: 11, color: AppColor.ungu),
+                const Icon(
+                  Icons.shield_rounded,
+                  size: 11,
+                  color: AppColor.ungu,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   'Platform Administrator',
@@ -398,8 +415,7 @@ class _PengaturanAkunAdminScreensState
             children: [
               Text(
                 'NIP: ADM-2024-0891',
-                style: GoogleFonts.manrope(
-                    fontSize: 11, color: AppColor.abu),
+                style: GoogleFonts.manrope(fontSize: 11, color: AppColor.abu),
               ),
               const SizedBox(width: 8),
               Container(
@@ -539,15 +555,14 @@ class _PengaturanAkunAdminScreensState
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColor.putih),
+                  strokeWidth: 2,
+                  color: AppColor.putih,
+                ),
               )
             : const Icon(Icons.save_rounded, size: 18),
         label: Text(
           _isSaving ? 'Menyimpan...' : 'Simpan Perubahan',
-          style: GoogleFonts.manrope(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
+          style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF1E3A5F),
@@ -655,8 +670,7 @@ class _PengaturanAkunAdminScreensState
           ),
           const Spacer(),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
               color: badgeBg,
               borderRadius: BorderRadius.circular(20),
@@ -694,8 +708,7 @@ class _PengaturanAkunAdminScreensState
           padding: const EdgeInsets.only(left: 12, right: 8),
           child: Icon(prefixIcon, size: 16, color: AppColor.abu),
         ),
-        prefixIconConstraints:
-            const BoxConstraints(minWidth: 0, minHeight: 0),
+        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 13,
@@ -704,13 +717,11 @@ class _PengaturanAkunAdminScreensState
         fillColor: AppColor.latar,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide:
-              BorderSide(color: AppColor.abu.withValues(alpha: 0.2)),
+          borderSide: BorderSide(color: AppColor.abu.withValues(alpha: 0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide:
-              const BorderSide(color: AppColor.ungu, width: 1.5),
+          borderSide: const BorderSide(color: AppColor.ungu, width: 1.5),
         ),
       ),
     );
@@ -733,23 +744,30 @@ class _PengaturanAkunAdminScreensState
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
-          icon: const Icon(Icons.unfold_more_rounded,
-              size: 18, color: AppColor.abu),
+          icon: const Icon(
+            Icons.unfold_more_rounded,
+            size: 18,
+            color: AppColor.abu,
+          ),
           style: GoogleFonts.manrope(fontSize: 12, color: AppColor.hitam),
           items: items
-              .map((e) => DropdownMenuItem(
-                    value: e,
-                    child: Row(
-                      children: [
-                        Icon(prefixIcon, size: 15, color: AppColor.abu),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(e,
-                              style: GoogleFonts.manrope(fontSize: 12)),
+              .map(
+                (e) => DropdownMenuItem(
+                  value: e,
+                  child: Row(
+                    children: [
+                      Icon(prefixIcon, size: 15, color: AppColor.abu),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          e,
+                          style: GoogleFonts.manrope(fontSize: 12),
                         ),
-                      ],
-                    ),
-                  ))
+                      ),
+                    ],
+                  ),
+                ),
+              )
               .toList(),
           onChanged: onChanged,
         ),

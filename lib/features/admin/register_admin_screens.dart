@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
 import '../../core/session_manager.dart';
-import 'profil_screens.dart';
+import 'dashboard_admin_screens.dart';
 import 'login_admin_screens.dart';
 
 class RegisterAdminScreens extends StatefulWidget {
@@ -37,7 +37,7 @@ class _RegisterAdminScreensState extends State<RegisterAdminScreens> {
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const ProfilAdminScreens()),
+      MaterialPageRoute(builder: (_) => const DashboardAdminScreens()),
     );
   }
 
@@ -199,7 +199,7 @@ class _RegisterAdminScreensState extends State<RegisterAdminScreens> {
                               color: AppColor.abu,
                             ),
                           ),
-                        ),
+                            ),
                       ),
 
                       const SizedBox(height: 15),

@@ -75,7 +75,7 @@ class _FlashSaleSectionState extends State<FlashSaleSection> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: widget.daftar.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, _) => const SizedBox(width: 12),
             itemBuilder: (_, i) =>
                 _kartu(widget.daftar[i], lebarKartu),
           ),

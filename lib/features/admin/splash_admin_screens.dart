@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
 import '../../core/session_manager.dart';
 import 'login_admin_screens.dart';
-import 'profil_screens.dart';
+import 'dashboard_admin_screens.dart';
 
 class SplashAdminScreens extends StatefulWidget {
   const SplashAdminScreens({super.key});
@@ -34,8 +34,9 @@ class _SplashAdminScreensState extends State<SplashAdminScreens>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                loggedIn ? const ProfilAdminScreens() : const LoginAdminScreens(),
+            builder: (_) => loggedIn
+                ? const DashboardAdminScreens()
+                : const LoginAdminScreens(),
           ),
         );
       }

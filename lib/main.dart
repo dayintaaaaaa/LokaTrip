@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../core/app_color.dart';
-import 'features/splash_screens.dart';
 import 'features/admin/splash_admin_screens.dart'; // TODO: hapus setelah selesai test admin
 
 void main() {

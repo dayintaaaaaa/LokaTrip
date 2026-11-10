@@ -3,8 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
 import '../../core/session_manager.dart';
 import '../../widgets/admin_bottom_navigator.dart';
+import '../../widgets/admin_notification_button.dart';
 import '../login_screens.dart';
 import 'pengaturan_akun_admin_screens.dart';
+import 'dashboard_admin_screens.dart';
+import 'laporan_admin_screens.dart';
+import 'notifikasi_admin_screens.dart';
+import 'perizinan_admin_screens.dart';
 
 class ProfilAdminScreens extends StatefulWidget {
   const ProfilAdminScreens({super.key});
@@ -113,7 +118,22 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
       ),
       bottomNavigationBar: AdminBottomNavigator(
         currentIndex: 4,
-        onTap: (_) {},
+        onTap: (index) {
+          if (index == 0 || index == 2 || index == 3) {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (_, _, _) => switch (index) {
+                  0 => const DashboardAdminScreens(),
+                  2 => const PerizinanAdminScreens(),
+                  _ => const LaporanAdminScreens(),
+                },
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
+              ),
+            );
+          }
+        },
       ),
     );
   }
@@ -160,30 +180,12 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
           ),
           const Spacer(),
           // Bell dengan badge merah
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                child: const Icon(
-                  Icons.notifications_none_rounded,
-                  size: 24,
-                  color: AppColor.hitam,
-                ),
-              ),
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
+          AdminNotificationButton(
+            color: AppColor.hitam,
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotifikasiAdminScreens()),
+            ),
           ),
         ],
       ),
@@ -251,10 +253,7 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
           // Email
           Text(
             _email,
-            style: GoogleFonts.manrope(
-              fontSize: 12,
-              color: AppColor.abu,
-            ),
+            style: GoogleFonts.manrope(fontSize: 12, color: AppColor.abu),
           ),
 
           const SizedBox(height: 10),
@@ -288,8 +287,10 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
               const SizedBox(width: 10),
               // Platform Administrator chip
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: AppColor.ungu,
                   borderRadius: BorderRadius.circular(20),
@@ -329,11 +330,14 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
       child: IntrinsicHeight(
         child: Row(
           children: [
-            _statItem('$_auditBulanIni', 'Audit Bulan Ini',
-                AppColor.hitam, false),
+            _statItem(
+              '$_auditBulanIni',
+              'Audit Bulan Ini',
+              AppColor.hitam,
+              false,
+            ),
             _verticalDivider(),
-            _statItem(_slaCompliance, 'SLA Compliance',
-                AppColor.hitam, false),
+            _statItem(_slaCompliance, 'SLA Compliance', AppColor.hitam, false),
             _verticalDivider(),
             _statItem(_tier, 'Akses Penuh', AppColor.ungu, true),
           ],
@@ -342,8 +346,7 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
     );
   }
 
-  Widget _statItem(
-      String angka, String label, Color angkaColor, bool bold) {
+  Widget _statItem(String angka, String label, Color angkaColor, bool bold) {
     return Expanded(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -360,10 +363,7 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
           Text(
             label,
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
-              fontSize: 10,
-              color: AppColor.abu,
-            ),
+            style: GoogleFonts.manrope(fontSize: 10, color: AppColor.abu),
           ),
         ],
       ),
@@ -485,8 +485,11 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.access_time,
-                            size: 10, color: AppColor.abu),
+                        const Icon(
+                          Icons.access_time,
+                          size: 10,
+                          color: AppColor.abu,
+                        ),
                         const SizedBox(width: 3),
                         Text(
                           a.waktu,
@@ -498,12 +501,15 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
                       ],
                     ),
                     if (a.badge != null) ...[
-                      const Text('·',
-                          style: TextStyle(
-                              color: AppColor.abu, fontSize: 10)),
+                      const Text(
+                        '·',
+                        style: TextStyle(color: AppColor.abu, fontSize: 10),
+                      ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: a.badgeColor,
                           borderRadius: BorderRadius.circular(6),
@@ -683,10 +689,7 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
                 const SizedBox(height: 2),
                 Text(
                   sub,
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    color: AppColor.abu,
-                  ),
+                  style: GoogleFonts.manrope(fontSize: 10, color: AppColor.abu),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -749,8 +752,7 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
               ),
             ),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: chipBg,
                 borderRadius: BorderRadius.circular(8),
@@ -786,11 +788,11 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
   }
 
   Widget _divider() => Divider(
-        height: 1,
-        indent: 14,
-        endIndent: 14,
-        color: AppColor.abu.withValues(alpha: 0.2),
-      );
+    height: 1,
+    indent: 14,
+    endIndent: 14,
+    color: AppColor.abu.withValues(alpha: 0.2),
+  );
 
   // ─── Logout Button ────────────────────────────────────────────────────────
   Widget _buildLogoutButton() {
@@ -801,10 +803,7 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
         icon: const Icon(Icons.exit_to_app_rounded, size: 18),
         label: Text(
           'Keluar dari Akun',
-          style: GoogleFonts.manrope(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
+          style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFFFECEC),

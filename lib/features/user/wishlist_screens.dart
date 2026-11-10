@@ -35,8 +35,7 @@ class _Wisata {
     required this.hargaCoret,
     required this.harga,
     required this.warnaGambar,
-    this.favorit = true,
-  });
+  }) : favorit = true;
 }
 
 class WishlistScreens extends StatefulWidget {
