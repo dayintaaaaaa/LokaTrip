@@ -6,6 +6,7 @@ import '../../../models/wisata.dart';
 import '../../../widgets/gambar_wisata.dart';
 import '../../../widgets/tombol_favorit.dart';
 import '../../../widgets/tombol_kartu.dart';
+import '../../../core/navigasi_wisata.dart';
 
 // Kartu tur: label kuning, lokasi + jenis tur di gambar, chip fitur.
 class KartuTur extends StatelessWidget {
@@ -160,7 +161,10 @@ class KartuTur extends StatelessWidget {
                           ],
                         ),
                       ),
-                      TombolKartu(label: 'Pilih Paket'),
+                      TombolKartu(
+                        label: 'Pilih Paket',
+                        onPressed: () => bukaDetailWisata(context, wisata), // sesuaikan nama variabel (wisata / w)
+                      ),
                     ],
                   ),
                 ],

@@ -110,13 +110,34 @@ class DetailWisata {
     (Icons.confirmation_number_outlined, 'Tiket Resmi', 'Langsung masuk via scan'),
   ];
 
-  // Dipakai untuk wisata yang belum punya data detail lengkap:
-  // isinya dirangkai dari data Wisata yang sudah ada.
+    // Dipakai untuk wisata yang belum punya data detail lengkap.
+  // DUMMY: harga WNA & paket reguler diturunkan dari harga wisata,
+  // ganti dengan data asli dari backend kalau API sudah ada.
   factory DetailWisata.dariWisata(Wisata w) {
+    const kurs = 15400; // perkiraan rupiah per USD
+    int bulat(num x) => (x / 1000).round() * 1000;
+    String usd(int rp) => '(~USD \$${(rp / kurs).toStringAsFixed(2)})';
+
+    final satuan = w.satuanHarga ?? '/orang';
+
     final fitur = <String>[
       if (w.termasuk != null) w.termasuk!,
       ...w.fitur,
     ];
+    final fiturUtama = fitur.isNotEmpty
+        ? fitur
+        : const ['Tiket Masuk Resmi', 'Bebas Antre', 'Bisa Reschedule'];
+
+    final deskripsi = w.deskripsi ??
+        'E-tiket dikirim langsung setelah pembayaran. '
+            'Tunjukkan kode QR di pintu masuk tanpa antre panjang.';
+
+    final hargaWni = w.harga;
+    final hargaWniReguler = bulat(hargaWni * 0.6);
+    final hargaWna = bulat(hargaWni * 1.5);
+    final hargaWnaReguler = bulat(hargaWna * 0.6);
+    final hargaAsliWna =
+        w.hargaAsli == null ? null : bulat(w.hargaAsli! * 1.5);
 
     return DetailWisata(
       wisataId: w.id,
@@ -131,26 +152,86 @@ class DetailWisata {
       lokasi: w.lokasi,
       wilayah: w.kota == null ? 'Indonesia' : '${w.kota}, Indonesia',
       grup: [
+        // ---------- WNI ----------
         GrupTiket(
-          nama: 'Umum',
+          nama: 'WNI (Domestik)',
           paket: [
             PaketTiket(
               nama: w.nama,
-              namaPendek: w.nama,
-              label: 'TIKET RESMI',
-              deskripsi: w.deskripsi ??
-                  'E-tiket dikirim langsung setelah pembayaran. '
-                      'Tunjukkan kode QR di pintu masuk tanpa antre panjang.',
-              fitur: fitur,
-              harga: w.harga,
+              namaPendek: 'Paket Populer',
+              label: 'PALING POPULER',
+              populer: true,
+              deskripsi: deskripsi,
+              fitur: fiturUtama,
+              harga: hargaWni,
               hargaAsli: w.hargaAsli,
-              satuan: w.satuanHarga ?? '/orang',
+              satuan: satuan,
+            ),
+            PaketTiket(
+              nama: 'Tiket Masuk Reguler',
+              namaPendek: 'Tiket Reguler',
+              label: 'STANDAR',
+              deskripsi:
+                  'Tiket masuk standar tanpa tambahan fasilitas. '
+                  'E-tiket dikirim langsung setelah pembayaran.',
+              fitur: const ['Tiket Masuk Resmi', 'E-Tiket Instan'],
+              harga: hargaWniReguler,
+              satuan: satuan,
             ),
           ],
-          termasuk: [...fitur, 'E-tiket resmi dikirim setelah pembayaran'],
+          termasuk: [
+            ...fiturUtama,
+            'E-tiket resmi dikirim setelah pembayaran',
+          ],
           tidakTermasuk: const [
             'Transportasi menuju lokasi',
             'Pengeluaran pribadi & tip sukarela',
+          ],
+        ),
+
+        // ---------- WNA ----------
+        GrupTiket(
+          nama: 'WNA (Mancanegara)',
+          catatan:
+              'Perhatian: Paspor / KITAS wajib ditunjukkan saat penukaran '
+              'tiket & verifikasi di lokasi.',
+          paket: [
+            PaketTiket(
+              nama: '${w.nama} (Foreigner Ticket)',
+              namaPendek: 'Paket Populer WNA',
+              label: 'PALING POPULER',
+              populer: true,
+              deskripsi:
+                  'Tiket untuk wisatawan mancanegara. Tunjukkan paspor dan '
+                  'kode QR saat verifikasi di pintu masuk.',
+              fitur: [...fiturUtama, 'Jalur Prioritas WNA'],
+              harga: hargaWna,
+              hargaAsli: hargaAsliWna,
+              hargaUsd: usd(hargaWna),
+              satuan: satuan,
+            ),
+            PaketTiket(
+              nama: 'Regular Entry (Foreigner Ticket)',
+              namaPendek: 'Tiket Reguler WNA',
+              label: 'STANDAR',
+              deskripsi:
+                  'Tiket masuk standar bagi turis internasional tanpa '
+                  'tambahan fasilitas.',
+              fitur: const ['Tiket Masuk Resmi', 'E-Tiket Instan'],
+              harga: hargaWnaReguler,
+              hargaUsd: usd(hargaWnaReguler),
+              satuan: satuan,
+            ),
+          ],
+          termasuk: [
+            ...fiturUtama,
+            'Jalur antrean prioritas (Fast-Track Gate WNA)',
+            'E-tiket resmi dikirim setelah pembayaran',
+          ],
+          tidakTermasuk: const [
+            'Transportasi menuju lokasi',
+            'Biaya visa / administrasi paspor',
+            'Tip sukarela untuk pemandu wisata',
           ],
         ),
       ],
@@ -165,12 +246,12 @@ class DetailWisata {
               'tidak perlu antre lama. Recommended buat liburan keluarga!',
         ),
         UlasanDetail(
-          nama: 'Rizky Pratama',
-          asal: 'Wisatawan Domestik',
+          nama: 'Liam Henderson',
+          asal: 'Wisatawan Mancanegara',
           waktu: '1 minggu lalu',
-          rating: 4.8,
-          teks: 'Proses pesannya gampang dan harganya lebih murah dibanding '
-              'beli di lokasi. Stafnya ramah dan tempatnya bersih.',
+          rating: 4.9,
+          teks: 'Very smooth redemption with the Lokatrip app. Scanned the '
+              'e-ticket at the gate and walked straight in. Great value!',
         ),
       ],
     );

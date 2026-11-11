@@ -8,6 +8,7 @@ import '../../../widgets/gambar_wisata.dart';
 import '../../../widgets/tombol_favorit.dart';
 import '../home_widgets/section_title.dart';
 import '../../../widgets/tombol_kartu.dart';
+import '../../../core/navigasi_wisata.dart';
 
 class KatalogWisata extends StatelessWidget {
   final List<Wisata> daftar;
@@ -62,7 +63,7 @@ class KatalogWisata extends StatelessWidget {
                 for (final w in daftar)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _kartu(w),
+                    child: _kartu(context, w),
                   ),
               ],
             ),
@@ -71,12 +72,9 @@ class KatalogWisata extends StatelessWidget {
     );
   }
 
-  Widget _kartu(Wisata w) {
+  Widget _kartu(BuildContext context, Wisata w) {
     return GestureDetector(
-      onTap: () {
-        // nanti: buka halaman Detail Wisata
-        TombolKartu(label: 'Pilih Paket');
-      },
+      onTap: () => bukaDetailWisata(context, w), 
       child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
@@ -210,7 +208,10 @@ class KatalogWisata extends StatelessWidget {
                           ],
                         ),
                       ),
-                      TombolKartu(label: 'Pilih Paket'),
+                      TombolKartu(
+                        label: 'Pilih Paket',
+                        onPressed: () => bukaDetailWisata(context, w),
+                      ),
                     ],
                   ),
                 ],

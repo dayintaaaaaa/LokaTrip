@@ -7,6 +7,7 @@ import '../../../widgets/badge_rating.dart';
 import '../../../widgets/gambar_wisata.dart';
 import '../../../widgets/tombol_favorit.dart';
 import '../../../widgets/tombol_kartu.dart';
+import '../../../core/navigasi_wisata.dart';
 
 // Kartu dengan rating di atas gambar dan lokasi di bawah gambar.
 class KartuLayanan extends StatelessWidget {
@@ -196,7 +197,10 @@ class KartuLayanan extends StatelessWidget {
                           ],
                         ),
                       ),
-                      TombolKartu(label: labelTombol),
+                      TombolKartu(
+                        label: 'Pilih Paket',
+                        onPressed: () => bukaDetailWisata(context, wisata), // sesuaikan nama variabel (wisata / w)
+                      ),
                     ],
                   ),
                 ],
