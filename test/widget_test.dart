@@ -9,22 +9,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lokatrip/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('app opens with admin selected in the login flow', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1024, 900);
+    tester.view.devicePixelRatio = 1;
     await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.text('Jenis akun'), findsOneWidget);
+    expect(find.text('Admin'), findsOneWidget);
+    expect(find.text('Pihak Wisata'), findsOneWidget);
+    await tester.ensureVisible(find.text('Log in'));
+    await tester.tap(find.text('Log in'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pengajuan Menunggu Verifikasi'), findsOneWidget);
+    expect(
+      await SharedPreferences.getInstance().then(
+        (prefs) => prefs.getString('account_role'),
+      ),
+      'admin',
+    );
+    expect(tester.takeException(), isNull);
+    tester.view.resetPhysicalSize();
   });
 }

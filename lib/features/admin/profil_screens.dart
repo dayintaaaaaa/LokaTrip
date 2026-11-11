@@ -10,6 +10,7 @@ import 'dashboard_admin_screens.dart';
 import 'laporan_admin_screens.dart';
 import 'notifikasi_admin_screens.dart';
 import 'perizinan_admin_screens.dart';
+import 'preferensi_kontrol_admin_screens.dart';
 
 class ProfilAdminScreens extends StatefulWidget {
   const ProfilAdminScreens({super.key});
@@ -25,8 +26,6 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
   final int _auditBulanIni = 142;
   final String _slaCompliance = '99.8%';
   final String _tier = 'Tier 1';
-  bool _notifEnabled = true;
-
   // ── aktivitas ──
   final List<_Aktivitas> _aktivitas = [
     _Aktivitas(
@@ -577,41 +576,51 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
                 },
               ),
               _divider(),
-              _menuTileWithToggle(
+              _menuTile(
                 icon: Icons.notifications_outlined,
                 judul: 'Notifikasi',
-                sub: 'Push alerts, eskalasi izin, dan broadcast tel',
-                value: _notifEnabled,
-                onChanged: (val) => setState(() => _notifEnabled = val),
+                sub: 'Saluran, eskalasi izin, dan ringkasan aktivitas',
+                onTap: () => _openPreference(
+                  PreferensiAdminSection.notifications,
+                ),
               ),
               _divider(),
               _menuTileWithChip(
                 icon: Icons.security_outlined,
                 judul: 'Keamanan',
-                sub: 'Two-Factor Authentication & active se',
-                chipText: '2FA\nAktif',
-                chipBg: const Color(0xFFDCFCE7),
-                chipTextColor: const Color(0xFF16A34A),
-                onTap: () {},
+                sub: 'Status perlindungan akun dan sesi perangkat',
+                chipText: 'Lihat',
+                chipBg: const Color(0xFFEEF0FF),
+                chipTextColor: AppColor.ungu,
+                onTap: () => _openPreference(PreferensiAdminSection.security),
               ),
               _divider(),
               _menuTile(
                 icon: Icons.help_outline_rounded,
                 judul: 'Bantuan & SOP Regulasi',
-                sub: 'Panduan verifikasi Dishub & manual book adn',
-                onTap: () {},
+                sub: 'Panduan pemeriksaan mitra dan perizinan',
+                onTap: () => _openPreference(PreferensiAdminSection.help),
               ),
               _divider(),
               _menuTile(
                 icon: Icons.info_outline_rounded,
                 judul: 'Tentang LokaTrip',
                 sub: 'Versi 2.4.0 — Enterprise Admin Platform',
-                onTap: () {},
+                onTap: () => _openPreference(PreferensiAdminSection.about),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  void _openPreference(PreferensiAdminSection section) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PreferensiKontrolAdminScreens(section: section),
+      ),
     );
   }
 
@@ -657,54 +666,6 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
             const Icon(Icons.chevron_right, size: 18, color: AppColor.abu),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _menuTileWithToggle({
-    required IconData icon,
-    required String judul,
-    required String sub,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
-        children: [
-          _menuIcon(icon),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  judul,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColor.hitam,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  sub,
-                  style: GoogleFonts.manrope(fontSize: 10, color: AppColor.abu),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          Transform.scale(
-            scale: 0.75,
-            child: Switch(
-              value: value,
-              onChanged: onChanged,
-              activeThumbColor: AppColor.ungu,
-            ),
-          ),
-          const Icon(Icons.chevron_right, size: 18, color: AppColor.abu),
-        ],
       ),
     );
   }

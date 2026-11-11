@@ -7,6 +7,7 @@ import 'laporan_admin_screens.dart';
 import 'notifikasi_admin_screens.dart';
 import 'perizinan_admin_screens.dart';
 import 'profil_screens.dart';
+import 'verifikasi_mitra_admin_screens.dart';
 
 const _navy = Color(0xFF10243A);
 const _blue = Color(0xFF063CBF);
@@ -61,6 +62,52 @@ class DashboardAdminScreens extends StatelessWidget {
     );
   }
 
+  void _openPermitList(
+    BuildContext context, {
+    String initialFilter = 'Semua',
+    String? initialPermitId,
+  }) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => PerizinanAdminScreens(
+          initialFilter: initialFilter,
+          initialPermitId: initialPermitId,
+        ),
+      ),
+    );
+  }
+
+  void _openVerification(
+    BuildContext context, {
+    required String id,
+    required String partner,
+    required String destination,
+    required String category,
+    required String dates,
+    required String note,
+  }) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => VerifikasiMitraAdminScreens(
+          id: id,
+          partner: partner,
+          destination: destination,
+          category: category,
+          dates: dates,
+          auditor: 'Admin LokaTrip',
+          note: note,
+          status: StatusAuditMitra.menunggu,
+          rejectedStep: 0,
+          onApproved: (_) {},
+          onRejected: (_) {},
+          onRevision: () {},
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -80,15 +127,28 @@ class DashboardAdminScreens extends StatelessWidget {
                     const SizedBox(height: 18),
                     const _SummaryGrid(),
                     const SizedBox(height: 20),
-                    const _AuditBanner(),
+                    _AuditBanner(
+                      onTap: () => _openVerification(
+                        context,
+                        id: 'IZ-2026-00128',
+                        partner: 'CV Pesona Nusantara',
+                        destination: 'Gunung Bromo Adventure',
+                        category: 'Ekraf & Wisata',
+                        dates: '16 Sep 2026 — 16 Sep 2027',
+                        note:
+                            'Dokumen dasar tercatat; menunggu audit lapangan.',
+                      ),
+                    ),
                     const SizedBox(height: 24),
-                    const _SectionHeading(
+                    _SectionHeading(
                       title: 'Pengajuan Menunggu Verifikasi',
                       badge: '12 Baru',
                       action: 'Semua',
+                      onAction: () =>
+                          _openPermitList(context, initialFilter: 'Menunggu'),
                     ),
                     const SizedBox(height: 12),
-                    const _VerificationCard(
+                    _VerificationCard(
                       partner: 'CV PESONA NUSANTARA',
                       title: 'Gunung Bromo Adventure',
                       date: '16 Sep 2026',
@@ -96,9 +156,19 @@ class DashboardAdminScreens extends StatelessWidget {
                       documents: '4 Dokumen Lengkap',
                       icon: Icons.landscape_rounded,
                       imageColor: Color(0xFFB8D7C8),
+                      onPressed: () => _openVerification(
+                        context,
+                        id: 'IZ-2026-00128',
+                        partner: 'CV Pesona Nusantara',
+                        destination: 'Gunung Bromo Adventure',
+                        category: 'Ekraf & Wisata',
+                        dates: '16 Sep 2026 — 16 Sep 2027',
+                        note:
+                            'Dokumen dasar tercatat; menunggu audit lapangan.',
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    const _VerificationCard(
+                    _VerificationCard(
                       partner: 'PT JELAJAH INDONESIA',
                       title: 'Coban Talun Wisata',
                       date: '15 Sep 2026',
@@ -106,9 +176,18 @@ class DashboardAdminScreens extends StatelessWidget {
                       documents: '3 Dokumen Lengkap',
                       icon: Icons.forest_rounded,
                       imageColor: Color(0xFFB7D8D6),
+                      onPressed: () => _openVerification(
+                        context,
+                        id: 'IZ-2026-00129',
+                        partner: 'PT Jelajah Indonesia',
+                        destination: 'Coban Talun Wisata',
+                        category: 'Ekowisata',
+                        dates: '15 Sep 2026 — 15 Sep 2027',
+                        note: 'Berkas menunggu pemeriksaan admin.',
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    const _VerificationCard(
+                    _VerificationCard(
                       partner: 'POKDARWIS DESA SADE',
                       title: 'Sade Cultural Tour',
                       date: '14 Sep 2026',
@@ -116,16 +195,34 @@ class DashboardAdminScreens extends StatelessWidget {
                       documents: '5 Dokumen Terverifikasi',
                       icon: Icons.holiday_village_rounded,
                       imageColor: Color(0xFFE8D4AE),
+                      onPressed: () => _openVerification(
+                        context,
+                        id: 'IZ-2026-00130',
+                        partner: 'Pokdarwis Desa Sade',
+                        destination: 'Sade Cultural Tour',
+                        category: 'Wisata Budaya',
+                        dates: '14 Sep 2026 — 14 Sep 2027',
+                        note: 'Dokumen awal sudah diperiksa.',
+                      ),
                     ),
                     const SizedBox(height: 24),
-                    const _SectionHeading(
+                    _SectionHeading(
                       title: 'Izin Akan Berakhir',
                       action: 'Prioritas Regulasi',
+                      onAction: () => _openPermitList(
+                        context,
+                        initialFilter: 'Akan berakhir',
+                      ),
                     ),
                     const SizedBox(height: 12),
-                    const _ExpiryAlert(),
+                    _ExpiryAlert(
+                      onTap: () => _openPermitList(
+                        context,
+                        initialFilter: 'Akan berakhir',
+                      ),
+                    ),
                     const SizedBox(height: 10),
-                    const _LicenseCard(
+                    _LicenseCard(
                       company: 'CV PESONA NUSANTARA',
                       title: 'Gunung Bromo Adventure',
                       detail:
@@ -133,9 +230,13 @@ class DashboardAdminScreens extends StatelessWidget {
                       expiry: '30 Sep 2026',
                       daysLeft: 'Berakhir 14 hari',
                       progress: 0.78,
+                      onPressed: () => _openPermitList(
+                        context,
+                        initialPermitId: 'IZ-2026-00128',
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    const _LicenseCard(
+                    _LicenseCard(
                       company: 'CV ALAM RAYA',
                       title: 'Batu Adventure Park',
                       detail:
@@ -143,6 +244,10 @@ class DashboardAdminScreens extends StatelessWidget {
                       expiry: '07 Okt 2026',
                       daysLeft: 'Berakhir 21 hari',
                       progress: 0.60,
+                      onPressed: () => _openPermitList(
+                        context,
+                        initialPermitId: 'IZ-2026-00114',
+                      ),
                     ),
                     const SizedBox(height: 20),
                     const _SyncCard(),
@@ -469,7 +574,9 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _AuditBanner extends StatelessWidget {
-  const _AuditBanner();
+  final VoidCallback onTap;
+
+  const _AuditBanner({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -517,25 +624,36 @@ class _AuditBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
+          Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            child: InkWell(
+              onTap: onTap,
               borderRadius: BorderRadius.circular(18),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  'Mulai',
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: _blue,
-                  ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
                 ),
-                const SizedBox(width: 4),
-                const Icon(Icons.arrow_forward_rounded, size: 14, color: _blue),
-              ],
+                child: Row(
+                  children: [
+                    Text(
+                      'Mulai',
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: _blue,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 14,
+                      color: _blue,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -548,11 +666,13 @@ class _SectionHeading extends StatelessWidget {
   final String title;
   final String? badge;
   final String action;
+  final VoidCallback onAction;
 
   const _SectionHeading({
     required this.title,
     this.badge,
     required this.action,
+    required this.onAction,
   });
 
   @override
@@ -590,19 +710,27 @@ class _SectionHeading extends StatelessWidget {
           ),
         ],
         const SizedBox(width: 8),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              action,
-              style: GoogleFonts.manrope(
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                color: _blue,
+        TextButton(
+          onPressed: onAction,
+          style: TextButton.styleFrom(
+            minimumSize: Size.zero,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                action,
+                style: GoogleFonts.manrope(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  color: _blue,
+                ),
               ),
-            ),
-            const Icon(Icons.chevron_right_rounded, size: 16, color: _blue),
-          ],
+              const Icon(Icons.chevron_right_rounded, size: 16, color: _blue),
+            ],
+          ),
         ),
       ],
     );
@@ -617,6 +745,7 @@ class _VerificationCard extends StatelessWidget {
   final String documents;
   final IconData icon;
   final Color imageColor;
+  final VoidCallback onPressed;
 
   const _VerificationCard({
     required this.partner,
@@ -626,6 +755,7 @@ class _VerificationCard extends StatelessWidget {
     required this.documents,
     required this.icon,
     required this.imageColor,
+    required this.onPressed,
   });
 
   @override
@@ -765,32 +895,36 @@ class _VerificationCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: _blue,
+              Material(
+                color: _blue,
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  onTap: onPressed,
                   borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.rule_rounded,
-                      size: 14,
-                      color: Colors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 13,
+                      vertical: 8,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Periksa',
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.rule_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Periksa',
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ],
@@ -802,7 +936,9 @@ class _VerificationCard extends StatelessWidget {
 }
 
 class _ExpiryAlert extends StatelessWidget {
-  const _ExpiryAlert();
+  final VoidCallback onTap;
+
+  const _ExpiryAlert({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -854,13 +990,21 @@ class _ExpiryAlert extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Padding(
-            padding: const EdgeInsets.only(top: 15),
-            child: Text(
-              'Lihat Semua',
-              style: GoogleFonts.manrope(
-                fontSize: 8,
-                fontWeight: FontWeight.w800,
-                color: _blue,
+            padding: const EdgeInsets.only(top: 8),
+            child: TextButton(
+              onPressed: onTap,
+              style: TextButton.styleFrom(
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'Lihat Semua',
+                style: GoogleFonts.manrope(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w800,
+                  color: _blue,
+                ),
               ),
             ),
           ),
@@ -877,6 +1021,7 @@ class _LicenseCard extends StatelessWidget {
   final String expiry;
   final String daysLeft;
   final double progress;
+  final VoidCallback onPressed;
 
   const _LicenseCard({
     required this.company,
@@ -885,6 +1030,7 @@ class _LicenseCard extends StatelessWidget {
     required this.expiry,
     required this.daysLeft,
     required this.progress,
+    required this.onPressed,
   });
 
   @override
@@ -980,32 +1126,29 @@ class _LicenseCard extends StatelessWidget {
                   style: GoogleFonts.manrope(fontSize: 10, color: _muted),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
+              TextButton.icon(
+                onPressed: onPressed,
+                style: TextButton.styleFrom(
+                  backgroundColor: const Color(0xFFDDE8FF),
+                  foregroundColor: _blue,
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(9),
+                  ),
                 ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDDE8FF),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.description_outlined,
-                      size: 13,
-                      color: _blue,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Tinjau Izin',
-                      style: GoogleFonts.manrope(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        color: _blue,
-                      ),
-                    ),
-                  ],
+                icon: const Icon(Icons.description_outlined, size: 13),
+                label: Text(
+                  'Tinjau Izin',
+                  style: GoogleFonts.manrope(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: _blue,
+                  ),
                 ),
               ),
             ],

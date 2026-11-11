@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/app_color.dart';
 import '../core/session_manager.dart';
 import '../features/register_screens.dart';
+import 'admin/dashboard_admin_screens.dart';
+import 'admin_mitra/pengajuan_mitra_screens.dart';
+import 'admin_mitra/wisata_saya_mitra_screen.dart';
 import '../features/user/home_screens.dart';
 
 class LoginScreens extends StatefulWidget {
@@ -16,6 +20,7 @@ class _LoginScreensState extends State<LoginScreens> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _hiddenPass = true;
+  String _accountType = 'admin';
 
   @override
   void dispose() {
@@ -26,18 +31,30 @@ class _LoginScreensState extends State<LoginScreens> {
 
   Future<void> _login() async {
     // nanti ganti proses login sungguhan (cek ke backend)
-    await SessionManager.setLoggedIn();
+    await SessionManager.setLoggedIn(role: _accountType);
+
+    final prefs = await SharedPreferences.getInstance();
+    final isMitraSubmitted =
+        prefs.getBool('mitra_application_submitted') ?? false;
 
     if (!mounted) return;
     Navigator.pushReplacement(
-      context, 
-      MaterialPageRoute(builder: (_) => const HomeScreens()),
+      context,
+      MaterialPageRoute(
+        builder: (_) => switch (_accountType) {
+          'admin' => const DashboardAdminScreens(),
+          'mitra' => isMitraSubmitted
+              ? const WisataSayaMitraScreen()
+              : const PengajuanMitraScreens(),
+          _ => const HomeScreens(),
+        },
+      ),
     );
   }
 
   void _signIn() {
     Navigator.push(
-      context, 
+      context,
       MaterialPageRoute(builder: (_) => const RegisterScreens()),
     );
   }
@@ -52,11 +69,7 @@ class _LoginScreensState extends State<LoginScreens> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppColor.ungu,
-              AppColor.biru,
-              AppColor.putih,
-            ],
+            colors: [AppColor.ungu, AppColor.biru, AppColor.putih],
             stops: [0.0, 0.45, 0.8],
           ),
         ),
@@ -109,6 +122,39 @@ class _LoginScreensState extends State<LoginScreens> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        'Jenis akun',
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColor.hitam,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(
+                            value: 'admin',
+                            label: Text('Admin'),
+                            icon: Icon(Icons.admin_panel_settings_outlined),
+                          ),
+                          ButtonSegment(
+                            value: 'mitra',
+                            label: Text('Pihak Wisata'),
+                            icon: Icon(Icons.landscape_outlined),
+                          ),
+                          ButtonSegment(
+                            value: 'wisatawan',
+                            label: Text('Wisatawan'),
+                            icon: Icon(Icons.explore_outlined),
+                          ),
+                        ],
+                        selected: {_accountType},
+                        onSelectionChanged: (selection) =>
+                            setState(() => _accountType = selection.first),
+                        showSelectedIcon: false,
+                      ),
+                      SizedBox(height: 20),
                       // Email/telephone
                       Text(
                         'Email atau Nomor Telepon',
@@ -123,7 +169,9 @@ class _LoginScreensState extends State<LoginScreens> {
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         style: GoogleFonts.manrope(fontSize: 12),
-                        decoration: _inputDecoration('admin@gmail.com atau 0812345678'),
+                        decoration: _inputDecoration(
+                          'admin@gmail.com atau 0812345678',
+                        ),
                       ),
 
                       SizedBox(height: 15),
@@ -142,22 +190,23 @@ class _LoginScreensState extends State<LoginScreens> {
                         controller: _passwordController,
                         obscureText: _hiddenPass,
                         style: GoogleFonts.manrope(fontSize: 12),
-                        decoration: _inputDecoration('masukkan password').copyWith(
-                          suffixIcon: IconButton(
-                            onPressed:  () {
-                              setState(() {
-                                _hiddenPass = !_hiddenPass;
-                              });
-                            }, 
-                            icon: Icon(
-                              _hiddenPass
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                              size: 18,
-                              color: AppColor.abu,
+                        decoration: _inputDecoration('masukkan password')
+                            .copyWith(
+                              suffixIcon: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _hiddenPass = !_hiddenPass;
+                                  });
+                                },
+                                icon: Icon(
+                                  _hiddenPass
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                  size: 18,
+                                  color: AppColor.abu,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
                       ),
 
                       // forgot password
@@ -190,7 +239,10 @@ class _LoginScreensState extends State<LoginScreens> {
                 SizedBox(height: 150),
 
                 // logo
-                Image.asset('assets/images/LokaTrip-logo-no-van.png', width: 90),
+                Image.asset(
+                  'assets/images/LokaTrip-logo-no-van.png',
+                  width: 90,
+                ),
 
                 SizedBox(height: 24),
               ],
@@ -206,8 +258,7 @@ class _LoginScreensState extends State<LoginScreens> {
     return InputDecoration(
       hintText: hint,
       hintStyle: GoogleFonts.manrope(fontSize: 12, color: AppColor.abu),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: AppColor.ungu.withValues(alpha: 0.4)),
@@ -236,10 +287,7 @@ class _LoginScreensState extends State<LoginScreens> {
         ),
         child: Text(
           teks,
-          style: GoogleFonts.outfit(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
+          style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
     );

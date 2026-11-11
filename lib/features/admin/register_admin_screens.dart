@@ -32,7 +32,7 @@ class _RegisterAdminScreensState extends State<RegisterAdminScreens> {
 
   Future<void> _register() async {
     // TODO: ganti dengan proses pendaftaran admin sungguhan (kirim ke backend)
-    await SessionManager.setLoggedIn();
+    await SessionManager.setLoggedIn(role: 'admin');
 
     if (!mounted) return;
     Navigator.pushReplacement(
@@ -58,11 +58,7 @@ class _RegisterAdminScreensState extends State<RegisterAdminScreens> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppColor.ungu,
-              AppColor.biru,
-              AppColor.putih,
-            ],
+            colors: [AppColor.ungu, AppColor.biru, AppColor.putih],
             stops: [0.0, 0.45, 0.8],
           ),
         ),
@@ -75,8 +71,10 @@ class _RegisterAdminScreensState extends State<RegisterAdminScreens> {
 
                 // Badge ADMIN
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColor.putih.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
@@ -87,8 +85,11 @@ class _RegisterAdminScreensState extends State<RegisterAdminScreens> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.shield_rounded,
-                          size: 14, color: AppColor.putih),
+                      const Icon(
+                        Icons.shield_rounded,
+                        size: 14,
+                        color: AppColor.putih,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         'LOKATRIP ADMIN PANEL',
@@ -163,7 +164,9 @@ class _RegisterAdminScreensState extends State<RegisterAdminScreens> {
                         controller: _nipController,
                         keyboardType: TextInputType.number,
                         style: GoogleFonts.manrope(fontSize: 12),
-                        decoration: _inputDecoration('masukkan NIP atau ID admin'),
+                        decoration: _inputDecoration(
+                          'masukkan NIP atau ID admin',
+                        ),
                       ),
 
                       const SizedBox(height: 15),
@@ -185,20 +188,20 @@ class _RegisterAdminScreensState extends State<RegisterAdminScreens> {
                         controller: _passwordController,
                         obscureText: _hiddenPass,
                         style: GoogleFonts.manrope(fontSize: 12),
-                        decoration:
-                            _inputDecoration('masukkan password').copyWith(
-                          suffixIcon: IconButton(
-                            onPressed: () {
-                              setState(() => _hiddenPass = !_hiddenPass);
-                            },
-                            icon: Icon(
-                              _hiddenPass
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                              size: 18,
-                              color: AppColor.abu,
-                            ),
-                          ),
+                        decoration: _inputDecoration('masukkan password')
+                            .copyWith(
+                              suffixIcon: IconButton(
+                                onPressed: () {
+                                  setState(() => _hiddenPass = !_hiddenPass);
+                                },
+                                icon: Icon(
+                                  _hiddenPass
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                  size: 18,
+                                  color: AppColor.abu,
+                                ),
+                              ),
                             ),
                       ),
 
@@ -210,8 +213,9 @@ class _RegisterAdminScreensState extends State<RegisterAdminScreens> {
                         controller: _instansiController,
                         textCapitalization: TextCapitalization.words,
                         style: GoogleFonts.manrope(fontSize: 12),
-                        decoration:
-                            _inputDecoration('contoh: Dinas Pariwisata DKI'),
+                        decoration: _inputDecoration(
+                          'contoh: Dinas Pariwisata DKI',
+                        ),
                       ),
 
                       const SizedBox(height: 24),
@@ -278,8 +282,10 @@ class _RegisterAdminScreensState extends State<RegisterAdminScreens> {
 
                 // Footer info keamanan
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColor.ungu.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
@@ -287,8 +293,11 @@ class _RegisterAdminScreensState extends State<RegisterAdminScreens> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.lock_outline,
-                          size: 12, color: AppColor.ungu),
+                      const Icon(
+                        Icons.lock_outline,
+                        size: 12,
+                        color: AppColor.ungu,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         'Dilindungi enkripsi TLS 1.3',
@@ -304,7 +313,10 @@ class _RegisterAdminScreensState extends State<RegisterAdminScreens> {
 
                 const SizedBox(height: 24),
 
-                Image.asset('assets/images/LokaTrip-logo-no-van.png', width: 90),
+                Image.asset(
+                  'assets/images/LokaTrip-logo-no-van.png',
+                  width: 90,
+                ),
 
                 const SizedBox(height: 24),
               ],
@@ -333,12 +345,10 @@ class _RegisterAdminScreensState extends State<RegisterAdminScreens> {
     return InputDecoration(
       hintText: hint,
       hintStyle: GoogleFonts.manrope(fontSize: 12, color: AppColor.abu),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide:
-            BorderSide(color: AppColor.ungu.withValues(alpha: 0.4)),
+        borderSide: BorderSide(color: AppColor.ungu.withValues(alpha: 0.4)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),

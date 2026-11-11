@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_color.dart';
-import 'features/admin/splash_admin_screens.dart'; // TODO: hapus setelah selesai test admin
+import 'features/splash_screens.dart';
 
 void main() {
   runApp(const MyApp());
@@ -33,7 +33,7 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: .fromSeed(seedColor: AppColor.ungu),
       ),
-      home: const SplashAdminScreens(), // TODO: ganti balik ke SplashScreens() setelah test
+      home: const SplashScreens(),
     );
   }
 }

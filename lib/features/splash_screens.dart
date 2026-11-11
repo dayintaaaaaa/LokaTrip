@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/app_color.dart';
 import '../core/session_manager.dart';
 import '../features/login_screens.dart';
+import '../features/admin/dashboard_admin_screens.dart';
+import '../features/admin_mitra/pengajuan_mitra_screens.dart';
+import '../features/admin_mitra/wisata_saya_mitra_screen.dart';
 import '../features/user/home_screens.dart';
 
 class SplashScreens extends StatefulWidget {
@@ -29,14 +33,26 @@ class _SplashScreensState extends State<SplashScreens>
     _controller.addStatusListener((status) async {
       if (status == AnimationStatus.completed) {
         final loggedIn = await SessionManager.isLoggedIn();
+        final role = await SessionManager.accountRole();
+        final prefs = await SharedPreferences.getInstance();
+        final isMitraSubmitted =
+            prefs.getBool('mitra_application_submitted') ?? false;
 
         if (!mounted) return;
 
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                loggedIn ? const HomeScreens() : const LoginScreens(),
+            builder: (_) {
+              if (!loggedIn) return const LoginScreens();
+              return switch (role) {
+                'admin' => const DashboardAdminScreens(),
+                'mitra' => isMitraSubmitted
+                    ? const WisataSayaMitraScreen()
+                    : const PengajuanMitraScreens(),
+                _ => const HomeScreens(),
+              };
+            },
           ),
         );
       }
@@ -141,8 +157,9 @@ class _SplashScreensState extends State<SplashScreens>
                                 value: _controller.value,
                                 minHeight: 4,
                                 color: AppColor.ungu,
-                                backgroundColor:
-                                    AppColor.ungu.withValues(alpha: 0.15),
+                                backgroundColor: AppColor.ungu.withValues(
+                                  alpha: 0.15,
+                                ),
                               ),
                             );
                           },

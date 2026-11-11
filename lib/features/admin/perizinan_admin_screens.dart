@@ -8,6 +8,7 @@ import 'laporan_admin_screens.dart';
 import 'mitra_admin_screens.dart';
 import 'notifikasi_admin_screens.dart';
 import 'profil_screens.dart';
+import 'verifikasi_mitra_admin_screens.dart';
 
 const _blue = Color(0xFF1D4ED8);
 const _ink = Color(0xFF10243A);
@@ -17,13 +18,14 @@ const _border = Color(0xFFE7EBF2);
 const _green = Color(0xFF087457);
 const _red = Color(0xFFCB3038);
 
-enum _Status { active, pending, expiring, expired }
+enum _Status { active, pending, expiring, expired, rejected }
 
 class _Permit {
   final String id, category, destination, partner, dates, note, auditor;
   final IconData icon;
   final Color iconBackground;
   _Status status;
+  int rejectedStep;
 
   _Permit(
     this.id,
@@ -36,11 +38,18 @@ class _Permit {
     this.icon,
     this.iconBackground,
     this.status,
-  );
+  ) : rejectedStep = 0;
 }
 
 class PerizinanAdminScreens extends StatefulWidget {
-  const PerizinanAdminScreens({super.key});
+  final String initialFilter;
+  final String? initialPermitId;
+
+  const PerizinanAdminScreens({
+    super.key,
+    this.initialFilter = 'Semua',
+    this.initialPermitId,
+  });
 
   @override
   State<PerizinanAdminScreens> createState() => _PerizinanAdminScreensState();
@@ -58,7 +67,28 @@ class _PerizinanAdminScreensState extends State<PerizinanAdminScreens> {
     'Aktif',
     'Akan berakhir',
     'Kedaluwarsa',
+    'Ditolak',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (_filters.contains(widget.initialFilter)) {
+      _filter = widget.initialFilter;
+    }
+    final initialPermitId = widget.initialPermitId;
+    if (initialPermitId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        for (final permit in _permits) {
+          if (permit.id == initialPermitId) {
+            _openPermit(permit);
+            return;
+          }
+        }
+      });
+    }
+  }
 
   List<_Permit> get _visible => _permits.where((permit) {
     final matchesStatus = switch (_filter) {
@@ -66,6 +96,7 @@ class _PerizinanAdminScreensState extends State<PerizinanAdminScreens> {
       'Aktif' => permit.status == _Status.active,
       'Akan berakhir' => permit.status == _Status.expiring,
       'Kedaluwarsa' => permit.status == _Status.expired,
+      'Ditolak' => permit.status == _Status.rejected,
       _ => true,
     };
     final text =
@@ -106,74 +137,37 @@ class _PerizinanAdminScreensState extends State<PerizinanAdminScreens> {
       ..showSnackBar(SnackBar(content: Text(text)));
   }
 
-  void _openPermit(_Permit permit) => showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text(permit.destination),
-      content: SizedBox(
-        width: 440,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _statusBadge(permit.status),
-            const SizedBox(height: 16),
-            _detail('Nomor registrasi', permit.id),
-            _detail('Kategori', permit.category),
-            _detail('Mitra', permit.partner),
-            _detail('Masa berlaku', permit.dates),
-            _detail('Auditor', permit.auditor),
-            const SizedBox(height: 8),
-            Text(permit.note, style: const TextStyle(color: _muted)),
-          ],
+  void _openPermit(_Permit permit) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => VerifikasiMitraAdminScreens(
+          id: permit.id,
+          partner: permit.partner,
+          destination: permit.destination,
+          category: permit.category,
+          dates: permit.dates,
+          auditor: permit.auditor,
+          note: permit.note,
+          status: switch (permit.status) {
+            _Status.active => StatusAuditMitra.aktif,
+            _Status.rejected => StatusAuditMitra.ditolak,
+            _ => StatusAuditMitra.menunggu,
+          },
+          rejectedStep: permit.rejectedStep,
+          onApproved: (_) => setState(() => permit.status = _Status.active),
+          onRejected: (step) => setState(() {
+            permit.status = _Status.rejected;
+            permit.rejectedStep = step;
+          }),
+          onRevision: () => setState(() {
+            permit.status = _Status.pending;
+            permit.rejectedStep = 0;
+          }),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Tutup'),
-        ),
-        if (permit.status == _Status.pending)
-          FilledButton(
-            onPressed: () {
-              setState(() => permit.status = _Status.active);
-              Navigator.pop(context);
-              _message('${permit.id} ditandai siap setelah audit.');
-            },
-            child: const Text('Tandai diverifikasi'),
-          ),
-        if (permit.status == _Status.expiring)
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _message(
-                'Pengingat perpanjangan untuk ${permit.partner} disiapkan.',
-              );
-            },
-            child: const Text('Kirim pengingat'),
-          ),
-      ],
-    ),
-  );
-
-  Widget _detail(String label, String value) => Padding(
-    padding: const EdgeInsets.only(bottom: 9),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 135,
-          child: Text(label, style: const TextStyle(color: _muted)),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(color: _ink, fontWeight: FontWeight.w700),
-          ),
-        ),
-      ],
-    ),
-  );
+    );
+  }
 
   Future<void> _addPermit() async {
     final form = GlobalKey<FormState>();
@@ -466,7 +460,8 @@ class _PerizinanAdminScreensState extends State<PerizinanAdminScreens> {
       'Menunggu' => _Status.pending,
       'Aktif' => _Status.active,
       'Akan berakhir' => _Status.expiring,
-      _ => _Status.expired,
+      'Kedaluwarsa' => _Status.expired,
+      _ => _Status.rejected,
     };
     return _permits.where((permit) => permit.status == status).length;
   }
@@ -719,6 +714,7 @@ Widget _statusBadge(_Status status) {
     ),
     _Status.expiring => ('AKAN BERAKHIR', _blue, const Color(0xFFE3EAFF)),
     _Status.expired => ('KEDALUWARSA', _red, const Color(0xFFFFE1DF)),
+    _Status.rejected => ('DITOLAK', _red, const Color(0xFFFFE1DF)),
   };
   return _badge(label, color, background);
 }
@@ -728,6 +724,7 @@ const _statusColors = {
   _Status.pending: Color(0xFF08749B),
   _Status.expiring: _blue,
   _Status.expired: _red,
+  _Status.rejected: _red,
 };
 
 Widget _badge(String label, Color color, Color background) => Container(
