@@ -7,6 +7,7 @@ import '../../../widgets/badge_rating.dart';
 import '../../../widgets/gambar_wisata.dart';
 import '../../../widgets/tombol_favorit.dart';
 import '../home_widgets/section_title.dart';
+import '../../../widgets/tombol_kartu.dart';
 
 class KatalogWisata extends StatelessWidget {
   final List<Wisata> daftar;
@@ -74,6 +75,7 @@ class KatalogWisata extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         // nanti: buka halaman Detail Wisata
+        TombolKartu(label: 'Pilih Paket');
       },
       child: Container(
         clipBehavior: Clip.antiAlias,
@@ -208,32 +210,7 @@ class KatalogWisata extends StatelessWidget {
                           ],
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () {
-                          // nanti: pilih tiket / buka detail
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColor.ungu,
-                          foregroundColor: AppColor.putih,
-                          elevation: 0,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 9,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text(
-                          'Pilih Tiket',
-                          style: GoogleFonts.manrope(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+                      TombolKartu(label: 'Pilih Paket'),
                     ],
                   ),
                 ],

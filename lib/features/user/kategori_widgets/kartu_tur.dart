@@ -5,6 +5,7 @@ import '../../../core/format_rupiah.dart';
 import '../../../models/wisata.dart';
 import '../../../widgets/gambar_wisata.dart';
 import '../../../widgets/tombol_favorit.dart';
+import '../../../widgets/tombol_kartu.dart';
 
 // Kartu tur: label kuning, lokasi + jenis tur di gambar, chip fitur.
 class KartuTur extends StatelessWidget {
@@ -159,32 +160,7 @@ class KartuTur extends StatelessWidget {
                           ],
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () {
-                          // nanti: pilih paket / buka detail
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColor.ungu,
-                          foregroundColor: AppColor.putih,
-                          elevation: 0,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text(
-                          'Pilih Paket',
-                          style: GoogleFonts.manrope(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+                      TombolKartu(label: 'Pilih Paket'),
                     ],
                   ),
                 ],

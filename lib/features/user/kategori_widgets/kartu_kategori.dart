@@ -5,6 +5,7 @@ import '../../../core/format_rupiah.dart';
 import '../../../models/wisata.dart';
 import '../../../widgets/gambar_wisata.dart';
 import '../../../widgets/tombol_favorit.dart';
+import '../../../widgets/tombol_kartu.dart';
 
 class KartuKategori extends StatelessWidget {
   final Wisata wisata;
@@ -216,36 +217,7 @@ class KartuKategori extends StatelessWidget {
                           ],
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () {
-                          // nanti: pilih tiket / buka detail
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColor.ungu,
-                          foregroundColor: AppColor.putih,
-                          elevation: 0,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Pilih Tiket',
-                              style: GoogleFonts.manrope(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(width: 2),
-                            const Icon(Icons.chevron_right, size: 16),
-                          ],
-                        ),
-                      ),
+                      TombolKartu(label: 'Pilih Paket'),
                     ],
                   ),
                 ],

@@ -6,13 +6,13 @@ import '../../../models/wisata.dart';
 import '../../../widgets/badge_rating.dart';
 import '../../../widgets/gambar_wisata.dart';
 import '../../../widgets/tombol_favorit.dart';
+import '../../../widgets/tombol_kartu.dart';
 
 // Kartu dengan rating di atas gambar dan lokasi di bawah gambar.
 class KartuLayanan extends StatelessWidget {
   final Wisata wisata;
   final VoidCallback? onTap;
   final String labelTombol; // contoh: 'Pilih Tiket' atau 'Pilih'
-  final bool panahTombol; // true = ada panah > di tombol
   final bool subkategoriDiGambar; // true = subkategori jadi label kanan bawah
 
   const KartuLayanan({
@@ -20,7 +20,6 @@ class KartuLayanan extends StatelessWidget {
     required this.wisata,
     this.onTap,
     this.labelTombol = 'Pilih Tiket',
-    this.panahTombol = false,
     this.subkategoriDiGambar = false,
   });
 
@@ -197,43 +196,7 @@ class KartuLayanan extends StatelessWidget {
                           ],
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () {
-                          // nanti: pilih tiket / buka detail
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColor.ungu,
-                          foregroundColor: AppColor.putih,
-                          elevation: 0,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          padding: EdgeInsets.fromLTRB(
-                            16,
-                            10,
-                            panahTombol ? 8 : 16,
-                            10,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              labelTombol,
-                              style: GoogleFonts.manrope(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            if (panahTombol) ...[
-                              const SizedBox(width: 2),
-                              const Icon(Icons.chevron_right, size: 16),
-                            ],
-                          ],
-                        ),
-                      ),
+                      TombolKartu(label: labelTombol),
                     ],
                   ),
                 ],

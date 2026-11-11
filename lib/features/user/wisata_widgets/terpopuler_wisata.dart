@@ -8,6 +8,7 @@ import '../../../widgets/gambar_wisata.dart';
 import '../../../widgets/tombol_favorit.dart';
 import '../home_widgets/section_title.dart';
 import '../../user/destinasi_populer_screens.dart';
+import '../../../widgets/tombol_kartu.dart';
 
 class TerpopulerWisata extends StatelessWidget {
   final List<Wisata> daftar;
@@ -196,32 +197,7 @@ class TerpopulerWisata extends StatelessWidget {
                           ],
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () {
-                          // nanti: beli tiket / buka detail
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColor.ungu,
-                          foregroundColor: AppColor.putih,
-                          elevation: 0,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text(
-                          'Beli Tiket',
-                          style: GoogleFonts.manrope(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+                      TombolKartu(label: 'Pilih Paket'),
                     ],
                   ),
                 ],

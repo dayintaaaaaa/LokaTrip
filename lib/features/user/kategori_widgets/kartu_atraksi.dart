@@ -5,6 +5,7 @@ import '../../../core/format_rupiah.dart';
 import '../../../models/wisata.dart';
 import '../../../widgets/gambar_wisata.dart';
 import '../../../widgets/tombol_favorit.dart';
+import '../../../widgets/tombol_kartu.dart';
 
 // Kartu dengan lokasi di bawah gambar dan label di kiri bawah gambar.
 class KartuAtraksi extends StatelessWidget {
@@ -192,32 +193,7 @@ class KartuAtraksi extends StatelessWidget {
                           ],
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () {
-                          // nanti: pilih tiket / buka detail
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColor.ungu,
-                          foregroundColor: AppColor.putih,
-                          elevation: 0,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text(
-                          'Pilih Tiket',
-                          style: GoogleFonts.manrope(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+                      TombolKartu(label: 'Pilih Paket'),
                     ],
                   ),
                 ],

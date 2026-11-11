@@ -11,6 +11,7 @@ import 'kategori_widgets/kartu_kategori.dart';
 import 'kategori_widgets/kartu_atraksi.dart';
 import 'kategori_widgets/kartu_tur.dart';
 import 'kategori_widgets/kartu_layanan.dart';
+import 'detail_wisata_screens.dart';
 
 class KategoriScreens extends StatefulWidget {
   final Kategori kategori;
@@ -144,7 +145,10 @@ class _KategoriScreensState extends State<KategoriScreens> {
 
   Widget _kartu(Wisata w) {
     void bukaDetail() {
-      // nanti: buka halaman Detail Wisata
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => DetailWisataScreens(wisata: w)),
+      );
     }
 
     final nama = widget.kategori.nama;
@@ -156,10 +160,10 @@ class _KategoriScreensState extends State<KategoriScreens> {
       return KartuTur(wisata: w, onTap: bukaDetail);
     }
     if (nama == 'Playground') {
-      return KartuLayanan(wisata: w, onTap: bukaDetail, labelTombol: 'Pilih');
+      return KartuLayanan(wisata: w, onTap: bukaDetail);
     }
     if (nama == 'Spa & Pijat') {
-      return KartuLayanan(wisata: w, onTap: bukaDetail, panahTombol: true);
+      return KartuLayanan(wisata: w, onTap: bukaDetail);
     }
     if (nama == 'Alam & Outbound') {
       return KartuLayanan(
