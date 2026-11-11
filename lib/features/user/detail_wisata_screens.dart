@@ -11,6 +11,7 @@ import '../../widgets/tombol_favorit.dart';
 import 'detail_widgets/fasilitas_tur.dart';
 import 'detail_widgets/kartu_paket.dart';
 import 'detail_widgets/ulasan_pengunjung.dart';
+import '../user/atur_jadwal_screens.dart';
 
 // 12800 -> "12.800"
 String _ribuan(int n) => formatRupiah(n).replaceFirst('Rp ', '');
@@ -85,7 +86,10 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
                   const SizedBox(height: 10),
                   _keunggulan(),
                   const SizedBox(height: 22),
-                  _judulSeksi('Pilih Opsi Paket', 'Kategori tarif tiket masuk & tur'),
+                  _judulSeksi(
+                    'Pilih Opsi Paket',
+                    'Kategori tarif tiket masuk & tur',
+                  ),
                   const SizedBox(height: 12),
                   if (_d.grup.length > 1) ...[
                     _pilihGrup(),
@@ -377,7 +381,11 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
       decoration: _kotak(),
       child: Row(
         children: [
-          const Icon(Icons.location_on_outlined, size: 22, color: AppColor.ungu),
+          const Icon(
+            Icons.location_on_outlined,
+            size: 22,
+            color: AppColor.ungu,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -506,7 +514,10 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
           ),
         ),
         const SizedBox(height: 2),
-        Text(sub, style: GoogleFonts.manrope(fontSize: 10, color: AppColor.abu)),
+        Text(
+          sub,
+          style: GoogleFonts.manrope(fontSize: 10, color: AppColor.abu),
+        ),
       ],
     );
   }
@@ -669,8 +680,13 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
               const SizedBox(width: 12),
               ElevatedButton(
                 onPressed: () {
-                  // TODO: buka halaman pembelian untuk paket yang dipilih
-                  // (PembelianScreens sekarang masih menerima PromoItem)
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          AturJadwalScreens(detail: _d, grup: _g, paket: _p),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColor.ungu,
