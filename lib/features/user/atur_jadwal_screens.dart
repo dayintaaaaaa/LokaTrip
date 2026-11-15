@@ -11,6 +11,8 @@ import '../../models/ketersediaan_dummy.dart';
 import 'atur_jadwal_widgets/jumlah_pengunjung.dart';
 import 'atur_jadwal_widgets/kalender_kunjungan.dart';
 import 'atur_jadwal_widgets/ringkasan_wisata.dart';
+import 'atur_jadwal_widgets/ringkasan_wisata.dart';
+import 'checkout_screens.dart'; // <- baru
 
 // Langkah pertama pemesanan: pilih tanggal kunjungan dan jumlah pengunjung.
 class AturJadwalScreens extends StatefulWidget {
@@ -109,25 +111,21 @@ class _AturJadwalScreensState extends State<AturJadwalScreens> {
   void _ubahBayi(int d) => setState(() => _bayi += d);
 
   void _lanjut() {
-    final data = DataPemesanan(
-      detail: widget.detail,
-      grup: widget.grup,
-      paket: widget.paket,
-      tanggal: _tanggal,
-      dewasa: _dewasa,
-      anak: _anak,
-      bayi: _bayi,
-      hargaDewasa: _hargaDewasa,
-      hargaAnak: _hargaAnak,
-    );
-
-    // TODO: ganti SnackBar ini dengan Navigator.push ke halaman berikutnya
-    // (data pemesan / pembayaran) sambil membawa `data`.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${data.tiket} tiket • ${formatTanggal(data.tanggal)} • '
-          '${formatRupiah(data.total)}',
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CheckoutScreens(
+          pesanan: DataPemesanan(
+            detail: widget.detail,
+            grup: widget.grup,
+            paket: widget.paket,
+            tanggal: _tanggal,
+            dewasa: _dewasa,
+            anak: _anak,
+            bayi: _bayi,
+            hargaDewasa: _hargaDewasa,
+            hargaAnak: _hargaAnak,
+          ),
         ),
       ),
     );
