@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lokatrip/services/auth_service.dart';
 import '../core/app_color.dart';
-import '../core/session_manager.dart';
 import '../features/login_screens.dart';
 import '../features/user/home_screens.dart';
 
@@ -25,10 +25,10 @@ class _SplashScreensState extends State<SplashScreens>
       duration: const Duration(seconds: 3),
     );
 
-    // setelah loading, lanjut ke home screen
-    _controller.addStatusListener((status) async {
+    // setelah loading, lanjut ke home atau login
+    _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        final loggedIn = await SessionManager.isLoggedIn();
+        final loggedIn = AuthService().isLoggedIn;
 
         if (!mounted) return;
 
@@ -141,8 +141,9 @@ class _SplashScreensState extends State<SplashScreens>
                                 value: _controller.value,
                                 minHeight: 4,
                                 color: AppColor.ungu,
-                                backgroundColor:
-                                    AppColor.ungu.withValues(alpha: 0.15),
+                                backgroundColor: AppColor.ungu.withValues(
+                                  alpha: 0.15,
+                                ),
                               ),
                             );
                           },

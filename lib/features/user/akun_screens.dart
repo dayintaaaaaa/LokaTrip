@@ -1,9 +1,8 @@
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lokatrip/services/auth_service.dart';
 import '../../core/app_color.dart';
 import '../../core/format.dart';
-import '../../core/session_manager.dart';
 import '../../widgets/top_navigator.dart';
 import '../../widgets/bottom_navigator.dart';
 import '../../widgets/poin_card.dart';
@@ -17,6 +16,7 @@ import 'keamanan_akun_screens.dart';
 import 'snk_screens.dart';
 import 'pesanan_screens.dart';
 import 'ulasan_wisata_screens.dart';
+import '../../services/profile_store.dart';
 
 class AkunScreens extends StatefulWidget {
   const AkunScreens({super.key});
@@ -26,14 +26,42 @@ class AkunScreens extends StatefulWidget {
 }
 
 class _AkunScreensState extends State<AkunScreens> {
-  // TODO: ganti dengan data dari backend
-  final String _nama = 'Sarah Anindita';
-  final String _email = 'sarah.anindita@email.com';
-  final String _telepon = '+62 812-3456-7890';
-  final int _saldoPoin = 24500;
+  // ---------- data profil (dari database lewat ProfilStore) ----------
+  String get _nama => ProfilStore.instance.nama;
+  String get _email => ProfilStore.instance.email;
+  String get _telepon => ProfilStore.instance.telepon;
+  int get _saldoPoin => ProfilStore.instance.totalPoin;
+  String? get _fotoUrl => ProfilStore.instance.fotoUrl;
+
+  // TODO: sambungkan ke tabel ulasan / wishlist / pesanan
   final int _jumlahUlasan = 24;
   final int _jumlahWishlist = 12;
   final int _eTiketAktif = 2;
+
+  @override
+  void initState() {
+    super.initState();
+    ProfilStore.instance.profil.addListener(_onProfilBerubah);
+    ProfilStore.instance.muat();
+  }
+
+  @override
+  void dispose() {
+    ProfilStore.instance.profil.removeListener(_onProfilBerubah);
+    super.dispose();
+  }
+
+  void _onProfilBerubah() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _keEditProfile() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const EditProfileScreens()),
+    );
+    ProfilStore.instance.muat(paksa: true);
+  }
 
   // ---------------- bottom sheet konfirmasi logout ----------------
   Future<bool> _konfirmasiLogout() async {
@@ -54,266 +82,279 @@ class _AkunScreensState extends State<AkunScreens> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
             child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // handle
-              Container(
-                width: 44,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColor.abu.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 22),
-
-              // ikon logout + gembok
-              SizedBox(
-                width: 80,
-                height: 80,
-                child: Stack(
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          color: AppColor.kuning.withValues(alpha: 0.18),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.logout_rounded,
-                            size: 32, color: AppColor.kuning),
-                      ),
-                    ),
-                    Positioned(
-                      right: 2,
-                      bottom: 2,
-                      child: Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          color: AppColor.putih,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColor.abu.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: const Icon(Icons.lock_outline,
-                            size: 13, color: AppColor.hitam),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              Text(
-                'Keluar dari Akun?',
-                style: GoogleFonts.manrope(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColor.hitam,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              Text.rich(
-                TextSpan(
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    height: 1.55,
-                    color: AppColor.hitam.withValues(alpha: 0.6),
-                  ),
-                  children: [
-                    const TextSpan(text: 'Sesi Anda akan berakhir, namun semua '),
-                    TextSpan(text: 'tiket aktif,', style: tebal.copyWith(fontSize: 12)),
-                    const TextSpan(text: ' '),
-                    TextSpan(
-                        text: 'riwayat perjalanan',
-                        style: tebal.copyWith(fontSize: 12)),
-                    const TextSpan(text: ', dan '),
-                    TextSpan(
-                      text: '${formatAngka(_saldoPoin)} Loka-Poin',
-                      style: tebal.copyWith(fontSize: 12, color: AppColor.ungu),
-                    ),
-                    const TextSpan(
-                      text: ' Anda tetap tersimpan dengan aman di server kami.',
-                    ),
-                  ],
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 18),
-
-              // kartu akun
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColor.ungu.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: AppColor.abu.withValues(alpha: 0.25),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // handle
+                Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColor.abu.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppColor.biru,
-                      child: Icon(Icons.person, size: 22, color: AppColor.putih),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  _nama,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColor.hitam,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColor.kuning.withValues(alpha: 0.25),
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                    color: AppColor.kuning.withValues(alpha: 0.7),
-                                  ),
-                                ),
-                                child: Text(
-                                  'GOLD TIER',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColor.hitam,
-                                  ),
-                                ),
-                              ),
-                            ],
+                const SizedBox(height: 22),
+
+                // ikon logout + gembok
+                SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            color: AppColor.kuning.withValues(alpha: 0.18),
+                            shape: BoxShape.circle,
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _email,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
-                              fontSize: 11,
-                              color: AppColor.abu,
+                          child: const Icon(Icons.logout_rounded,
+                              size: 32, color: AppColor.kuning),
+                        ),
+                      ),
+                      Positioned(
+                        right: 2,
+                        bottom: 2,
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: AppColor.putih,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColor.abu.withValues(alpha: 0.3),
                             ),
                           ),
-                        ],
+                          child: const Icon(Icons.lock_outline,
+                              size: 13, color: AppColor.hitam),
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                Text(
+                  'Keluar dari Akun?',
+                  style: GoogleFonts.manrope(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColor.hitam,
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                Text.rich(
+                  TextSpan(
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      height: 1.55,
+                      color: AppColor.hitam.withValues(alpha: 0.6),
+                    ),
+                    children: [
+                      const TextSpan(
+                          text: 'Sesi Anda akan berakhir, namun semua '),
+                      TextSpan(
+                          text: 'tiket aktif,',
+                          style: tebal.copyWith(fontSize: 12)),
+                      const TextSpan(text: ' '),
+                      TextSpan(
+                          text: 'riwayat perjalanan',
+                          style: tebal.copyWith(fontSize: 12)),
+                      const TextSpan(text: ', dan '),
+                      TextSpan(
+                        text: '${formatAngka(_saldoPoin)} Loka-Poin',
+                        style: tebal.copyWith(
+                            fontSize: 12, color: AppColor.ungu),
+                      ),
+                      const TextSpan(
+                        text:
+                            ' Anda tetap tersimpan dengan aman di server kami.',
+                      ),
+                    ],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 18),
+
+                // kartu akun
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColor.ungu.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: AppColor.abu.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: AppColor.biru,
+                        backgroundImage: _fotoUrl != null
+                            ? NetworkImage(_fotoUrl!)
+                            : null,
+                        child: _fotoUrl == null
+                            ? const Icon(Icons.person,
+                                size: 22, color: AppColor.putih)
+                            : null,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    _nama,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColor.hitam,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColor.kuning
+                                        .withValues(alpha: 0.25),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: AppColor.kuning
+                                          .withValues(alpha: 0.7),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'GOLD TIER',
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColor.hitam,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _email,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.manrope(
+                                fontSize: 11,
+                                color: AppColor.abu,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.check_circle,
+                          size: 14, color: AppColor.ungu),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Tersimpan',
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColor.ungu,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // info
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 1),
+                      child: Icon(Icons.info_outline,
+                          size: 13, color: AppColor.abu),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(Icons.check_circle,
-                        size: 14, color: AppColor.ungu),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Tersimpan',
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColor.ungu,
+                    Expanded(
+                      child: Text(
+                        'Masuk kembali kapan saja dengan nomor handphone atau email terdaftar.',
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          height: 1.4,
+                          color: AppColor.abu,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 12),
+                const SizedBox(height: 18),
 
-              // info
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 1),
-                    child: Icon(Icons.info_outline,
-                        size: 13, color: AppColor.abu),
+                // tombol keluar
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColor.kuning.withValues(alpha: 0.45),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Masuk kembali kapan saja dengan nomor handphone atau email terdaftar.',
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        height: 1.4,
-                        color: AppColor.abu,
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      icon: const Icon(Icons.logout_rounded, size: 18),
+                      label: Text(
+                        'Ya, Keluar Akun',
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColor.kuning,
+                        foregroundColor: AppColor.hitam,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 18),
-
-              // tombol keluar
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColor.kuning.withValues(alpha: 0.45),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
                 ),
-                child: SizedBox(
+                const SizedBox(height: 10),
+
+                // tombol batal
+                SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    icon: const Icon(Icons.logout_rounded, size: 18),
-                    label: Text(
-                      'Ya, Keluar Akun',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColor.kuning,
+                      backgroundColor: AppColor.ungu.withValues(alpha: 0.06),
                       foregroundColor: AppColor.hitam,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: AppColor.abu.withValues(alpha: 0.2),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // tombol batal
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColor.ungu.withValues(alpha: 0.06),
-                    foregroundColor: AppColor.hitam,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      side: BorderSide(
-                        color: AppColor.abu.withValues(alpha: 0.2),
-                      ),
-                    ),
-                  ),
-                  child: Text(
-                    'Batal & Tetap Masuk',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                    child: Text(
+                      'Batal & Tetap Masuk',
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -334,7 +375,8 @@ class _AkunScreensState extends State<AkunScreens> {
     final yakin = await _konfirmasiLogout();
     if (!yakin) return;
 
-    await SessionManager.logout();
+    await AuthService().logout();
+    ProfilStore.instance.bersihkan(); // hapus data akun lama dari memori
     if (!mounted) return;
 
     // pindah ke login dengan fade, semua halaman sebelumnya dihapus
@@ -534,11 +576,14 @@ class _AkunScreensState extends State<AkunScreens> {
       children: [
         Stack(
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               radius: 30,
               backgroundColor: AppColor.biru,
-              // TODO: ganti dengan foto dari backend (backgroundImage: NetworkImage(...))
-              child: Icon(Icons.person, size: 32, color: AppColor.putih),
+              backgroundImage:
+                  _fotoUrl != null ? NetworkImage(_fotoUrl!) : null,
+              child: _fotoUrl == null
+                  ? const Icon(Icons.person, size: 32, color: AppColor.putih)
+                  : null,
             ),
             Positioned(
               right: 0,
@@ -549,8 +594,8 @@ class _AkunScreensState extends State<AkunScreens> {
                   color: AppColor.ungu,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check,
-                    size: 10, color: AppColor.putih),
+                child:
+                    const Icon(Icons.check, size: 10, color: AppColor.putih),
               ),
             ),
           ],
@@ -581,10 +626,7 @@ class _AkunScreensState extends State<AkunScreens> {
           ),
         ),
         IconButton(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const EditProfileScreens()),
-          ),
+          onPressed: _keEditProfile,
           icon: const Icon(Icons.edit_outlined, size: 18, color: AppColor.ungu),
         ),
       ],

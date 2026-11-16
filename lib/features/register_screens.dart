@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lokatrip/services/auth_service.dart';
 import '../core/app_color.dart';
-import '../core/session_manager.dart';
 import '../features/user/home_screens.dart';
 import '../features/login_screens.dart';
 
@@ -19,6 +19,7 @@ class _RegisterScreensState extends State<RegisterScreens> {
   final _passwordController = TextEditingController();
   final _teleponController = TextEditingController();
   bool _hiddenPass = true;
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -30,20 +31,68 @@ class _RegisterScreensState extends State<RegisterScreens> {
     super.dispose();
   }
 
-  Future<void> _register() async {
-    // nanti diganti proses daftar sungguhan (kirim ke backend)
-    await SessionManager.setLoggedIn();
-
+  void _pesan(String teks) {
     if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const HomeScreens()),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(teks)));
+  }
+
+  // Pengecekan sederhana sebelum dikirim ke server
+  String? _validasi() {
+    if (_namaController.text.trim().isEmpty) {
+      return 'Nama lengkap wajib diisi';
+    }
+    if (_usernameController.text.trim().isEmpty) {
+      return 'Username wajib diisi';
+    }
+    if (!_emailController.text.contains('@')) {
+      return 'Email tidak valid';
+    }
+    if (_passwordController.text.length < 6) {
+      return 'Password minimal 6 karakter';
+    }
+    if (_teleponController.text.trim().length < 9) {
+      return 'Nomor telepon tidak valid';
+    }
+    return null;
+  }
+
+  Future<void> _register() async {
+    final error = _validasi();
+    if (error != null) {
+      _pesan(error);
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      final langsungLogin = await AuthService().register(
+        namaLengkap: _namaController.text,
+        username: _usernameController.text,
+        email: _emailController.text,
+        password: _passwordController.text,
+        noTelepon: _teleponController.text,
+      );
+
+      if (!mounted) return;
+      if (langsungLogin) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreens()),
+        );
+      } else {
+        _pesan('Berhasil daftar. Cek emailmu untuk konfirmasi.');
+        _keLogin();
+      }
+    } on AuthFailure catch (e) {
+      _pesan(e.message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   void _keLogin() {
     Navigator.pushReplacement(
-      context, 
+      context,
       MaterialPageRoute(builder: (_) => const LoginScreens()),
     );
   }
@@ -58,11 +107,7 @@ class _RegisterScreensState extends State<RegisterScreens> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppColor.ungu,
-              AppColor.biru,
-              AppColor.putih,
-            ],
+            colors: [AppColor.ungu, AppColor.biru, AppColor.putih],
             stops: [0.0, 0.45, 0.8],
           ),
         ),
@@ -152,22 +197,23 @@ class _RegisterScreensState extends State<RegisterScreens> {
                         controller: _passwordController,
                         obscureText: _hiddenPass,
                         style: GoogleFonts.manrope(fontSize: 12),
-                        decoration: _inputDecoration('masukkan password').copyWith(
-                          suffixIcon: IconButton(
-                            onPressed: () {
-                              setState(() {
-                                _hiddenPass = !_hiddenPass;
-                              });
-                            }, 
-                            icon: Icon(
-                              _hiddenPass
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                              size: 18,
-                              color: AppColor.abu,
+                        decoration: _inputDecoration('masukkan password')
+                            .copyWith(
+                              suffixIcon: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _hiddenPass = !_hiddenPass;
+                                  });
+                                },
+                                icon: Icon(
+                                  _hiddenPass
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                  size: 18,
+                                  color: AppColor.abu,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
                       ),
 
                       SizedBox(height: 16),
@@ -189,7 +235,7 @@ class _RegisterScreensState extends State<RegisterScreens> {
                           width: 200,
                           height: 44,
                           child: ElevatedButton(
-                            onPressed: _register, 
+                            onPressed: _loading ? null : _register,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColor.kuning,
                               foregroundColor: AppColor.putih,
@@ -198,13 +244,22 @@ class _RegisterScreensState extends State<RegisterScreens> {
                                 borderRadius: BorderRadius.circular(15),
                               ),
                             ),
-                            child: Text(
-                              'Sign in',
-                              style: GoogleFonts.manrope(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                            child: _loading
+                                ? SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColor.putih,
+                                    ),
+                                  )
+                                : Text(
+                                    'Sign in',
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
@@ -244,12 +299,15 @@ class _RegisterScreensState extends State<RegisterScreens> {
                 SizedBox(height: 150),
 
                 // logo
-                Image.asset('assets/images/LokaTrip-logo-no-van.png', width: 90),
+                Image.asset(
+                  'assets/images/LokaTrip-logo-no-van.png',
+                  width: 90,
+                ),
 
                 SizedBox(height: 24),
               ],
             ),
-          )
+          ),
         ),
       ),
     );
@@ -274,26 +332,15 @@ class _RegisterScreensState extends State<RegisterScreens> {
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.manrope(
-        fontSize: 12,
-        color: AppColor.abu,
-      ),
-      contentPadding: EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 14,
-      ),
+      hintStyle: GoogleFonts.manrope(fontSize: 12, color: AppColor.abu),
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: AppColor.ungu.withValues(alpha: 0.4)
-        ),
+        borderSide: BorderSide(color: AppColor.ungu.withValues(alpha: 0.4)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: AppColor.ungu,
-          width: 1.5
-        ),
+        borderSide: BorderSide(color: AppColor.ungu, width: 1.5),
       ),
     );
   }

@@ -2,11 +2,23 @@ import 'package:flutter/material.dart';
 import '../core/app_color.dart';
 import '../features/user/akun_screens.dart';
 import '../features/user/notifikasi_screens.dart';
+import '../services/profile_store.dart';
 
-class TopNavigator extends StatelessWidget {
+class TopNavigator extends StatefulWidget {
   final bool adaNotif; // titik kuning di lonceng (belum dipakai di halaman mana pun)
 
   const TopNavigator({super.key, this.adaNotif = false});
+
+  @override
+  State<TopNavigator> createState() => _TopNavigatorState();
+}
+
+class _TopNavigatorState extends State<TopNavigator> {
+  @override
+  void initState() {
+    super.initState();
+    ProfilStore.instance.muat();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +57,7 @@ class TopNavigator extends StatelessWidget {
                       color: AppColor.ungu,
                       size: 22,
                     ),
-                    if (adaNotif)
+                    if (widget.adaNotif)
                       Positioned(
                         right: 1,
                         top: 0,
@@ -66,7 +78,7 @@ class TopNavigator extends StatelessWidget {
                 ),
               ),
 
-              // avatar profile -> halaman Akun
+              // avatar profile -> halaman Akun (foto dari database)
               GestureDetector(
                 onTap: () {
                   Navigator.pushReplacement(
@@ -78,10 +90,21 @@ class TopNavigator extends StatelessWidget {
                     ),
                   );
                 },
-                child: CircleAvatar(
-                  radius: 14,
-                  backgroundColor: AppColor.biru,
-                  child: Icon(Icons.person, size: 16, color: AppColor.putih),
+                child: ValueListenableBuilder<Map<String, dynamic>?>(
+                  valueListenable: ProfilStore.instance.profil,
+                  builder: (_, _, _) {
+                    final foto = ProfilStore.instance.fotoUrl;
+                    return CircleAvatar(
+                      radius: 14,
+                      backgroundColor: AppColor.biru,
+                      backgroundImage:
+                          foto != null ? NetworkImage(foto) : null,
+                      child: foto == null
+                          ? Icon(Icons.person,
+                              size: 16, color: AppColor.putih)
+                          : null,
+                    );
+                  },
                 ),
               ),
             ],

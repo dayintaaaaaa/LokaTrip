@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/app_color.dart';
+import '../../services/auth_service.dart';
+import '../../services/profile_store.dart';
+import '../../services/profile_service.dart';
 import '../../widgets/sub_app_bar.dart';
 
 class EditProfileScreens extends StatefulWidget {
@@ -11,18 +16,27 @@ class EditProfileScreens extends StatefulWidget {
 }
 
 class _EditProfileScreensState extends State<EditProfileScreens> {
-  // TODO: isi awal dari data backend
-  final _namaC = TextEditingController(text: 'Aditya Pratama');
-  final _emailC = TextEditingController(text: 'aditya.pratama@email.com');
-  final _teleponC = TextEditingController(text: '0812-3456-7890');
+  final _namaC = TextEditingController();
+  final _emailC = TextEditingController();
+  final _teleponC = TextEditingController();
 
-  DateTime _tanggalLahir = DateTime(1996, 8, 14);
-  String _gender = 'Laki-laki';
+  DateTime? _tanggalLahir;
+  String? _gender;
+  String? _fotoUrl;
+  bool _memuat = true;
+  bool _menyimpan = false;
+  bool _uploadFoto = false;
 
   static const _bulan = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _muat();
+  }
 
   @override
   void dispose() {
@@ -32,33 +46,113 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
     super.dispose();
   }
 
+  void _pesan(String teks) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(teks)));
+  }
+
+  Future<void> _muat() async {
+    try {
+      final p = await ProfileService().getProfile();
+      if (!mounted) return;
+      setState(() {
+        _namaC.text = p['nama_lengkap_user'] ?? '';
+        _emailC.text = Supabase.instance.client.auth.currentUser?.email ?? '';
+        _teleponC.text = ProfileService.keFormatLokal(p['no_telephone'] ?? '');
+        final tgl = p['tgl_lahir'] as String?;
+        _tanggalLahir = tgl == null ? null : DateTime.parse(tgl);
+        _gender = ProfileService.genderKeLabel(p['jenis_kelamin'] as String?);
+        _fotoUrl = p['foto_profil'] as String?;
+      });
+    } on AuthFailure catch (e) {
+      _pesan(e.message);
+    } finally {
+      if (mounted) setState(() => _memuat = false);
+    }
+  }
+
   Future<void> _pilihTanggal() async {
     final hasil = await showDatePicker(
       context: context,
-      initialDate: _tanggalLahir,
+      initialDate: _tanggalLahir ?? DateTime(2000),
       firstDate: DateTime(1940),
       lastDate: DateTime.now(),
     );
     if (hasil != null) setState(() => _tanggalLahir = hasil);
   }
 
-  void _simpan() {
-    // TODO: kirim ke backend
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Perubahan berhasil disimpan',
-          style: GoogleFonts.manrope(),
-        ),
-      ),
+  Future<void> _simpan() async {
+    if (_namaC.text.trim().isEmpty) {
+      _pesan('Nama lengkap wajib diisi');
+      return;
+    }
+    if (_teleponC.text.trim().length < 9) {
+      _pesan('Nomor telepon tidak valid');
+      return;
+    }
+
+    setState(() => _menyimpan = true);
+    try {
+      await ProfileService().updateProfile(
+        namaLengkap: _namaC.text,
+        noTelepon: _teleponC.text,
+        tanggalLahir: _tanggalLahir,
+        jenisKelamin: _gender,
+      );
+      await ProfilStore.instance.muat(paksa: true);
+      if (!mounted) return;
+      _pesan('Perubahan berhasil disimpan');
+      Navigator.pop(context, true); // true = data berubah
+    } on AuthFailure catch (e) {
+      _pesan(e.message);
+    } finally {
+      if (mounted) setState(() => _menyimpan = false);
+    }
+  }
+
+  Future<void> _gantiFoto() async {
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 85,
     );
-    Navigator.pop(context);
+    if (file == null) return;
+
+    setState(() => _uploadFoto = true);
+    try {
+      final url = await ProfileService().uploadFoto(file);
+      if (!mounted) return;
+      setState(() => _fotoUrl = url);
+      ProfilStore.instance.muat(paksa: true);
+      _pesan('Foto profil diperbarui');
+    } on AuthFailure catch (e) {
+      _pesan(e.message);
+    } finally {
+      if (mounted) setState(() => _uploadFoto = false);
+    }
+  }
+
+  Future<void> _hapusFoto() async {
+    if (_fotoUrl == null) return;
+    setState(() => _uploadFoto = true);
+    try {
+      await ProfileService().hapusFoto();
+      if (!mounted) return;
+      setState(() => _fotoUrl = null);
+      ProfilStore.instance.muat(paksa: true);
+      _pesan('Foto profil dihapus');
+    } on AuthFailure catch (e) {
+      _pesan(e.message);
+    } finally {
+      if (mounted) setState(() => _uploadFoto = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final tgl =
-        '${_tanggalLahir.day} ${_bulan[_tanggalLahir.month - 1]} ${_tanggalLahir.year}';
+    final tgl = _tanggalLahir == null
+        ? 'Pilih tanggal lahir'
+        : '${_tanggalLahir!.day} ${_bulan[_tanggalLahir!.month - 1]} ${_tanggalLahir!.year}';
 
     return Scaffold(
       backgroundColor: AppColor.latar,
@@ -66,97 +160,111 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
         children: [
           const SubAppBar(title: 'Edit Profile'),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _fotoProfil(),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Data Pribadi Traveler',
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: AppColor.hitam,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Pastikan informasi Anda akurat untuk tiket\n& atraksi wisata.',
-                    style: GoogleFonts.manrope(
-                      fontSize: 10,
-                      color: AppColor.abu,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+            child: _memuat
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _fotoProfil(),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Data Pribadi Traveler',
+                          style: GoogleFonts.manrope(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: AppColor.hitam,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Pastikan informasi Anda akurat untuk tiket\n& atraksi wisata.',
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            color: AppColor.abu,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
 
-                  _kartu(
-                    label: 'Nama Lengkap',
-                    child: _field(_namaC, Icons.badge_outlined),
-                    info: 'Sesuai KTP / Paspor untuk kemudahan verifikasi e-tiket penerbangan dan atraksi wisata.',
-                    infoIcon: Icons.info_outline,
-                  ),
-                  _kartu(
-                    label: 'Email Akun',
-                    child: _field(_emailC, Icons.mail_outline,
-                        tipe: TextInputType.emailAddress),
-                    info: 'E-tiket dan kode booking instan dikirimkan ke alamat email ini.',
-                    infoIcon: Icons.mail_outline,
-                  ),
-                  _kartu(
-                    label: 'Nomor Telepon / WhatsApp',
-                    child: _field(_teleponC, null,
-                        tipe: TextInputType.phone),
-                    info: 'Nomor aktif untuk pengiriman notifikasi jadwal tur dan titik kumpul darurat.',
-                    infoIcon: Icons.chat_bubble_outline,
-                  ),
-                  _kartu(
-                    label: 'Tanggal Lahir',
-                    labelKanan: 'Wajib untuk tiket penerbangan',
-                    child: InkWell(
-                      onTap: _pilihTanggal,
-                      borderRadius: BorderRadius.circular(10),
-                      child: _kotakIsi(
-                        child: Row(
-                          children: [
-                            const Icon(Icons.calendar_today_outlined,
-                                size: 16, color: AppColor.abu),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                tgl,
-                                style: GoogleFonts.manrope(
-                                  fontSize: 12,
-                                  color: AppColor.hitam,
-                                ),
+                        _kartu(
+                          label: 'Nama Lengkap',
+                          child: _field(_namaC, Icons.badge_outlined),
+                          info:
+                              'Sesuai KTP / Paspor untuk kemudahan verifikasi e-tiket penerbangan dan atraksi wisata.',
+                          infoIcon: Icons.info_outline,
+                        ),
+                        _kartu(
+                          label: 'Email Akun',
+                          child: _field(
+                            _emailC,
+                            Icons.mail_outline,
+                            tipe: TextInputType.emailAddress,
+                            readOnly: true,
+                          ),
+                          info:
+                              'E-tiket dan kode booking instan dikirimkan ke alamat email ini.',
+                          infoIcon: Icons.mail_outline,
+                        ),
+                        _kartu(
+                          label: 'Nomor Telepon / WhatsApp',
+                          child: _field(_teleponC, null,
+                              tipe: TextInputType.phone),
+                          info:
+                              'Nomor aktif untuk pengiriman notifikasi jadwal tur dan titik kumpul darurat.',
+                          infoIcon: Icons.chat_bubble_outline,
+                        ),
+                        _kartu(
+                          label: 'Tanggal Lahir',
+                          labelKanan: 'Wajib untuk tiket penerbangan',
+                          child: InkWell(
+                            onTap: _pilihTanggal,
+                            borderRadius: BorderRadius.circular(10),
+                            child: _kotakIsi(
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.calendar_today_outlined,
+                                      size: 16, color: AppColor.abu),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      tgl,
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 12,
+                                        color: AppColor.hitam,
+                                      ),
+                                    ),
+                                  ),
+                                  const Icon(Icons.edit_calendar_outlined,
+                                      size: 16, color: AppColor.abu),
+                                ],
                               ),
                             ),
-                            const Icon(Icons.edit_calendar_outlined,
-                                size: 16, color: AppColor.abu),
-                          ],
+                          ),
+                          info:
+                              'Diperlukan untuk klaim asuransi perjalanan Lokatrip Care dan diskon usia traveler.',
+                          infoIcon: Icons.shield_outlined,
                         ),
-                      ),
-                    ),
-                    info: 'Diperlukan untuk klaim asuransi perjalanan Lokatrip Care dan diskon usia traveler.',
-                    infoIcon: Icons.shield_outlined,
-                  ),
-                  _kartu(
-                    label: 'Jenis Kelamin',
-                    child: Row(
-                      children: [
-                        Expanded(child: _pilihGender('Laki-laki', Icons.male)),
-                        const SizedBox(width: 10),
-                        Expanded(
-                            child: _pilihGender('Perempuan', Icons.female)),
+                        _kartu(
+                          label: 'Jenis Kelamin',
+                          child: Row(
+                            children: [
+                              Expanded(
+                                  child:
+                                      _pilihGender('Laki-laki', Icons.male)),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                  child:
+                                      _pilihGender('Perempuan', Icons.female)),
+                            ],
+                          ),
+                          info:
+                              'Harus cocok persis dengan identitas maskapai dan manifes kapal.',
+                          infoIcon: Icons.flight_outlined,
+                        ),
                       ],
                     ),
-                    info: 'Harus cocok persis dengan identitas maskapai dan manifes kapal.',
-                    infoIcon: Icons.flight_outlined,
                   ),
-                ],
-              ),
-            ),
           ),
 
           // tombol simpan
@@ -168,8 +276,17 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: _simpan,
-                  icon: const Icon(Icons.save_outlined, size: 18),
+                  onPressed: (_memuat || _menyimpan) ? null : _simpan,
+                  icon: _menyimpan
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColor.putih,
+                          ),
+                        )
+                      : const Icon(Icons.save_outlined, size: 18),
                   label: Text(
                     'Simpan Perubahan',
                     style: GoogleFonts.manrope(
@@ -201,24 +318,33 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
         children: [
           Stack(
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 42,
                 backgroundColor: AppColor.biru,
-                // TODO: foto dari backend
-                child: Icon(Icons.person, size: 44, color: AppColor.putih),
+                backgroundImage:
+                    _fotoUrl != null ? NetworkImage(_fotoUrl!) : null,
+                child: _uploadFoto
+                    ? const CircularProgressIndicator(color: AppColor.putih)
+                    : (_fotoUrl == null
+                        ? const Icon(Icons.person,
+                            size: 44, color: AppColor.putih)
+                        : null),
               ),
               Positioned(
                 right: 0,
                 bottom: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColor.biru,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColor.putih, width: 2),
+                child: GestureDetector(
+                  onTap: _uploadFoto ? null : _gantiFoto,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColor.biru,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColor.putih, width: 2),
+                    ),
+                    child: const Icon(Icons.camera_alt,
+                        size: 12, color: AppColor.putih),
                   ),
-                  child: const Icon(Icons.camera_alt,
-                      size: 12, color: AppColor.putih),
                 ),
               ),
             ],
@@ -230,9 +356,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
           ),
           const SizedBox(height: 4),
           InkWell(
-            onTap: () {
-              // TODO: hapus foto
-            },
+            onTap: _uploadFoto ? null : _hapusFoto,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -348,6 +472,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
     TextEditingController c,
     IconData? icon, {
     TextInputType tipe = TextInputType.text,
+    bool readOnly = false,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -364,6 +489,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
           Expanded(
             child: TextField(
               controller: c,
+              readOnly: readOnly,
               keyboardType: tipe,
               style: GoogleFonts.manrope(fontSize: 12, color: AppColor.hitam),
               decoration: const InputDecoration(
@@ -397,7 +523,9 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
             Container(
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
-                color: aktif ? AppColor.ungu : AppColor.abu.withValues(alpha: 0.2),
+                color: aktif
+                    ? AppColor.ungu
+                    : AppColor.abu.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon,
