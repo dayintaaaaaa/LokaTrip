@@ -15,6 +15,8 @@ import 'checkout_widgets/kartu_kupon.dart';
 import 'checkout_widgets/rincian_pembayaran.dart';
 import 'checkout_widgets/ringkasan_pesanan.dart';
 import 'checkout_widgets/stepper_checkout.dart';
+import 'pilih_kupon_screens.dart';
+import 'metode_pembayaran_screens.dart';
 
 // Langkah 1 checkout: isi data pemesan, pilih Care Extra, pasang kupon.
 class CheckoutScreens extends StatefulWidget {
@@ -44,7 +46,7 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
 
   bool _pakaiProfil = false;
   bool _careExtra = false;
-  Kupon? _kupon = KuponDummy.bawaan; // terpasang dari awal, sesuai desain
+  Kupon? _kupon; 
   String? _errorKupon;
 
   RincianHarga get _rincian => RincianHarga(
@@ -56,6 +58,10 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
   @override
   void initState() {
     super.initState();
+        // kupon bawaan dari desain, dipasang hanya kalau memenuhi syarat minimal
+    if (KuponDummy.bawaan.layak(widget.pesanan.total)) {
+      _kupon = KuponDummy.bawaan;
+    }
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_sisaDetik.value <= 1) {
         t.cancel();
@@ -119,7 +125,7 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
     });
   }
 
-  void _pakaiKupon() {
+    void _pakaiKupon() {
     final kode = _kodeC.text.trim();
     if (kode.isEmpty) {
       setState(() => _errorKupon = 'Masukkan kode kupon dulu');
@@ -129,12 +135,32 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
     setState(() {
       if (k == null) {
         _errorKupon = 'Kode kupon tidak ditemukan';
+      } else if (!k.layak(_rincian.subtotalTiket)) {
+        _errorKupon = 'Minimal transaksi ${formatRupiah(k.minTransaksi)}';
       } else {
         _kupon = k;
         _errorKupon = null;
         _kodeC.clear();
       }
     });
+  }
+
+  Future<void> _pilihDariDaftar() async {
+    final hasil = await Navigator.push<KuponHasil>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PilihKuponScreens(
+          subtotal: _rincian.subtotalTiket,
+          terpilih: _kupon,
+        ),
+      ),
+    );
+    if (hasil != null) {
+      setState(() {
+        _kupon = hasil.kupon;
+        _errorKupon = null;
+      });
+    }
   }
 
   void _hapusKupon() {
@@ -167,14 +193,10 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
       rincian: _rincian,
     );
 
-    // TODO: ganti SnackBar ini dengan Navigator.push ke halaman Pembayaran
     // (langkah 2) sambil membawa `data`.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Atas nama ${data.nama} • ${formatRupiah(data.rincian.total)}',
-        ),
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => MetodePembayaranScreens(data: data)),
     );
   }
 
@@ -225,6 +247,7 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
                     error: _errorKupon,
                     onPakai: _pakaiKupon,
                     onHapus: _hapusKupon,
+                    onPilih: _pilihDariDaftar,
                   ),
                   const SizedBox(height: 14),
                   RincianPembayaran(rincian: r),

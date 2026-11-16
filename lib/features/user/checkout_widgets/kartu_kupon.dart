@@ -5,7 +5,7 @@ import '../../../core/format_rupiah.dart';
 import '../../../models/kupon_dummy.dart';
 
 // Kartu "Kupon & Promo": kupon terpasang (dengan tombol Hapus),
-// atau kolom untuk memasukkan kode kupon kalau belum ada yang dipakai.
+// atau kolom untuk memasukkan kode kupon. Bisa juga memilih dari daftar.
 class KartuKupon extends StatelessWidget {
   final Kupon? kupon; // null = belum ada kupon terpasang
   final int diskon; // besar potongan dari kupon terpasang
@@ -13,6 +13,7 @@ class KartuKupon extends StatelessWidget {
   final String? error;
   final VoidCallback onPakai;
   final VoidCallback onHapus;
+  final VoidCallback onPilih; // buka halaman "Promo & Kupon Spesial"
 
   const KartuKupon({
     super.key,
@@ -22,6 +23,7 @@ class KartuKupon extends StatelessWidget {
     required this.error,
     required this.onPakai,
     required this.onHapus,
+    required this.onPilih,
   });
 
   @override
@@ -39,11 +41,8 @@ class KartuKupon extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.local_offer_outlined,
-                size: 18,
-                color: AppColor.kuning,
-              ),
+              const Icon(Icons.local_offer_outlined,
+                  size: 18, color: AppColor.kuning),
               const SizedBox(width: 8),
               Text(
                 'Kupon & Promo',
@@ -56,10 +55,8 @@ class KartuKupon extends StatelessWidget {
               const Spacer(),
               if (kupon != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: const Color(0xFFDCEFFA),
                     borderRadius: BorderRadius.circular(10),
@@ -77,7 +74,41 @@ class KartuKupon extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (kupon != null) _terpasang(kupon!) else _masukkanKode(),
+          const SizedBox(height: 10),
+          _tombolPilih(),
         ],
+      ),
+    );
+  }
+
+  Widget _tombolPilih() {
+    return InkWell(
+      onTap: onPilih,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColor.ungu.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.confirmation_number_outlined,
+                size: 16, color: AppColor.ungu),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                kupon == null ? 'Pilih dari daftar kupon' : 'Ganti kupon',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColor.ungu,
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 18, color: AppColor.ungu),
+          ],
+        ),
       ),
     );
   }
@@ -91,11 +122,8 @@ class KartuKupon extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.confirmation_number_outlined,
-            size: 20,
-            color: AppColor.ungu,
-          ),
+          const Icon(Icons.confirmation_number_outlined,
+              size: 20, color: AppColor.ungu),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -111,7 +139,9 @@ class KartuKupon extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Hemat ${formatRupiah(diskon)} berhasil diaplikasikan',
+                  diskon > 0
+                      ? 'Hemat ${formatRupiah(diskon)} berhasil diaplikasikan'
+                      : 'Belum memenuhi syarat minimal transaksi',
                   style: GoogleFonts.manrope(
                     fontSize: 10.5,
                     color: AppColor.ungu.withValues(alpha: 0.8),
@@ -167,10 +197,8 @@ class KartuKupon extends StatelessWidget {
                   filled: true,
                   fillColor: const Color(0xFFF7F8FC),
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
