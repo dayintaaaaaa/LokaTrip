@@ -11,7 +11,6 @@ import '../../models/ketersediaan_dummy.dart';
 import 'atur_jadwal_widgets/jumlah_pengunjung.dart';
 import 'atur_jadwal_widgets/kalender_kunjungan.dart';
 import 'atur_jadwal_widgets/ringkasan_wisata.dart';
-import 'atur_jadwal_widgets/ringkasan_wisata.dart';
 import 'checkout_screens.dart'; // <- baru
 
 // Langkah pertama pemesanan: pilih tanggal kunjungan dan jumlah pengunjung.
