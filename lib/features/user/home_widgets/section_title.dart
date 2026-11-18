@@ -7,7 +7,11 @@ class SectionTitle extends StatelessWidget {
   final String? subjudul;
   final Color? warnaAksen; // warna garis di kiri judul (default ungu)
   final Widget? aksesori; // widget di samping judul (contoh: timer)
-  final VoidCallback? onLihatSemua; // null = tombol disembunyikan
+  final Widget? kanan; // widget bebas di kanan (menggantikan tombol aksi)
+  final VoidCallback? onLihatSemua; // null = tombol di kanan disembunyikan
+  final String teksAksi; // teks tombol kanan
+  final IconData? ikonAksi; // ikon kecil di sebelah teks tombol kanan
+  final bool ikonDiAkhir; // true = ikon setelah teks (contoh: panah >)
 
   const SectionTitle({
     super.key,
@@ -15,7 +19,11 @@ class SectionTitle extends StatelessWidget {
     this.subjudul,
     this.warnaAksen,
     this.aksesori,
+    this.kanan,
     this.onLihatSemua,
+    this.teksAksi = 'Lihat Semua',
+    this.ikonAksi,
+    this.ikonDiAkhir = false,
   });
 
   @override
@@ -61,16 +69,32 @@ class SectionTitle extends StatelessWidget {
                 ),
               ),
 
-              if (onLihatSemua != null)
+              // sisi kanan: widget bebas, atau tombol aksi
+              if (kanan != null)
+                kanan!
+              else if (onLihatSemua != null)
                 GestureDetector(
                   onTap: onLihatSemua,
-                  child: Text(
-                    'Lihat Semua',
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColor.biru,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (ikonAksi != null && !ikonDiAkhir) ...[
+                        Icon(ikonAksi, size: 14, color: AppColor.biru),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        teksAksi,
+                        style: GoogleFonts.manrope(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColor.biru,
+                        ),
+                      ),
+                      if (ikonAksi != null && ikonDiAkhir) ...[
+                        const SizedBox(width: 2),
+                        Icon(ikonAksi, size: 16, color: AppColor.biru),
+                      ],
+                    ],
                   ),
                 ),
             ],

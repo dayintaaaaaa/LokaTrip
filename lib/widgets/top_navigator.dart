@@ -4,7 +4,9 @@ import '../features/user/akun_screens.dart';
 import '../features/user/notifikasi_screens.dart';
 
 class TopNavigator extends StatelessWidget {
-  const TopNavigator({super.key});
+  final bool adaNotif; // titik kuning di lonceng (belum dipakai di halaman mana pun)
+
+  const TopNavigator({super.key, this.adaNotif = false});
 
   @override
   Widget build(BuildContext context) {
@@ -35,10 +37,32 @@ class TopNavigator extends StatelessWidget {
                     ),
                   );
                 },
-                icon: Icon(
-                  Icons.notifications_none,
-                  color: AppColor.ungu,
-                  size: 22,
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      Icons.notifications_none,
+                      color: AppColor.ungu,
+                      size: 22,
+                    ),
+                    if (adaNotif)
+                      Positioned(
+                        right: 1,
+                        top: 0,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: AppColor.kuning,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColor.latar,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
 
