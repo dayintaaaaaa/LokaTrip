@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
 import '../../models/wisata.dart';
-import '../../models/wisata_dummy.dart';
+import '../../services/wisata_service.dart';
 import '../../widgets/bottom_navigator.dart';
 import 'destinasi_widgets/kartu_destinasi.dart';
 
@@ -27,6 +27,39 @@ class _DestinasiPopulerScreensState extends State<DestinasiPopulerScreens> {
   bool _mencari = false; // true = kolom pencarian tampil di header
   String _kata = '';
 
+  final _service = WisataService();
+  List<Wisata> _semua = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _muat();
+  }
+
+  Future<void> _muat() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await _service.getSemua();
+      if (!mounted) return;
+      setState(() {
+        _semua = data;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Gagal memuat destinasi: $e');
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _cariController.dispose();
@@ -35,11 +68,7 @@ class _DestinasiPopulerScreensState extends State<DestinasiPopulerScreens> {
 
   // chip kota dibuat otomatis dari data
   List<String> get _daftarKota {
-    final kota = WisataDummy.destinasiPopuler
-        .map((w) => w.kota)
-        .whereType<String>()
-        .toSet()
-        .toList();
+    final kota = _semua.map((w) => w.kota).whereType<String>().toSet().toList();
     kota.sort();
     return kota;
   }
@@ -47,20 +76,24 @@ class _DestinasiPopulerScreensState extends State<DestinasiPopulerScreens> {
   List<Wisata> get _hasil {
     final kunci = _kata.trim().toLowerCase();
 
-    final hasil = WisataDummy.destinasiPopuler.where((w) {
+    final hasil = _semua.where((w) {
       final cocokKota = _kota == null || w.kota == _kota;
       final cocokRating = !_rating || (w.rating ?? 0) >= 4.8;
       final cocokInstan = !_instan || w.fitur.contains('Konfirmasi Instan');
-      final cocokKata = kunci.isEmpty ||
+      final cocokKata =
+          kunci.isEmpty ||
           w.nama.toLowerCase().contains(kunci) ||
           w.lokasi.toLowerCase().contains(kunci);
       return cocokKota && cocokRating && cocokInstan && cocokKata;
     }).toList();
 
     if (_laris) {
-      hasil.sort(
-        (a, b) => (b.jumlahUlasan ?? 0).compareTo(a.jumlahUlasan ?? 0),
-      );
+      hasil.sort((a, b) {
+        final c = (b.jumlahUlasan ?? 0).compareTo(a.jumlahUlasan ?? 0);
+        return c != 0
+            ? c
+            : a.id.compareTo(b.id); // urutan tetap saat ulasan sama
+      });
     }
     return hasil;
   }
@@ -113,17 +146,25 @@ class _DestinasiPopulerScreensState extends State<DestinasiPopulerScreens> {
 
             // daftar kartu
             Expanded(
-              child: hasil.isEmpty
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? _gagal()
+                  : hasil.isEmpty
                   ? _kosong()
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-                      itemCount: hasil.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 14),
-                      itemBuilder: (_, i) => KartuDestinasi(
-                        wisata: hasil[i],
-                        onTap: () {
-                          // nanti: buka halaman Detail Wisata
-                        },
+                  : RefreshIndicator(
+                      onRefresh: _muat,
+                      child: ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+                        itemCount: hasil.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 14),
+                        itemBuilder: (_, i) => KartuDestinasi(
+                          wisata: hasil[i],
+                          onTap: () {
+                            // nanti: buka halaman Detail Wisata
+                          },
+                        ),
                       ),
                     ),
             ),
@@ -234,14 +275,6 @@ class _DestinasiPopulerScreensState extends State<DestinasiPopulerScreens> {
             _rating,
             () => setState(() => _rating = !_rating),
           ),
-          const SizedBox(width: 8),
-          _chipFilter(
-            Icons.check_circle_outline,
-            AppColor.ungu,
-            'Konfirmasi Instan',
-            _instan,
-            () => setState(() => _instan = !_instan),
-          ),
         ],
       ),
     );
@@ -343,6 +376,26 @@ class _DestinasiPopulerScreensState extends State<DestinasiPopulerScreens> {
               color: AppColor.abu,
             ),
           ),
+        ],
+      ),
+    );
+  }
+  Widget _gagal() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.wifi_off_rounded, size: 40, color: AppColor.abu),
+          const SizedBox(height: 8),
+          Text(
+            'Gagal memuat data wisata',
+            style: GoogleFonts.manrope(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColor.abu,
+            ),
+          ),
+          TextButton(onPressed: _muat, child: const Text('Coba lagi')),
         ],
       ),
     );
