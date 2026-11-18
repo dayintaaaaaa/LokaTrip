@@ -33,10 +33,15 @@ class _AkunScreensState extends State<AkunScreens> {
   int get _saldoPoin => ProfilStore.instance.totalPoin;
   String? get _fotoUrl => ProfilStore.instance.fotoUrl;
 
+  // DIUBAH: tadinya 24 / 12 / 2 (data karangan). Jadi 0 sampai tabelnya disambungkan.
   // TODO: sambungkan ke tabel ulasan / wishlist / pesanan
-  final int _jumlahUlasan = 24;
-  final int _jumlahWishlist = 12;
-  final int _eTiketAktif = 2;
+  final int _jumlahUlasan = 0;
+  final int _jumlahWishlist = 0;
+  final int _eTiketAktif = 0;
+
+  // DIUBAH: status verifikasi akun (status_verif = 'Y').
+  // TODO: ganti jadi ProfilStore.instance.statusVerif setelah ditambahkan di ProfilStore
+  bool get _terverifikasi => false;
 
   @override
   void initState() {
@@ -472,7 +477,8 @@ class _AkunScreensState extends State<AkunScreens> {
                         icon: Icons.badge_outlined,
                         judul: 'Data Diri & KTP / Paspor',
                         subjudul: 'KTP Indonesia, Paspor RI',
-                        trailing: _chipVerifikasi(),
+                        // DIUBAH: chip hanya tampil kalau akun terverifikasi
+                        trailing: _terverifikasi ? _chipVerifikasi() : null,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -487,9 +493,14 @@ class _AkunScreensState extends State<AkunScreens> {
                       _MenuTile(
                         icon: Icons.confirmation_number_outlined,
                         judul: 'Riwayat Pesanan & E-Tiket',
-                        subjudul: '$_eTiketAktif E-Tiket aktif siap pakai',
-                        trailing: const Icon(Icons.circle,
-                            size: 8, color: AppColor.kuning),
+                        // DIUBAH: teks dan titik kuning menyesuaikan jumlah e-tiket
+                        subjudul: _eTiketAktif > 0
+                            ? '$_eTiketAktif E-Tiket aktif siap pakai'
+                            : 'Belum ada E-Tiket aktif',
+                        trailing: _eTiketAktif > 0
+                            ? const Icon(Icons.circle,
+                                size: 8, color: AppColor.kuning)
+                            : null,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -585,19 +596,21 @@ class _AkunScreensState extends State<AkunScreens> {
                   ? const Icon(Icons.person, size: 32, color: AppColor.putih)
                   : null,
             ),
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: AppColor.ungu,
-                  shape: BoxShape.circle,
+            // DIUBAH: lencana centang hanya tampil kalau akun terverifikasi
+            if (_terverifikasi)
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    color: AppColor.ungu,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check,
+                      size: 10, color: AppColor.putih),
                 ),
-                child:
-                    const Icon(Icons.check, size: 10, color: AppColor.putih),
               ),
-            ),
           ],
         ),
         const SizedBox(width: 12),

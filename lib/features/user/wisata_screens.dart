@@ -12,6 +12,7 @@ import 'wisata_widgets/katalog_wisata.dart';
 import 'wisata_widgets/pilih_kota.dart';
 import 'wisata_widgets/sub_top_bar.dart';
 import 'wisata_widgets/terpopuler_wisata.dart';
+import '../../services/wisata_service.dart';
 
 class WisataScreens extends StatefulWidget {
   const WisataScreens({super.key});
@@ -25,14 +26,42 @@ class _WisataScreensState extends State<WisataScreens> {
 
   String? _kota; // null = semua lokasi
 
+  final _service = WisataService();
+  List<Wisata> _semua = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _muat();
+  }
+
+  Future<void> _muat() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await _service.getSemua();
+      if (!mounted) return;
+      setState(() {
+        _semua = data;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Gagal memuat wisata: $e');
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
   // semua kota yang ada di data halaman ini
   List<String> get _daftarKota {
-    final semua = [
-      ...WisataDummy.flashKilat,
-      ...WisataDummy.terpopuler,
-      ...WisataDummy.katalog,
-    ];
-    final kota = semua.map((w) => w.kota).whereType<String>().toSet().toList();
+    final kota = _semua.map((w) => w.kota).whereType<String>().toSet().toList();
     kota.sort();
     return kota;
   }
@@ -85,54 +114,69 @@ class _WisataScreensState extends State<WisataScreens> {
 
             // konten: bisa di-scroll
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // kategori
-                    _panel(
-                      child: const KategoriWisata(
-                        tampilJudul: false,
-                        maxBaris: 2,
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Gagal memuat data wisata'),
+                          TextButton(
+                            onPressed: _muat,
+                            child: const Text('Coba lagi'),
+                          ),
+                        ],
                       ),
-                    ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _muat,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Column(
+                          children: [
+                            // kategori
+                            _panel(
+                              child: const KategoriWisata(
+                                tampilJudul: false,
+                                maxBaris: 2,
+                              ),
+                            ),
 
-                    // banner promo
-                    _panel(
-                      child: BannerPromo(
-                        label: 'LIBUR SEKOLAH SERU',
-                        judul: 'Diskon Wisata s.d Rp 150.000',
-                        kupon: 'LOKALIBUR',
-                        berakhirPada: WisataDummy.bannerBerakhir,
-                        onSnkTap: () {
-                          // nanti: buka S&K promo
-                        },
-                      ),
-                    ),
+                            // banner promo
+                            _panel(
+                              child: BannerPromo(
+                                label: 'LIBUR SEKOLAH SERU',
+                                judul: 'Diskon Wisata s.d Rp 150.000',
+                                kupon: 'LOKALIBUR',
+                                berakhirPada: WisataDummy.bannerBerakhir,
+                                onSnkTap: () {},
+                              ),
+                            ),
 
-                    // flash sale kilat
-                    _panel(
-                      child: FlashSaleKilat(
-                        daftar: _saring(WisataDummy.flashKilat),
-                        berakhirPada: WisataDummy.kilatBerakhir,
-                      ),
-                    ),
+                            // flash sale kilat (masih dummy)
+                            _panel(
+                              child: FlashSaleKilat(
+                                daftar: _saring(WisataDummy.flashKilat),
+                                berakhirPada: WisataDummy.kilatBerakhir,
+                              ),
+                            ),
 
-                    // destinasi terpopuler
-                    _panel(
-                      child: TerpopulerWisata(
-                        daftar: _saring(WisataDummy.terpopuler),
-                      ),
-                    ),
+                            // destinasi terpopuler (data asli)
+                            _panel(
+                              child: TerpopulerWisata(
+                                daftar: _saring(_semua).take(10).toList(),
+                              ),
+                            ),
 
-                    // katalog wisata pilihan
-                    _panel(
-                      child: KatalogWisata(
-                        daftar: _saring(WisataDummy.katalog),
+                            // katalog wisata pilihan (data asli)
+                            _panel(
+                              child: KatalogWisata(daftar: _saring(_semua)),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              ),
             ),
           ],
         ),
