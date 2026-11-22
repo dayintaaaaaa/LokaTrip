@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/api_client.dart';
 import '../../core/app_color.dart';
 import '../../core/pesanan_model.dart';
+import '../../core/session_manager.dart';
 import '../../widgets/bottom_navigator.dart';
 import 'ulasan_wisata_screens.dart';
 import 'home_screens.dart';
@@ -36,17 +38,39 @@ class PesananScreens extends StatefulWidget {
 class _PesananScreensState extends State<PesananScreens> {
   bool _tabAktif = true;
   KategoriPesanan? _filter; // null = semua
+  List<Pesanan> _pesanan = const [];
+  bool _loading = true;
+  String? _error;
 
-  int _hitung(bool aktif, KategoriPesanan? k) => DataPesanan.semua
+  @override
+  void initState() {
+    super.initState();
+    _muatPesanan();
+  }
+
+  Future<void> _muatPesanan() async {
+    try {
+      final token = await SessionManager.currentUserToken();
+      if (token == null || token.isEmpty) throw const ApiException('Silakan login kembali.');
+      final rows = await UserApi.orders(token);
+      if (mounted) setState(() => _pesanan = rows.map(Pesanan.fromApiJson).toList());
+    } catch (error) {
+      _error = error.toString();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  int _hitung(bool aktif, KategoriPesanan? k) => _pesanan
       .where((p) => p.aktif == aktif && (k == null || p.kategori == k))
       .length;
 
-  List<Pesanan> get _tampil => DataPesanan.semua
+  List<Pesanan> get _tampil => _pesanan
       .where((p) =>
           p.aktif == _tabAktif && (_filter == null || p.kategori == _filter))
       .toList();
 
-  Pesanan? get _pesananBaru => DataPesanan.semua
+  Pesanan? get _pesananBaru => _pesanan
       .where((p) => p.status == StatusPesanan.siapDigunakan)
       .firstOrNull;
 
@@ -231,7 +255,7 @@ class _PesananScreensState extends State<PesananScreens> {
   Future<void> _ulasan(Pesanan p) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => UlasanWisataScreens(orderId: p.id)),
+      MaterialPageRoute(builder: (_) => UlasanWisataScreens(orderId: p.orderId.toString())),
     );
     if (mounted) setState(() {}); // refresh status ulasan
   }
@@ -253,7 +277,11 @@ class _PesananScreensState extends State<PesananScreens> {
             const SizedBox(height: 12),
             _chipFilter(),
             Expanded(
-              child: ListView(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center)))
+                  : ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
                 children: [
                   if (tampilBanner) _banner(baru),

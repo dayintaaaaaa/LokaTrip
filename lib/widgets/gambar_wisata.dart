@@ -26,6 +26,15 @@ class GambarWisata extends StatelessWidget {
     final p = path;
     if (p == null) return placeholder;
 
+    if (p.startsWith('http://') || p.startsWith('https://')) {
+      return Image.network(
+        p,
+        fit: fit,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, _, _) => placeholder,
+      );
+    }
     return Image.asset(
       p,
       fit: fit,

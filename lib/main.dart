@@ -1,8 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/app_color.dart';
-import 'features/admin/splash_admin_screens.dart';
+import 'features/splash_screens.dart';
 
-void main() {
+const _supabaseUrl = String.fromEnvironment(
+  'SUPABASE_URL',
+  defaultValue: 'https://eokrqohaofdiaabpcnyg.supabase.co',
+);
+const _supabasePublishableKey = String.fromEnvironment(
+  'SUPABASE_PUBLISHABLE_KEY',
+  defaultValue: 'sb_publishable_vWVipF4azgzcdtS8rg7CbA_zPg_MMF7',
+);
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(
+    url: _supabaseUrl,
+    publishableKey: _supabasePublishableKey,
+  );
   runApp(const MyApp());
 }
 
@@ -33,7 +48,7 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: .fromSeed(seedColor: AppColor.ungu),
       ),
-      home: const SplashAdminScreens(),
+      home: const SplashScreens(),
     );
   }
 }

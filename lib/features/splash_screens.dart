@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../core/app_color.dart';
 import '../core/session_manager.dart';
 import '../features/login_screens.dart';
 import '../features/admin/dashboard_admin_screens.dart';
-import '../features/admin_mitra/pengajuan_mitra_screens.dart';
 import '../features/admin_mitra/wisata_saya_mitra_screen.dart';
 import '../features/user/home_screens.dart';
 
@@ -34,9 +32,12 @@ class _SplashScreensState extends State<SplashScreens>
       if (status == AnimationStatus.completed) {
         final loggedIn = await SessionManager.isLoggedIn();
         final role = await SessionManager.accountRole();
-        final prefs = await SharedPreferences.getInstance();
-        final isMitraSubmitted =
-            prefs.getBool('mitra_application_submitted') ?? false;
+        final mitraToken = role == 'mitra'
+            ? await SessionManager.currentMitraToken()
+            : null;
+        final adminToken = role == 'admin'
+            ? await SessionManager.currentAdminToken()
+            : null;
 
         if (!mounted) return;
 
@@ -46,10 +47,14 @@ class _SplashScreensState extends State<SplashScreens>
             builder: (_) {
               if (!loggedIn) return const LoginScreens();
               return switch (role) {
-                'admin' => const DashboardAdminScreens(),
-                'mitra' => isMitraSubmitted
-                    ? const WisataSayaMitraScreen()
-                    : const PengajuanMitraScreens(),
+                'admin' =>
+                  adminToken != null
+                      ? const DashboardAdminScreens()
+                      : const LoginScreens(),
+                'mitra' =>
+                  mitraToken != null
+                      ? const WisataSayaMitraScreen()
+                      : const LoginScreens(),
                 _ => const HomeScreens(),
               };
             },

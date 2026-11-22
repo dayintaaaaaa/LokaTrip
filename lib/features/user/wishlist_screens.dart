@@ -1,48 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/api_client.dart';
 import '../../core/app_color.dart';
 import '../../core/favorite_store.dart';
 import '../../core/format.dart';
-import '../../core/format_rupiah.dart' show ringkasAngka;
+import '../../core/format_rupiah.dart';
 import '../../models/wisata.dart';
-import '../../models/wisata_dummy.dart';
+import '../../core/session_manager.dart';
 import '../../widgets/gambar_wisata.dart';
 import '../../widgets/sub_app_bar.dart';
 import '../../widgets/tombol_favorit.dart';
-
-// TODO: ganti model ini dengan model dari backend
-class _Wisata {
-  final String judul;
-  final String lokasi;
-  final String rating;
-  final String ulasan;
-  final String kategori;
-  final String badge; // "Diskon 25%", "Popular Choice", dst
-  final Color badgeWarna;
-  final Color badgeTeks;
-  final String chipInfo; // "Tiket Instan QR", "Konfirmasi Instan", dst
-  final IconData chipIcon;
-  final int hargaCoret;
-  final int harga;
-  final Color warnaGambar;
-  bool favorit;
-
-  _Wisata({
-    required this.judul,
-    required this.lokasi,
-    required this.rating,
-    required this.ulasan,
-    required this.kategori,
-    required this.badge,
-    required this.badgeWarna,
-    required this.badgeTeks,
-    required this.chipInfo,
-    required this.chipIcon,
-    required this.hargaCoret,
-    required this.harga,
-    required this.warnaGambar,
-  }) : favorit = true;
-}
 
 class WishlistScreens extends StatefulWidget {
   const WishlistScreens({super.key});
@@ -55,13 +22,30 @@ class _WishlistScreensState extends State<WishlistScreens> {
   // Daftar diambil sekali saat halaman dibuka: wisata yang sedang difavoritkan.
   // Kalau hati ditekan lagi di sini, kartunya tetap tampil (hati jadi putih)
   // sampai halaman ditutup, jadi masih bisa dibatalkan.
-  late final List<Wisata> _daftar;
+  late final Future<List<Wisata>> _daftar;
 
   @override
   void initState() {
     super.initState();
-    final ids = Set<int>.from(FavoritStore.ids.value);
-    _daftar = WisataDummy.semuaWisata.where((w) => ids.contains(w.id)).toList();
+    _daftar = _ambilWishlist();
+  }
+
+  Future<List<Wisata>> _ambilWishlist() async {
+    final token = await SessionManager.currentUserToken();
+    if (token == null || token.isEmpty) return const [];
+    final rows = await UserApi.wishlist(token);
+    final ids = <int>{};
+    final wisata = <Wisata>[];
+    for (final row in rows) {
+      final item = row['wisata'];
+      if (item is Map<String, dynamic>) {
+        final parsed = Wisata.fromApiJson(item);
+        wisata.add(parsed);
+        ids.add(parsed.id);
+      }
+    }
+    FavoritStore.ids.value = ids;
+    return wisata;
   }
 
   @override
@@ -72,9 +56,19 @@ class _WishlistScreensState extends State<WishlistScreens> {
         children: [
           const SubAppBar(title: 'Wishlist Saya'),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              children: [
+            child: FutureBuilder<List<Wisata>>(
+              future: _daftar,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text(snapshot.error.toString()));
+                }
+                final daftar = snapshot.data ?? const <Wisata>[];
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  children: [
                 Row(
                   children: [
                     Text(
@@ -97,7 +91,7 @@ class _WishlistScreensState extends State<WishlistScreens> {
                   valueListenable: FavoritStore.ids,
                   builder: (context, ids, _) {
                     final tersimpan =
-                        _daftar.where((w) => ids.contains(w.id)).length;
+                        daftar.where((w) => ids.contains(w.id)).length;
                     return Text(
                       '$tersimpan Wisata Tersimpan',
                       style: GoogleFonts.manrope(
@@ -109,8 +103,10 @@ class _WishlistScreensState extends State<WishlistScreens> {
                 ),
                 const SizedBox(height: 12),
 
-                if (_daftar.isEmpty) _kosong() else ..._daftar.map(_kartu),
-              ],
+                if (daftar.isEmpty) _kosong() else ...daftar.map(_kartu),
+                  ],
+                );
+              },
             ),
           ),
         ],

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
+import '../../core/admin_auth_service.dart';
 import '../../core/session_manager.dart';
 import 'dashboard_admin_screens.dart';
-import 'register_admin_screens.dart';
 
 class LoginAdminScreens extends StatefulWidget {
   const LoginAdminScreens({super.key});
@@ -13,33 +13,58 @@ class LoginAdminScreens extends StatefulWidget {
 }
 
 class _LoginAdminScreensState extends State<LoginAdminScreens> {
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _hiddenPass = true;
+  bool _isLoading = false;
+  bool get _canLogin =>
+      !_isLoading &&
+      _usernameController.text.trim().isNotEmpty &&
+      _passwordController.text.isNotEmpty;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _login() async {
-    // TODO: ganti dengan autentikasi admin sungguhan (cek ke backend)
-    await SessionManager.setLoggedIn(role: 'admin');
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text;
+    if (username.isEmpty || password.isEmpty) {
+      _showMessage('Email dan password wajib diisi.');
+      return;
+    }
 
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const DashboardAdminScreens()),
-    );
+    setState(() => _isLoading = true);
+    try {
+      final session = await AdminAuthService.login(
+        username: username,
+        password: password,
+      );
+      await SessionManager.setAdminSession(
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+      );
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardAdminScreens()),
+      );
+    } on AdminAuthException catch (error) {
+      _showMessage(error.message);
+    } catch (_) {
+      _showMessage('Login admin gagal. Coba lagi.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
-  void _keRegister() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const RegisterAdminScreens()),
-    );
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -141,9 +166,9 @@ class _LoginAdminScreensState extends State<LoginAdminScreens> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Email dinas
+                      // Email admin
                       Text(
-                        'Email Dinas',
+                        'Email',
                         style: GoogleFonts.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -152,10 +177,11 @@ class _LoginAdminScreensState extends State<LoginAdminScreens> {
                       ),
                       const SizedBox(height: 6),
                       TextField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
+                        controller: _usernameController,
+                        textInputAction: TextInputAction.next,
+                        onChanged: (_) => setState(() {}),
                         style: GoogleFonts.manrope(fontSize: 12),
-                        decoration: _inputDecoration('admin@lokatrip.id'),
+                        decoration: _inputDecoration('email admin'),
                       ),
 
                       const SizedBox(height: 16),
@@ -173,6 +199,9 @@ class _LoginAdminScreensState extends State<LoginAdminScreens> {
                       TextField(
                         controller: _passwordController,
                         obscureText: _hiddenPass,
+                        textInputAction: TextInputAction.done,
+                        onChanged: (_) => setState(() {}),
+                        onSubmitted: (_) => _isLoading ? null : _login(),
                         style: GoogleFonts.manrope(fontSize: 12),
                         decoration: _inputDecoration('masukkan password')
                             .copyWith(
@@ -211,10 +240,6 @@ class _LoginAdminScreensState extends State<LoginAdminScreens> {
 
                       // Tombol masuk
                       Center(child: _primaryButton('Masuk', _login)),
-                      const SizedBox(height: 10),
-                      Center(
-                        child: _secondaryButton('Daftar Admin', _keRegister),
-                      ),
                     ],
                   ),
                 ),
@@ -289,7 +314,7 @@ class _LoginAdminScreensState extends State<LoginAdminScreens> {
       width: 200,
       height: 44,
       child: ElevatedButton(
-        onPressed: onPressed,
+        onPressed: _canLogin ? onPressed : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColor.kuning,
           foregroundColor: AppColor.putih,
@@ -298,31 +323,21 @@ class _LoginAdminScreensState extends State<LoginAdminScreens> {
             borderRadius: BorderRadius.circular(14),
           ),
         ),
-        child: Text(
-          teks,
-          style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
-      ),
-    );
-  }
-
-  Widget _secondaryButton(String teks, VoidCallback onPressed) {
-    return SizedBox(
-      width: 200,
-      height: 44,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColor.ungu,
-          side: const BorderSide(color: AppColor.ungu, width: 1.5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-        child: Text(
-          teks,
-          style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600),
-        ),
+        child: _isLoading
+            ? const SizedBox.square(
+                dimension: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColor.putih,
+                ),
+              )
+            : Text(
+                teks,
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
       ),
     );
   }

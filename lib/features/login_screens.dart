@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/api_client.dart';
 import '../core/app_color.dart';
 import '../core/session_manager.dart';
 import '../features/register_screens.dart';
 import 'admin/dashboard_admin_screens.dart';
-import 'admin_mitra/pengajuan_mitra_screens.dart';
 import 'admin_mitra/wisata_saya_mitra_screen.dart';
 import '../features/user/home_screens.dart';
 
@@ -20,7 +20,7 @@ class _LoginScreensState extends State<LoginScreens> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _hiddenPass = true;
-  String _accountType = 'admin';
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -30,25 +30,187 @@ class _LoginScreensState extends State<LoginScreens> {
   }
 
   Future<void> _login() async {
-    // nanti ganti proses login sungguhan (cek ke backend)
-    await SessionManager.setLoggedIn(role: _accountType);
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      final identifier = _emailController.text.trim();
+      final password = _passwordController.text;
+      if (identifier.isEmpty || password.isEmpty) {
+        throw const ApiException('Email/username dan password wajib diisi.');
+      }
 
-    final prefs = await SharedPreferences.getInstance();
-    final isMitraSubmitted =
-        prefs.getBool('mitra_application_submitted') ?? false;
-
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => switch (_accountType) {
+      // Non-email identifiers (username or legacy phone number) are resolved
+      // by the Supabase Edge Function, which keeps lookup credentials server-side.
+      if (!identifier.contains('@')) {
+        final response = await Supabase.instance.client.functions.invoke(
+          'smart-endpoint',
+          body: {
+            'identifier': identifier,
+            'phone': identifier,
+            'password': password,
+          },
+        );
+        final payload = response.data;
+        if (payload is! Map) {
+          throw const ApiException('Respons login tidak valid.');
+        }
+        final loginSession = payload['session'];
+        if (loginSession is! Map) {
+          throw ApiException(payload['error'] as String? ?? 'Login gagal.');
+        }
+        final accessToken = loginSession['access_token'] as String?;
+        final refreshToken = loginSession['refresh_token'] as String?;
+        final role = payload['role'] as String?;
+        if (accessToken == null || refreshToken == null) {
+          throw const ApiException('Sesi login tidak valid.');
+        }
+        final restored = await Supabase.instance.client.auth.setSession(
+          refreshToken,
+        );
+        final activeSession = restored.session;
+        if (activeSession == null) {
+          throw const ApiException('Sesi login tidak dapat diaktifkan.');
+        }
+        var resolvedRole = role;
+        // The currently deployed phone-login function predates role routing.
+        // Infer the role from the authenticated profile until its update lands.
+        if (resolvedRole == null) {
+          final authUser = restored.user;
+          if (authUser == null) {
+            throw const ApiException('Profil login tidak dapat dibaca.');
+          }
+          final admin = await Supabase.instance.client
+              .from('admin_lokatrip')
+              .select('id_admin')
+              .eq('auth_id', authUser.id)
+              .maybeSingle();
+          if (admin != null) {
+            resolvedRole = 'admin';
+          } else {
+            final mitra = await Supabase.instance.client
+                .from('admin_wisata')
+                .select('id_mitra')
+                .eq('email', authUser.email!)
+                .maybeSingle();
+            if (mitra != null) {
+              resolvedRole = 'mitra';
+            } else {
+              final profile = await Supabase.instance.client
+                  .from('users')
+                  .select('id_user')
+                  .eq('auth_id', authUser.id)
+                  .maybeSingle();
+              if (profile != null) resolvedRole = 'wisatawan';
+            }
+          }
+        }
+        final destination = switch (resolvedRole) {
           'admin' => const DashboardAdminScreens(),
-          'mitra' => isMitraSubmitted
-              ? const WisataSayaMitraScreen()
-              : const PengajuanMitraScreens(),
-          _ => const HomeScreens(),
-        },
-      ),
+          'mitra' => const WisataSayaMitraScreen(),
+          'wisatawan' => const HomeScreens(),
+          _ => throw const ApiException('Jenis akun belum terdaftar.'),
+        };
+        if (resolvedRole == 'admin') {
+          await SessionManager.setAdminSession(
+            accessToken: activeSession.accessToken,
+            refreshToken: activeSession.refreshToken,
+          );
+        } else if (resolvedRole == 'mitra') {
+          await SessionManager.setMitraSession(
+            accessToken: activeSession.accessToken,
+            refreshToken: activeSession.refreshToken,
+          );
+        } else {
+          await SessionManager.setUserSession(
+            accessToken: activeSession.accessToken,
+            refreshToken: activeSession.refreshToken,
+          );
+        }
+        if (mounted) _openHome(destination);
+        return;
+      }
+
+      final client = Supabase.instance.client;
+      final response = await client.auth.signInWithPassword(
+        email: identifier,
+        password: password,
+      );
+      final user = response.user;
+      final session = response.session;
+      if (user == null || session == null) {
+        throw const ApiException('Email atau password salah.');
+      }
+
+      final admin = await client
+          .from('admin_lokatrip')
+          .select('id_admin')
+          .eq('auth_id', user.id)
+          .maybeSingle();
+      if (admin != null) {
+        await SessionManager.setAdminSession(
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+        );
+        if (mounted) _openHome(const DashboardAdminScreens());
+        return;
+      }
+
+      final mitra = await client
+          .from('admin_wisata')
+          .select('id_mitra')
+          .eq('email', user.email!)
+          .maybeSingle();
+      if (mitra != null) {
+        await SessionManager.setMitraSession(
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+        );
+        if (mounted) _openHome(const WisataSayaMitraScreen());
+        return;
+      }
+
+      final profile = await client
+          .from('users')
+          .select('id_user')
+          .eq('auth_id', user.id)
+          .maybeSingle();
+      if (profile != null) {
+        await SessionManager.setUserSession(
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+        );
+        if (mounted) _openHome(const HomeScreens());
+        return;
+      }
+
+      await client.auth.signOut();
+      throw const ApiException('Akun belum terhubung ke profil LokaTrip.');
+    } on ApiException catch (error) {
+      _showMessage(error.message);
+    } on AuthException catch (error) {
+      _showMessage(error.message);
+    } on PostgrestException catch (error) {
+      await Supabase.instance.client.auth.signOut();
+      _showMessage(error.message);
+    } catch (error) {
+      _showMessage('Login gagal: $error');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _openHome(Widget page) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute<void>(builder: (_) => page),
+      (_) => false,
     );
   }
 
@@ -122,42 +284,10 @@ class _LoginScreensState extends State<LoginScreens> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Jenis akun',
-                        style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColor.hitam,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(
-                            value: 'admin',
-                            label: Text('Admin'),
-                            icon: Icon(Icons.admin_panel_settings_outlined),
-                          ),
-                          ButtonSegment(
-                            value: 'mitra',
-                            label: Text('Pihak Wisata'),
-                            icon: Icon(Icons.landscape_outlined),
-                          ),
-                          ButtonSegment(
-                            value: 'wisatawan',
-                            label: Text('Wisatawan'),
-                            icon: Icon(Icons.explore_outlined),
-                          ),
-                        ],
-                        selected: {_accountType},
-                        onSelectionChanged: (selection) =>
-                            setState(() => _accountType = selection.first),
-                        showSelectedIcon: false,
-                      ),
-                      SizedBox(height: 20),
+                      SizedBox(height: 4),
                       // Email/telephone
                       Text(
-                        'Email atau Nomor Telepon',
+                        'Email atau username',
                         style: GoogleFonts.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -170,7 +300,7 @@ class _LoginScreensState extends State<LoginScreens> {
                         keyboardType: TextInputType.emailAddress,
                         style: GoogleFonts.manrope(fontSize: 12),
                         decoration: _inputDecoration(
-                          'admin@gmail.com atau 0812345678',
+                          'email@contoh.com atau nama pengguna',
                         ),
                       ),
 
@@ -229,7 +359,12 @@ class _LoginScreensState extends State<LoginScreens> {
                       SizedBox(height: 20),
 
                       // button
-                      Center(child: _yellowButton('Log in', _login)),
+                      Center(
+                        child: _yellowButton(
+                          _loading ? 'Memproses…' : 'Log in',
+                          _login,
+                        ),
+                      ),
                       SizedBox(height: 10),
                       Center(child: _yellowButton('Sign in', _signIn)),
                     ],

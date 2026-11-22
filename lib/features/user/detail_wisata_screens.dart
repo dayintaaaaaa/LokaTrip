@@ -44,7 +44,9 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
   @override
   void initState() {
     super.initState();
-    _d = DetailDummy.untuk(widget.wisata);
+    _d = widget.wisata.paketTiket.isNotEmpty
+        ? DetailWisata.dariWisata(widget.wisata)
+        : DetailDummy.untuk(widget.wisata);
   }
 
   void _gantiGrup(int i) {

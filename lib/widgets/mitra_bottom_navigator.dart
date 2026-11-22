@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/mitra_theme.dart';
 
 import '../features/admin_mitra/legalitas_mitra_screen.dart';
 import '../features/admin_mitra/pengajuan_mitra_screens.dart';
@@ -60,69 +61,56 @@ class MitraBottomNavigator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const activeColor = Color(0xFF1748D1);
-    const inactiveColor = Color(0xFF94A3B8);
+    const activeColor = MitraPalette.primary;
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        border: const Border(
-          top: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, -3),
-          ),
-        ],
+        border: Border(top: BorderSide(color: MitraPalette.line)),
       ),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(_navItems.length, (index) {
-              final item = _navItems[index];
-              final isActive = index == currentIndex;
-              final color = isActive ? activeColor : inactiveColor;
-
-              return Expanded(
-                child: InkWell(
-                  splashColor: activeColor.withValues(alpha: 0.08),
-                  highlightColor: Colors.transparent,
-                  onTap: () {
-                    if (onTap != null) {
-                      onTap!(index);
-                    } else {
-                      if (index == currentIndex) return;
-                      navigateTo(context, index);
-                    }
-                  },
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isActive ? item.activeIcon : item.icon,
-                        size: 22,
-                        color: color,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.label,
-                        style: GoogleFonts.manrope(
-                          fontSize: 10,
-                          fontWeight:
-                              isActive ? FontWeight.w700 : FontWeight.w500,
-                          color: color,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+        child: NavigationBarTheme(
+          data: NavigationBarThemeData(
+            height: 68,
+            backgroundColor: Colors.white,
+            elevation: 0,
+            indicatorColor: MitraPalette.primaryLight,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            iconTheme: WidgetStateProperty.resolveWith((states) {
+              final selected = states.contains(WidgetState.selected);
+              return IconThemeData(
+                size: 21,
+                color: selected ? activeColor : const Color(0xFF8792A5),
               );
             }),
+            labelTextStyle: WidgetStateProperty.resolveWith((states) {
+              final selected = states.contains(WidgetState.selected);
+              return GoogleFonts.manrope(
+                fontSize: 10,
+                height: 1.2,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                color: selected ? activeColor : const Color(0xFF8792A5),
+              );
+            }),
+          ),
+          child: NavigationBar(
+            selectedIndex: currentIndex,
+            onDestinationSelected: (index) {
+              if (onTap != null) {
+                onTap!(index);
+              } else if (index != currentIndex) {
+                navigateTo(context, index);
+              }
+            },
+            destinations: [
+              for (final item in _navItems)
+                NavigationDestination(
+                  icon: Icon(item.icon),
+                  selectedIcon: Icon(item.activeIcon),
+                  label: item.label,
+                ),
+            ],
           ),
         ),
       ),
@@ -141,4 +129,3 @@ class _MitraNavItem {
     required this.activeIcon,
   });
 }
-

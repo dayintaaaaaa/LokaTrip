@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/api_client.dart';
 import '../../core/app_color.dart';
 import '../../core/format.dart';
 import '../../core/session_manager.dart';
@@ -26,14 +27,41 @@ class AkunScreens extends StatefulWidget {
 }
 
 class _AkunScreensState extends State<AkunScreens> {
-  // TODO: ganti dengan data dari backend
-  final String _nama = 'Sarah Anindita';
-  final String _email = 'sarah.anindita@email.com';
-  final String _telepon = '+62 812-3456-7890';
-  final int _saldoPoin = 24500;
-  final int _jumlahUlasan = 24;
-  final int _jumlahWishlist = 12;
-  final int _eTiketAktif = 2;
+  String _nama = '';
+  String _email = '';
+  String _telepon = '';
+  int _saldoPoin = 0;
+  int _jumlahUlasan = 0;
+  int _jumlahWishlist = 0;
+  int _eTiketAktif = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _muatRingkasan();
+  }
+
+  Future<void> _muatRingkasan() async {
+    try {
+      final token = await SessionManager.currentUserToken();
+      if (token == null || token.isEmpty) return;
+      final result = await UserApi.summary(token);
+      final user = result['user'] as Map<String, dynamic>?;
+      if (user == null) return;
+      if (!mounted) return;
+      setState(() {
+        _nama = user['nama_lengkap_user'] as String? ?? '';
+        _email = user['email'] as String? ?? '';
+        _telepon = user['no_telephone'] as String? ?? '';
+        _saldoPoin = (user['total_poin'] as num?)?.toInt() ?? 0;
+        _jumlahWishlist = (result['jumlah_wishlist'] as num?)?.toInt() ?? 0;
+        _jumlahUlasan = (result['jumlah_ulasan'] as num?)?.toInt() ?? 0;
+        _eTiketAktif = (result['etiket_aktif'] as num?)?.toInt() ?? 0;
+      });
+    } catch (_) {
+      // Account screen remains usable while the network is unavailable.
+    }
+  }
 
   // ---------------- bottom sheet konfirmasi logout ----------------
   Future<bool> _konfirmasiLogout() async {
@@ -334,6 +362,14 @@ class _AkunScreensState extends State<AkunScreens> {
     final yakin = await _konfirmasiLogout();
     if (!yakin) return;
 
+    final token = await SessionManager.currentUserToken();
+    if (token != null) {
+      try {
+        await UserApi.logout(token);
+      } catch (_) {
+        // Clear the local session even if the server cannot be reached.
+      }
+    }
     await SessionManager.logout();
     if (!mounted) return;
 
@@ -341,8 +377,8 @@ class _AkunScreensState extends State<AkunScreens> {
     Navigator.pushAndRemoveUntil(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const LoginScreens(),
-        transitionsBuilder: (_, animation, __, child) =>
+        pageBuilder: (_, _, _) => const LoginScreens(),
+        transitionsBuilder: (_, animation, _, child) =>
             FadeTransition(opacity: animation, child: child),
         transitionDuration: const Duration(milliseconds: 350),
       ),

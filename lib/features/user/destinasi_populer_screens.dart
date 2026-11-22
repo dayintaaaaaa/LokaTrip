@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/api_client.dart';
 import '../../core/app_color.dart';
+import '../../core/navigasi_wisata.dart';
 import '../../models/wisata.dart';
-import '../../models/wisata_dummy.dart';
 import '../../widgets/bottom_navigator.dart';
 import 'destinasi_widgets/kartu_destinasi.dart';
 
@@ -26,6 +27,26 @@ class _DestinasiPopulerScreensState extends State<DestinasiPopulerScreens> {
   bool _instan = false; // hanya yang konfirmasi instan
   bool _mencari = false; // true = kolom pencarian tampil di header
   String _kata = '';
+  List<Wisata> _wisata = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _muatWisata();
+  }
+
+  Future<void> _muatWisata() async {
+    try {
+      final rows = await UserApi.catalog();
+      if (mounted) setState(() => _wisata = rows.map(Wisata.fromApiJson).toList());
+    } catch (error) {
+      _error = error.toString();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -35,7 +56,7 @@ class _DestinasiPopulerScreensState extends State<DestinasiPopulerScreens> {
 
   // chip kota dibuat otomatis dari data
   List<String> get _daftarKota {
-    final kota = WisataDummy.destinasiPopuler
+    final kota = _wisata
         .map((w) => w.kota)
         .whereType<String>()
         .toSet()
@@ -47,7 +68,7 @@ class _DestinasiPopulerScreensState extends State<DestinasiPopulerScreens> {
   List<Wisata> get _hasil {
     final kunci = _kata.trim().toLowerCase();
 
-    final hasil = WisataDummy.destinasiPopuler.where((w) {
+    final hasil = _wisata.where((w) {
       final cocokKota = _kota == null || w.kota == _kota;
       final cocokRating = !_rating || (w.rating ?? 0) >= 4.8;
       final cocokInstan = !_instan || w.fitur.contains('Konfirmasi Instan');
@@ -113,7 +134,11 @@ class _DestinasiPopulerScreensState extends State<DestinasiPopulerScreens> {
 
             // daftar kartu
             Expanded(
-              child: hasil.isEmpty
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center)))
+                  : hasil.isEmpty
                   ? _kosong()
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
@@ -121,9 +146,7 @@ class _DestinasiPopulerScreensState extends State<DestinasiPopulerScreens> {
                       separatorBuilder: (_, _) => const SizedBox(height: 14),
                       itemBuilder: (_, i) => KartuDestinasi(
                         wisata: hasil[i],
-                        onTap: () {
-                          // nanti: buka halaman Detail Wisata
-                        },
+                        onTap: () => bukaDetailWisata(context, hasil[i]),
                       ),
                     ),
             ),

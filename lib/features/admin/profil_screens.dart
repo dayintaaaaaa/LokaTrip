@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
+import '../../core/admin_auth_service.dart';
 import '../../core/session_manager.dart';
 import '../../widgets/admin_bottom_navigator.dart';
 import '../../widgets/admin_notification_button.dart';
@@ -20,51 +21,124 @@ class ProfilAdminScreens extends StatefulWidget {
 }
 
 class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
-  // ── data dummy (nanti ganti dari backend) ──
-  final String _nama = 'Administrator';
-  final String _email = 'admin@lokatrip.id';
-  final int _auditBulanIni = 142;
-  final String _slaCompliance = '99.8%';
-  final String _tier = 'Tier 1';
-  // ── aktivitas ──
-  final List<_Aktivitas> _aktivitas = [
-    _Aktivitas(
-      icon: Icons.check_circle_outline,
-      iconColor: Color(0xFF22C55E),
-      iconBg: Color(0xFFDCFCE7),
-      judul: 'Admin menyetujui mitra ',
-      judulLink: 'CV Pesona Nusantara',
-      waktu: '16 Sep 2026, 10:32',
-      badge: 'IP 103.24.12.9',
-      badgeColor: Color(0xFFE0E7FF),
-      badgeTextColor: Color(0xFF525EA7),
-    ),
-    _Aktivitas(
-      icon: Icons.assignment_turned_in_outlined,
-      iconColor: Color(0xFF525EA7),
-      iconBg: Color(0xFFEEF0FF),
-      judul: 'Admin menerbitkan izin ',
-      judulLink: 'IZ-2026-00128',
-      waktu: '16 Sep 2026, 10:45',
-      badge: '✓ Sukses',
-      badgeColor: Color(0xFFDCFCE7),
-      badgeTextColor: Color(0xFF16A34A),
-    ),
-    _Aktivitas(
-      icon: Icons.block_outlined,
-      iconColor: Color(0xFFEF4444),
-      iconBg: Color(0xFFFFE4E6),
-      judul: 'Admin menangguhkan mitra ',
-      judulLink: 'PT Jelajah...',
-      waktu: '15 Sep 2026, 15:20',
-      badge: null,
-      badgeColor: null,
-      badgeTextColor: null,
-      alasan: 'Alasan: Berkas Dishub Kadaluarsa',
-    ),
-  ];
+  AdminProfile? _profile;
+  String? _profileError;
+  bool _isLoadingProfile = true;
+  final String _auditBulanIni = '—';
+  final String _slaCompliance = '—';
+  final String _tier = '—';
+  List<_Aktivitas> _aktivitas = [];
+  String? _activityError;
+  bool _isLoadingActivity = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+    _loadActivities();
+  }
+
+  Future<void> _loadProfile() async {
+    final token = SessionManager.adminAccessToken;
+    if (token == null) {
+      if (mounted) {
+        setState(() {
+          _profileError = 'Sesi admin tidak tersedia. Silakan login kembali.';
+          _isLoadingProfile = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final profile = await AdminAuthService.getProfile(accessToken: token);
+      if (!mounted) return;
+      setState(() {
+        _profile = profile;
+        _profileError = null;
+        _isLoadingProfile = false;
+      });
+    } on AdminAuthException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _profileError = error.message;
+        _isLoadingProfile = false;
+      });
+    }
+  }
+
+  Future<void> _openAccountSettings() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PengaturanAkunAdminScreens()),
+    );
+    if (mounted) _loadProfile();
+  }
+
+  Future<void> _loadActivities() async {
+    final token = SessionManager.adminAccessToken;
+    if (token == null) {
+      if (mounted) {
+        setState(() {
+          _activityError = 'Sesi admin tidak tersedia. Silakan login kembali.';
+          _isLoadingActivity = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final activities = await AdminAuthService.getRecentActivities(
+        accessToken: token,
+      );
+      if (!mounted) return;
+      setState(() {
+        _aktivitas = activities
+            .map(
+              (activity) => _Aktivitas(
+                icon: Icons.history_rounded,
+                iconColor: AppColor.ungu,
+                iconBg: AppColor.ungu.withValues(alpha: 0.08),
+                judul: '${activity.action} ',
+                judulLink: activity.targetId == null
+                    ? activity.table
+                    : '${activity.table} #${activity.targetId}',
+                waktu: _formatActivityDate(activity.createdAt),
+                badge: null,
+                badgeColor: null,
+                badgeTextColor: null,
+              ),
+            )
+            .toList(growable: false);
+        _activityError = null;
+        _isLoadingActivity = false;
+      });
+    } on AdminAuthException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _activityError = error.message;
+        _isLoadingActivity = false;
+      });
+    }
+  }
+
+  String _formatActivityDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}, $hour:$minute';
+  }
 
   Future<void> _logout() async {
+    final token = SessionManager.adminAccessToken;
+    if (token != null) {
+      try {
+        await AdminAuthService.logout(accessToken: token);
+      } catch (_) {
+        // Clear the local session even if the API is unavailable.
+      }
+    }
     await SessionManager.logout();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
@@ -239,7 +313,8 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
 
           // Nama
           Text(
-            _nama,
+            _profile?.fullName ??
+                (_isLoadingProfile ? 'Memuat profil...' : 'Profil admin'),
             style: GoogleFonts.manrope(
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -251,9 +326,16 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
 
           // Email
           Text(
-            _email,
+            _profile?.email ?? _profileError ?? '',
             style: GoogleFonts.manrope(fontSize: 12, color: AppColor.abu),
           ),
+          if (_profile != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              '@${_profile!.username}',
+              style: GoogleFonts.manrope(fontSize: 11, color: AppColor.abu),
+            ),
+          ],
 
           const SizedBox(height: 10),
 
@@ -329,12 +411,7 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
       child: IntrinsicHeight(
         child: Row(
           children: [
-            _statItem(
-              '$_auditBulanIni',
-              'Audit Bulan Ini',
-              AppColor.hitam,
-              false,
-            ),
+            _statItem(_auditBulanIni, 'Audit Bulan Ini', AppColor.hitam, false),
             _verticalDivider(),
             _statItem(_slaCompliance, 'SLA Compliance', AppColor.hitam, false),
             _verticalDivider(),
@@ -411,24 +488,32 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
         ),
         const SizedBox(height: 10),
         Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
           decoration: _cardDecoration(),
-          child: Column(
-            children: List.generate(_aktivitas.length, (i) {
-              final a = _aktivitas[i];
-              return Column(
-                children: [
-                  _aktivitasTile(a),
-                  if (i < _aktivitas.length - 1)
-                    Divider(
-                      height: 1,
-                      indent: 14,
-                      endIndent: 14,
-                      color: AppColor.abu.withValues(alpha: 0.2),
-                    ),
-                ],
-              );
-            }),
-          ),
+          child: _activityError != null
+              ? Text(_activityError!)
+              : _isLoadingActivity
+              ? const Center(child: CircularProgressIndicator())
+              : _aktivitas.isEmpty
+              ? Text(
+                  'Belum ada aktivitas admin.',
+                  style: GoogleFonts.manrope(fontSize: 12, color: AppColor.abu),
+                )
+              : Column(
+                  children: List.generate(_aktivitas.length, (i) {
+                    return Column(
+                      children: [
+                        _aktivitasTile(_aktivitas[i]),
+                        if (i < _aktivitas.length - 1)
+                          Divider(
+                            height: 1,
+                            color: AppColor.abu.withValues(alpha: 0.2),
+                          ),
+                      ],
+                    );
+                  }),
+                ),
         ),
       ],
     );
@@ -525,17 +610,6 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
                     ],
                   ],
                 ),
-                if (a.alasan != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    a.alasan!,
-                    style: GoogleFonts.manrope(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFFEF4444),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -565,24 +639,16 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
               _menuTile(
                 icon: Icons.manage_accounts_outlined,
                 judul: 'Pengaturan Akun',
-                sub: 'Detail profil, email dinas, dan kredensial',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PengaturanAkunAdminScreens(),
-                    ),
-                  );
-                },
+                sub: 'Nama, username, email, dan nomor telepon',
+                onTap: _openAccountSettings,
               ),
               _divider(),
               _menuTile(
                 icon: Icons.notifications_outlined,
                 judul: 'Notifikasi',
                 sub: 'Saluran, eskalasi izin, dan ringkasan aktivitas',
-                onTap: () => _openPreference(
-                  PreferensiAdminSection.notifications,
-                ),
+                onTap: () =>
+                    _openPreference(PreferensiAdminSection.notifications),
               ),
               _divider(),
               _menuTileWithChip(
@@ -806,8 +872,6 @@ class _Aktivitas {
   final String? badge;
   final Color? badgeColor;
   final Color? badgeTextColor;
-  final String? alasan;
-
   const _Aktivitas({
     required this.icon,
     required this.iconColor,
@@ -818,6 +882,5 @@ class _Aktivitas {
     this.badge,
     this.badgeColor,
     this.badgeTextColor,
-    this.alasan,
   });
 }

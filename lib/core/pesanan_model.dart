@@ -1,3 +1,5 @@
+import 'format_rupiah.dart';
+
 enum KategoriPesanan { tiketWisata, tur }
 
 enum StatusPesanan { siapDigunakan, terkonfirmasi, selesai }
@@ -23,6 +25,8 @@ class Pesanan {
   final bool bisaUlas;
   double? rating;
   String? ulasan;
+  final int wisataId;
+  final int orderId;
 
   Pesanan({
     required this.id,
@@ -44,10 +48,72 @@ class Pesanan {
     this.bisaUlas = true,
     this.rating,
     this.ulasan,
+    this.wisataId = 0,
+    this.orderId = 0,
   });
 
   bool get aktif => status != StatusPesanan.selesai;
+
+  factory Pesanan.fromApiJson(Map<String, dynamic> json) {
+    Map<String, dynamic>? firstMap(dynamic value) {
+      if (value is Map<String, dynamic>) return value;
+      if (value is List && value.isNotEmpty && value.first is Map<String, dynamic>) {
+        return value.first as Map<String, dynamic>;
+      }
+      return null;
+    }
+
+    final payment = firstMap(json['pembayaran']);
+    final details = json['detail_pemesanan'];
+    final firstDetail = details is List && details.isNotEmpty
+        ? firstMap(details.first)
+        : null;
+    final package = firstMap(firstDetail?['detail_paket'] == null
+        ? null
+        : firstMap(firstDetail?['detail_paket'])?['paket_wisata']);
+    final attraction = firstMap(package?['wisata']);
+    final paymentStatus = (payment?['status_bayar'] as String? ?? '').toLowerCase();
+    final orderStatus = (json['status_pesan'] as String? ?? '').toLowerCase();
+    final selesai = orderStatus == 'kadaluarsa';
+    final paid = const {'berhasil', 'dibayar', 'lunas', 'paid'}.contains(paymentStatus);
+    final dateText = json['tgl_pesan'] as String? ?? '';
+    final orderDate = DateTime.tryParse(dateText);
+    final visitDate = firstMap(json['kuota_harian'])?['tanggal'] as String? ?? '';
+    final guests = details is List
+        ? details.fold<int>(0, (sum, row) => sum + ((firstMap(row)?['jumlah'] as num?)?.toInt() ?? 0))
+        : 0;
+    final rawId = (json['id_pemesanan'] as num?)?.toInt() ?? 0;
+    final wisataId = (attraction?['id_wisata'] as num?)?.toInt() ?? 0;
+    final title = attraction?['nama_wisata'] as String? ?? package?['nama_paket'] as String? ?? 'Pesanan LokaTrip';
+    final location = attraction?['lokasi'] as String? ?? '';
+    final total = (json['total_bayar'] as num?)?.toInt() ?? 0;
+    final packageName = package?['nama_paket'] as String? ?? 'Tiket wisata';
+
+    return Pesanan(
+      id: json['kode_pesan'] as String? ?? '$rawId',
+      wisataId: wisataId,
+      orderId: rawId,
+      tglBeli: orderDate == null
+          ? dateText
+          : '${orderDate.day} ${_bulanSingkat[orderDate.month - 1]} ${orderDate.year}',
+      status: selesai ? StatusPesanan.selesai : paid ? StatusPesanan.siapDigunakan : StatusPesanan.terkonfirmasi,
+      labelStatus: selesai ? 'Kedaluwarsa' : paid ? 'Siap Digunakan' : 'Menunggu Pembayaran',
+      kategori: KategoriPesanan.tiketWisata,
+      labelFoto: 'Tiket Wisata',
+      judul: title,
+      lokasi: location,
+      chips: [packageName, '$guests Pengunjung'],
+      labelJadwal: 'Jadwal Kunjungan',
+      jadwal: visitDate.isEmpty ? 'Belum ditentukan' : visitDate,
+      labelTotal: 'Total Pesanan',
+      total: formatRupiah(total),
+      metode: payment?['metode_bayar'] as String? ?? 'Belum dipilih',
+      bisaUlas: paid && !selesai,
+    );
+  }
 }
+
+const _bulanSingkat = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
 class DataPesanan {
   static final List<Pesanan> semua = [

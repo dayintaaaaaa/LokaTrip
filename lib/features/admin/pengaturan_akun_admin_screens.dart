@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
+import '../../core/admin_auth_service.dart';
+import '../../core/session_manager.dart';
 import '../../widgets/admin_bottom_navigator.dart';
 import '../../widgets/admin_notification_button.dart';
 import 'dashboard_admin_screens.dart';
@@ -19,60 +21,111 @@ class PengaturanAkunAdminScreens extends StatefulWidget {
 
 class _PengaturanAkunAdminScreensState
     extends State<PengaturanAkunAdminScreens> {
-  // ── controllers ──────────────────────────────────────────────────────────
-  final _namaController = TextEditingController(text: 'Administrator Utama');
-  final _emailController = TextEditingController(text: 'admin@lokatrip.id');
-  final _teleponController = TextEditingController(text: '+62 812-9842-1100');
-  final _departemenController = TextEditingController(
-    text: 'Divisi Kelaikan & Regulasi Operasional Dishub LokaTrip',
-  );
-  final _kantorController = TextEditingController(
-    text: 'Kantor Wilayah Operasional Jakarta Pusat',
-  );
-
-  String _bahasa = 'Bahasa Indonesia (Standar Dinas)';
-  String _zona = 'Asia/Jakarta (WIB) · UTC+07:00';
-
+  final _namaController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _teleponController = TextEditingController();
+  AdminProfile? _profile;
+  String? _loadError;
   bool _isSaving = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
 
   @override
   void dispose() {
     _namaController.dispose();
+    _usernameController.dispose();
     _emailController.dispose();
     _teleponController.dispose();
-    _departemenController.dispose();
-    _kantorController.dispose();
     super.dispose();
   }
 
+  Future<void> _loadProfile() async {
+    try {
+      final token = SessionManager.adminAccessToken;
+      if (token == null) {
+        throw const AdminAuthException(
+          'Sesi admin tidak tersedia. Silakan login kembali.',
+        );
+      }
+      final profile = await AdminAuthService.getProfile(accessToken: token);
+      if (!mounted) return;
+      setState(() {
+        _profile = profile;
+        _loadError = null;
+        _isLoading = false;
+        _setControllers(profile);
+      });
+    } on AdminAuthException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = error.message;
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _setControllers(AdminProfile profile) {
+    _namaController.text = profile.fullName;
+    _usernameController.text = profile.username;
+    _emailController.text = profile.email;
+    _teleponController.text = profile.phone ?? '';
+  }
+
   Future<void> _simpan() async {
+    final username = _usernameController.text.trim();
+    final fullName = _namaController.text.trim();
+    if (username.isEmpty || fullName.isEmpty) {
+      _showMessage('Nama lengkap dan username wajib diisi.', isError: true);
+      return;
+    }
+
     setState(() => _isSaving = true);
-    // TODO: kirim ke backend
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    setState(() => _isSaving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              'Perubahan berhasil disimpan',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+    try {
+      final token = SessionManager.adminAccessToken;
+      if (token == null) {
+        throw const AdminAuthException(
+          'Sesi admin tidak tersedia. Silakan login kembali.',
+        );
+      }
+      final updated = await AdminAuthService.updateProfile(
+        accessToken: token,
+        username: username,
+        fullName: fullName,
+        phone: _teleponController.text.trim().isEmpty
+            ? null
+            : _teleponController.text.trim(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _profile = updated;
+        _setControllers(updated);
+      });
+      _showMessage('Perubahan berhasil disimpan.');
+    } on AdminAuthException catch (error) {
+      if (mounted) _showMessage(error.message, isError: true);
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _showMessage(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: isError
+              ? const Color(0xFFDC2626)
+              : const Color(0xFF22C55E),
+          behavior: SnackBarBehavior.floating,
         ),
-        backgroundColor: const Color(0xFF22C55E),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      );
   }
 
   // ── build ─────────────────────────────────────────────────────────────────
@@ -93,9 +146,17 @@ class _PengaturanAkunAdminScreensState
                   children: [
                     _buildAvatarSection(),
                     const SizedBox(height: 20),
+                    if (_loadError != null) ...[
+                      Text(
+                        _loadError!,
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          color: const Color(0xFFDC2626),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     _buildDataPegawaiSection(),
-                    const SizedBox(height: 16),
-                    _buildPreferensiSection(),
                     const SizedBox(height: 24),
                     _buildSimpanButton(),
                     const SizedBox(height: 12),
@@ -265,7 +326,7 @@ class _PengaturanAkunAdminScreensState
           const Spacer(),
           // Tombol Simpan
           GestureDetector(
-            onTap: _isSaving ? null : _simpan,
+            onTap: _isSaving || _isLoading || _profile == null ? null : _simpan,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
@@ -402,7 +463,8 @@ class _PengaturanAkunAdminScreensState
           ),
           const SizedBox(height: 8),
           Text(
-            'Administrator Utama',
+            _profile?.fullName ??
+                (_isLoading ? 'Memuat profil...' : 'Profil admin'),
             style: GoogleFonts.manrope(
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -414,7 +476,7 @@ class _PengaturanAkunAdminScreensState
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'NIP: ADM-2024-0891',
+                _profile == null ? '' : '@${_profile!.username}',
                 style: GoogleFonts.manrope(fontSize: 11, color: AppColor.abu),
               ),
               const SizedBox(width: 8),
@@ -446,98 +508,46 @@ class _PengaturanAkunAdminScreensState
   Widget _buildDataPegawaiSection() {
     return _sectionCard(
       headerIcon: Icons.badge_outlined,
-      headerLabel: 'Data Pegawai & Kontak Dinas',
-      headerBadge: 'RESMI',
-      headerBadgeColor: const Color(0xFF3B82F6),
+      headerLabel: 'Profil Administrator',
       child: Column(
         children: [
           // Nama Lengkap
-          _fieldLabel('Nama Lengkap Sesuai SK'),
+          _fieldLabel('Nama Lengkap'),
           _inputField(
             controller: _namaController,
             prefixIcon: Icons.person_outline,
             hint: 'Nama lengkap sesuai SK',
+            enabled: !_isLoading && _profile != null && !_isSaving,
           ),
           const SizedBox(height: 14),
 
-          // Email
-          _fieldLabelWithBadge(
-            'Email Kedinasan',
-            badgeText: '✓ Terverifikasi',
-            badgeBg: const Color(0xFFDCFCE7),
-            badgeColor: const Color(0xFF16A34A),
+          _fieldLabel('Username'),
+          _inputField(
+            controller: _usernameController,
+            prefixIcon: Icons.alternate_email_rounded,
+            hint: 'Username admin',
+            enabled: !_isLoading && _profile != null && !_isSaving,
           ),
+          const SizedBox(height: 14),
+
+          _fieldLabel('Email akun'),
           _inputField(
             controller: _emailController,
             prefixIcon: Icons.mail_outline_rounded,
-            hint: 'email@lokatrip.id',
+            hint: 'Email Supabase Auth',
             keyboardType: TextInputType.emailAddress,
+            enabled: _profile != null,
+            readOnly: true,
           ),
           const SizedBox(height: 14),
 
-          // Telepon
-          _fieldLabel('Nomor Telepon Dinas Aktif'),
+          _fieldLabel('Nomor Telepon'),
           _inputField(
             controller: _teleponController,
             prefixIcon: Icons.phone_outlined,
             hint: '+62 ...',
             keyboardType: TextInputType.phone,
-          ),
-          const SizedBox(height: 14),
-
-          // Departemen
-          _fieldLabel('Departemen / Unit Penugasan'),
-          _inputField(
-            controller: _departemenController,
-            prefixIcon: Icons.domain_outlined,
-            hint: 'Nama departemen',
-            maxLines: 2,
-          ),
-          const SizedBox(height: 14),
-
-          // Kantor Wilayah
-          _fieldLabel('Kantor Wilayah / Hub Operasional'),
-          _inputField(
-            controller: _kantorController,
-            prefixIcon: Icons.location_on_outlined,
-            hint: 'Nama kantor wilayah',
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Preferensi Sistem & Regional ────────────────────────────────────────
-  Widget _buildPreferensiSection() {
-    return _sectionCard(
-      headerIcon: Icons.tune_rounded,
-      headerLabel: 'Preferensi Sistem & Regional',
-      child: Column(
-        children: [
-          // Bahasa
-          _fieldLabel('Bahasa Antarmuka Konsol'),
-          _dropdownField(
-            value: _bahasa,
-            prefixIcon: Icons.language_rounded,
-            items: const [
-              'Bahasa Indonesia (Standar Dinas)',
-              'English (International)',
-            ],
-            onChanged: (val) => setState(() => _bahasa = val!),
-          ),
-          const SizedBox(height: 14),
-
-          // Zona Waktu
-          _fieldLabel('Zona Waktu Operasional'),
-          _dropdownField(
-            value: _zona,
-            prefixIcon: Icons.schedule_rounded,
-            items: const [
-              'Asia/Jakarta (WIB) · UTC+07:00',
-              'Asia/Makassar (WITA) · UTC+08:00',
-              'Asia/Jayapura (WIT) · UTC+09:00',
-            ],
-            onChanged: (val) => setState(() => _zona = val!),
+            enabled: !_isLoading && _profile != null && !_isSaving,
           ),
         ],
       ),
@@ -549,7 +559,7 @@ class _PengaturanAkunAdminScreensState
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: _isSaving ? null : _simpan,
+        onPressed: _isSaving || _isLoading || _profile == null ? null : _simpan,
         icon: _isSaving
             ? const SizedBox(
                 width: 16,
@@ -650,56 +660,21 @@ class _PengaturanAkunAdminScreensState
     );
   }
 
-  Widget _fieldLabelWithBadge(
-    String label, {
-    required String badgeText,
-    required Color badgeBg,
-    required Color badgeColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.manrope(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: AppColor.hitam.withValues(alpha: 0.7),
-            ),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: badgeBg,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              badgeText,
-              style: GoogleFonts.manrope(
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-                color: badgeColor,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _inputField({
     required TextEditingController controller,
     required IconData prefixIcon,
     required String hint,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
+    bool enabled = true,
+    bool readOnly = false,
   }) {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
+      enabled: enabled,
+      readOnly: readOnly,
       style: GoogleFonts.manrope(fontSize: 12, color: AppColor.hitam),
       decoration: InputDecoration(
         hintText: hint,
@@ -722,54 +697,6 @@ class _PengaturanAkunAdminScreensState
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: AppColor.ungu, width: 1.5),
-        ),
-      ),
-    );
-  }
-
-  Widget _dropdownField({
-    required String value,
-    required IconData prefixIcon,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColor.latar,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColor.abu.withValues(alpha: 0.2)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          icon: const Icon(
-            Icons.unfold_more_rounded,
-            size: 18,
-            color: AppColor.abu,
-          ),
-          style: GoogleFonts.manrope(fontSize: 12, color: AppColor.hitam),
-          items: items
-              .map(
-                (e) => DropdownMenuItem(
-                  value: e,
-                  child: Row(
-                    children: [
-                      Icon(prefixIcon, size: 15, color: AppColor.abu),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          e,
-                          style: GoogleFonts.manrope(fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-              .toList(),
-          onChanged: onChanged,
         ),
       ),
     );

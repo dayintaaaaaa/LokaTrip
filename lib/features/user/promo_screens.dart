@@ -248,7 +248,7 @@ class _PromoScreensState extends State<PromoScreens> {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _daftarKota.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
           final aktif = i == _kota;
           return InkWell(
@@ -404,7 +404,7 @@ class _PromoScreensState extends State<PromoScreens> {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _daftarKategori.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
           final aktif = i == _kategori;
           final (label, icon) = _daftarKategori[i];

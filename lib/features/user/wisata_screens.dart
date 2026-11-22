@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../core/api_client.dart';
 import '../../core/app_color.dart';
 import '../../models/wisata.dart';
-import '../../models/wisata_dummy.dart';
 import '../../widgets/bottom_navigator.dart';
 import '../../widgets/top_navigator.dart';
 import 'home_widgets/kategori_wisata.dart';
-import 'wisata_widgets/banner_promo.dart';
-import 'wisata_widgets/flash_sale_kilat.dart';
 import 'wisata_widgets/katalog_wisata.dart';
 import 'wisata_widgets/pilih_kota.dart';
 import 'wisata_widgets/sub_top_bar.dart';
@@ -24,15 +22,30 @@ class _WisataScreensState extends State<WisataScreens> {
   static const _latar = AppColor.putih;
 
   String? _kota; // null = semua lokasi
+  List<Wisata> _wisata = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _muatWisata();
+  }
+
+  Future<void> _muatWisata() async {
+    try {
+      final rows = await UserApi.catalog();
+      if (mounted) setState(() => _wisata = rows.map(Wisata.fromApiJson).toList());
+    } catch (error) {
+      _error = error.toString();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   // semua kota yang ada di data halaman ini
   List<String> get _daftarKota {
-    final semua = [
-      ...WisataDummy.flashKilat,
-      ...WisataDummy.terpopuler,
-      ...WisataDummy.katalog,
-    ];
-    final kota = semua.map((w) => w.kota).whereType<String>().toSet().toList();
+    final kota = _wisata.map((w) => w.kota).whereType<String>().toSet().toList();
     kota.sort();
     return kota;
   }
@@ -85,7 +98,11 @@ class _WisataScreensState extends State<WisataScreens> {
 
             // konten: bisa di-scroll
             Expanded(
-              child: SingleChildScrollView(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center)))
+                  : SingleChildScrollView(
                 child: Column(
                   children: [
                     // kategori
@@ -96,38 +113,18 @@ class _WisataScreensState extends State<WisataScreens> {
                       ),
                     ),
 
-                    // banner promo
-                    _panel(
-                      child: BannerPromo(
-                        label: 'LIBUR SEKOLAH SERU',
-                        judul: 'Diskon Wisata s.d Rp 150.000',
-                        kupon: 'LOKALIBUR',
-                        berakhirPada: WisataDummy.bannerBerakhir,
-                        onSnkTap: () {
-                          // nanti: buka S&K promo
-                        },
-                      ),
-                    ),
-
-                    // flash sale kilat
-                    _panel(
-                      child: FlashSaleKilat(
-                        daftar: _saring(WisataDummy.flashKilat),
-                        berakhirPada: WisataDummy.kilatBerakhir,
-                      ),
-                    ),
-
                     // destinasi terpopuler
                     _panel(
                       child: TerpopulerWisata(
-                        daftar: _saring(WisataDummy.terpopuler),
+                        daftar: (_saring(_wisata).toList()
+                          ..sort((a, b) => (b.rating ?? 0).compareTo(a.rating ?? 0))),
                       ),
                     ),
 
                     // katalog wisata pilihan
                     _panel(
                       child: KatalogWisata(
-                        daftar: _saring(WisataDummy.katalog),
+                        daftar: _saring(_wisata),
                       ),
                     ),
                   ],

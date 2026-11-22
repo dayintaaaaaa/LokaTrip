@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/mitra_theme.dart';
 
+import '../../core/api_client.dart';
+import '../../core/session_manager.dart';
 import '../../widgets/mitra_bottom_navigator.dart';
 import 'pengajuan_mitra_screens.dart';
 import 'profil_mitra_screen.dart';
+import 'edit_wisata_mitra_screen.dart';
 
 class WisataSayaMitraScreen extends StatefulWidget {
   const WisataSayaMitraScreen({super.key});
@@ -15,6 +19,188 @@ class WisataSayaMitraScreen extends StatefulWidget {
 class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
   int _selectedFilter = 0; // 0: Semua, 1: Aktif, 2: Ditinjau, 3: Perlu Revisi
   bool _isBromoOpen = true;
+  List<Map<String, dynamic>> _wisata = const [];
+  bool _loadingWisata = true;
+  String? _wisataError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWisata();
+  }
+
+  Future<void> _loadWisata() async {
+    try {
+      final token = await SessionManager.currentMitraToken();
+      if (token == null)
+        throw const ApiException(
+          'Sesi mitra tidak tersedia. Silakan login kembali.',
+        );
+      final rows = await MitraApi.wisata(token);
+      if (mounted) setState(() => _wisata = rows);
+    } catch (error) {
+      _wisataError = error.toString();
+    } finally {
+      if (mounted) setState(() => _loadingWisata = false);
+    }
+  }
+
+  List<Map<String, dynamic>> get _wisataTampil => _wisata.where((row) {
+    final status = row['status_approve'];
+    return _selectedFilter == 0 ||
+        (_selectedFilter == 1 && status == 'Y') ||
+        (_selectedFilter == 2 && status == 'N') ||
+        (_selectedFilter == 3 && status != 'Y' && status != 'N');
+  }).toList();
+
+  Widget _liveWisataCard(Map<String, dynamic> row) {
+    final packages = row['paket_wisata'] is List
+        ? row['paket_wisata'] as List
+        : const [];
+    final prices = <int>[];
+    for (final package in packages.whereType<Map<String, dynamic>>()) {
+      final details = package['detail_paket'];
+      if (details is List) {
+        for (final detail in details.whereType<Map<String, dynamic>>()) {
+          final price = detail['harga'];
+          if (price is num && price > 0) prices.add(price.toInt());
+        }
+      }
+    }
+    final status = row['status_approve'] as String? ?? 'N';
+    final statusText = status == 'Y'
+        ? 'Aktif tayang'
+        : status == 'N'
+        ? 'Dalam kurasi'
+        : 'Perlu revisi';
+    final statusColor = status == 'Y'
+        ? MitraPalette.success
+        : status == 'N'
+        ? MitraPalette.warning
+        : MitraPalette.danger;
+    final category = row['kategori'];
+    final categoryName = category is Map<String, dynamic>
+        ? category['nama_kategori'] as String?
+        : null;
+
+    return Material(
+      color: MitraPalette.surface,
+      borderRadius: BorderRadius.circular(MitraMetrics.cardRadius),
+      child: InkWell(
+        onTap: () => _editWisata(row),
+        borderRadius: BorderRadius.circular(MitraMetrics.cardRadius),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(MitraMetrics.cardRadius),
+            border: Border.all(color: MitraPalette.line),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: MitraPalette.primaryLight,
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: const Icon(
+                      Icons.landscape_rounded,
+                      color: MitraPalette.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      row['nama_wisata'] as String? ?? 'Wisata',
+                      style: GoogleFonts.manrope(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        height: 1.25,
+                        color: MitraPalette.ink,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: .09),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      statusText,
+                      style: GoogleFonts.manrope(
+                        color: statusColor,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '${row['kota'] ?? row['lokasi'] ?? 'Lokasi belum diisi'} / ${categoryName ?? 'Wisata'}',
+                style: GoogleFonts.manrope(
+                  color: MitraPalette.muted,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${packages.length} paket / ${prices.isEmpty ? 'Harga belum diisi' : 'Mulai Rp ${prices.reduce((a, b) => a < b ? a : b)}'}',
+                      style: GoogleFonts.manrope(
+                        color: MitraPalette.ink,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Kelola',
+                    style: GoogleFonts.manrope(
+                      color: MitraPalette.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 15,
+                    color: MitraPalette.primary,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editWisata(Map<String, dynamic> row) async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute<bool>(
+        builder: (_) => EditWisataMitraScreen(wisata: row),
+      ),
+    );
+    if (updated == true) await _loadWisata();
+  }
 
   void _showNotificationSheet() {
     showModalBottomSheet(
@@ -38,7 +224,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                       style: GoogleFonts.manrope(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0F172A),
+                        color: MitraPalette.ink,
                       ),
                     ),
                     IconButton(
@@ -53,7 +239,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                   subtitle:
                       'Tim kurator sedang menguji SOP pemandu dan sertifikat P3K.',
                   time: '18 jam tersisa',
-                  color: const Color(0xFF1748D1),
+                  color: MitraPalette.primary,
                   icon: Icons.hourglass_top_rounded,
                 ),
                 const SizedBox(height: 8),
@@ -105,7 +291,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                   style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF0F172A),
+                    color: MitraPalette.ink,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -113,7 +299,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                   subtitle,
                   style: GoogleFonts.manrope(
                     fontSize: 11,
-                    color: const Color(0xFF64748B),
+                    color: MitraPalette.muted,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -156,7 +342,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF1748D1),
+                color: MitraPalette.primary,
               ),
             ),
             const SizedBox(height: 12),
@@ -173,7 +359,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF1748D1),
+              backgroundColor: MitraPalette.primary,
             ),
             onPressed: () {
               Navigator.pop(context);
@@ -266,7 +452,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF1748D1),
+                color: MitraPalette.primary,
               ),
             ),
           ],
@@ -292,7 +478,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                 : (done ? Icons.check_circle : Icons.radio_button_unchecked),
             size: 18,
             color: inProgress
-                ? const Color(0xFF1748D1)
+                ? MitraPalette.primary
                 : (done ? const Color(0xFF059669) : const Color(0xFF94A3B8)),
           ),
           const SizedBox(width: 8),
@@ -301,11 +487,10 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
               title,
               style: GoogleFonts.manrope(
                 fontSize: 12,
-                fontWeight:
-                    inProgress || done ? FontWeight.w600 : FontWeight.w400,
-                color: inProgress
-                    ? const Color(0xFF1748D1)
-                    : const Color(0xFF0F172A),
+                fontWeight: inProgress || done
+                    ? FontWeight.w600
+                    : FontWeight.w400,
+                color: inProgress ? MitraPalette.primary : MitraPalette.ink,
               ),
             ),
           ),
@@ -316,59 +501,141 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const bg = Color(0xFFF8FAFC);
+    const bg = MitraPalette.canvas;
 
-    return Scaffold(
-      backgroundColor: bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildTopAppBar(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 800),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildPageHeader(),
-                        const SizedBox(height: 16),
-                        _buildExpansionBanner(),
-                        const SizedBox(height: 16),
-                        _buildSummaryStatsRow(),
-                        const SizedBox(height: 18),
-                        _buildFilterTabs(),
-                        const SizedBox(height: 16),
-
-                        // Destination Cards according to selected filter
-                        if (_selectedFilter == 0 || _selectedFilter == 1) ...[
-                          _buildCard1Bromo(),
+    return Theme(
+      data: mitraTheme(Theme.of(context)),
+      child: Scaffold(
+        backgroundColor: bg,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildTopAppBar(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 760),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildPageHeader(),
                           const SizedBox(height: 16),
-                        ],
-
-                        if (_selectedFilter == 0 || _selectedFilter == 3) ...[
-                          _buildCard2Rafting(),
+                          _buildExpansionBanner(),
                           const SizedBox(height: 16),
-                        ],
-
-                        if (_selectedFilter == 0 || _selectedFilter == 2) ...[
-                          _buildCard3KawahIjen(),
+                          _buildSummaryStatsRow(),
+                          const SizedBox(height: 18),
+                          _buildFilterTabs(),
                           const SizedBox(height: 16),
-                        ],
 
-                        _buildHelpSupportCard(),
-                      ],
+                          // Destination Cards according to selected filter
+                          if (_loadingWisata)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(28),
+                                child: CircularProgressIndicator(),
+                              ),
+                            )
+                          else if (_wisataError != null)
+                            _buildLoadError()
+                          else if (_wisataTampil.isEmpty)
+                            _buildEmptyState()
+                          else
+                            ..._wisataTampil.map(_liveWisataCard),
+
+                          _buildHelpSupportCard(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+        bottomNavigationBar: const MitraBottomNavigator(currentIndex: 1),
       ),
-      bottomNavigationBar: const MitraBottomNavigator(currentIndex: 1),
+    );
+  }
+
+  Widget _buildLoadError() => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: MitraPalette.surface,
+      borderRadius: BorderRadius.circular(MitraMetrics.cardRadius),
+      border: Border.all(color: MitraPalette.line),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.cloud_off_outlined, color: MitraPalette.danger),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            _wisataError ?? 'Data wisata belum dapat dimuat.',
+            style: GoogleFonts.manrope(
+              fontSize: 12,
+              height: 1.4,
+              color: MitraPalette.muted,
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: _loadWisata,
+          tooltip: 'Coba lagi',
+          icon: const Icon(Icons.refresh_rounded, color: MitraPalette.primary),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildEmptyState() {
+    final hasNoDestinations = _wisata.isEmpty;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+      decoration: BoxDecoration(
+        color: MitraPalette.surface,
+        borderRadius: BorderRadius.circular(MitraMetrics.cardRadius),
+        border: Border.all(color: MitraPalette.line),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: const BoxDecoration(
+              color: MitraPalette.primaryLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.landscape_outlined,
+              color: MitraPalette.primary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            hasNoDestinations ? 'Belum ada destinasi' : 'Belum ada hasil',
+            style: GoogleFonts.manrope(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: MitraPalette.ink,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            hasNoDestinations
+                ? 'Mulai daftarkan tempat wisata agar dapat dikelola di sini.'
+                : 'Belum ada wisata dengan status yang dipilih.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.manrope(
+              fontSize: 12,
+              height: 1.45,
+              color: MitraPalette.muted,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -379,7 +646,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+        border: Border(bottom: BorderSide(color: MitraPalette.line)),
       ),
       child: Row(
         children: [
@@ -388,7 +655,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: const Color(0xFF1748D1),
+              color: MitraPalette.primary,
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -409,7 +676,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                 onPressed: _showNotificationSheet,
                 icon: const Icon(
                   Icons.notifications_none_rounded,
-                  color: Color(0xFF0F172A),
+                  color: MitraPalette.ink,
                   size: 24,
                 ),
                 style: IconButton.styleFrom(
@@ -448,7 +715,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
             borderRadius: BorderRadius.circular(20),
             child: const CircleAvatar(
               radius: 18,
-              backgroundColor: Color(0xFF1748D1),
+              backgroundColor: MitraPalette.primary,
               child: Icon(Icons.person, color: Colors.white, size: 20),
             ),
           ),
@@ -462,64 +729,32 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1748D1),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'KATALOG DESTINASI MITRA',
-                  style: GoogleFonts.manrope(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF1748D1),
-                    letterSpacing: 0.6,
-                  ),
-                ),
-              ],
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFBFDBFE)),
-              ),
-              child: Text(
-                'ID: MTR-9821',
-                style: GoogleFonts.manrope(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1E40AF),
-                ),
-              ),
-            ),
-          ],
+        Text(
+          'AREA MITRA  /  DESTINASI',
+          style: GoogleFonts.manrope(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            color: MitraPalette.primary,
+            letterSpacing: 1.1,
+          ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Text(
           'Wisata Saya',
           style: GoogleFonts.manrope(
-            fontSize: 22,
+            fontSize: 28,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF0F172A),
+            letterSpacing: -.7,
+            color: MitraPalette.ink,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           'Kelola destinasi, paket tiket, kuota dan status tayang di aplikasi LokaTrip.',
           style: GoogleFonts.manrope(
-            fontSize: 12,
-            color: const Color(0xFF64748B),
+            fontSize: 13,
+            height: 1.5,
+            color: MitraPalette.muted,
           ),
         ),
       ],
@@ -532,79 +767,96 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF0F47D1), Color(0xFF2563EB)],
+          colors: [MitraPalette.primaryDark, MitraPalette.primary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1748D1).withValues(alpha: 0.25),
+            color: MitraPalette.primary.withValues(alpha: 0.25),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'EKSPANSI BISNIS',
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white70,
-                    letterSpacing: 0.8,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.add_location_alt_outlined,
+                    color: MitraPalette.accent,
+                    size: 14,
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Tambah Objek Wisata',
-                  style: GoogleFonts.manrope(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                  const SizedBox(width: 6),
+                  Text(
+                    'AREA PERTUMBUHAN',
+                    style: GoogleFonts.manrope(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white70,
+                      letterSpacing: 0.8,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Jangkau jutaan wisatawan domestik & mancanegara.',
-                  style: GoogleFonts.manrope(
-                    fontSize: 11,
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF0F47D1),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
+                ],
               ),
-            ),
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                PageRouteBuilder(
-                  pageBuilder: (_, _, _) => const PengajuanMitraScreens(),
-                  transitionDuration: Duration.zero,
+              const SizedBox(height: 4),
+              Text(
+                'Tambah Objek Wisata',
+                style: GoogleFonts.manrope(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
                 ),
-              );
-            },
-            icon: const Icon(Icons.add_circle_outline, size: 16),
-            label: Text(
-              'Daftarkan',
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Jangkau jutaan wisatawan domestik & mancanegara.',
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: MitraPalette.primaryDark,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    MitraMetrics.controlRadius,
+                  ),
+                ),
+              ),
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (_, _, _) => const PengajuanMitraScreens(),
+                    transitionDuration: Duration.zero,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.add_circle_outline, size: 16),
+              label: Text(
+                'Daftarkan',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ),
@@ -615,42 +867,57 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
 
   // 3 Summary Stats in Row
   Widget _buildSummaryStatsRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: _statItem(
-            icon: Icons.public_rounded,
-            badgeColor: const Color(0xFF059669),
-            value: '1',
-            label: 'Wisata Aktif',
-            tag: 'Tayang',
-            tagColor: const Color(0xFF059669),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _statItem(
-            icon: Icons.hourglass_top_rounded,
-            badgeColor: const Color(0xFF2563EB),
-            value: '2',
-            label: 'Dalam Kurasi',
-            tag: 'Audit Tim',
-            tagColor: const Color(0xFF2563EB),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _statItem(
-            icon: Icons.confirmation_number_outlined,
-            topBadge: '+14%',
-            topBadgeColor: const Color(0xFF059669),
-            value: '1.482',
-            label: 'Tiket Bulan Ini',
-            tag: 'Terverifikasi',
-            tagColor: const Color(0xFF64748B),
-          ),
-        ),
-      ],
+    final activeCount = _wisata
+        .where((item) => item['status_approve'] == 'Y')
+        .length;
+    final pendingCount = _wisata
+        .where((item) => item['status_approve'] == 'N')
+        .length;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth < 430 ? 2 : 3;
+        const gap = 10.0;
+        final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            SizedBox(
+              width: width,
+              child: _statItem(
+                icon: Icons.explore_outlined,
+                badgeColor: MitraPalette.primary,
+                value: '${_wisata.length}',
+                label: 'Total destinasi',
+                tag: 'Terdaftar',
+                tagColor: MitraPalette.muted,
+              ),
+            ),
+            SizedBox(
+              width: width,
+              child: _statItem(
+                icon: Icons.public_rounded,
+                badgeColor: MitraPalette.success,
+                value: '$activeCount',
+                label: 'Wisata aktif',
+                tag: 'Tayang',
+                tagColor: MitraPalette.success,
+              ),
+            ),
+            SizedBox(
+              width: width,
+              child: _statItem(
+                icon: Icons.hourglass_top_rounded,
+                badgeColor: MitraPalette.warning,
+                value: '$pendingCount',
+                label: 'Dalam kurasi',
+                tag: 'Ditinjau tim',
+                tagColor: MitraPalette.warning,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -669,7 +936,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: MitraPalette.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -679,8 +946,8 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
             children: [
               CircleAvatar(
                 radius: 14,
-                backgroundColor: const Color(0xFFEFF6FF),
-                child: Icon(icon, size: 15, color: const Color(0xFF1748D1)),
+                backgroundColor: MitraPalette.primaryLight,
+                child: Icon(icon, size: 15, color: MitraPalette.primary),
               ),
               if (topBadge != null)
                 Container(
@@ -718,16 +985,13 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
             style: GoogleFonts.manrope(
               fontSize: 19,
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF0F172A),
+              color: MitraPalette.ink,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: GoogleFonts.manrope(
-              fontSize: 10,
-              color: const Color(0xFF64748B),
-            ),
+            style: GoogleFonts.manrope(fontSize: 10, color: MitraPalette.muted),
           ),
           const SizedBox(height: 2),
           Text(
@@ -751,27 +1015,30 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
         children: [
           _filterPill(
             index: 0,
-            label: 'Semua 3',
+            label: 'Semua ${_wisata.length}',
             isSelected: _selectedFilter == 0,
           ),
           const SizedBox(width: 8),
           _filterPill(
             index: 1,
-            label: 'Aktif Tayang 1',
+            label:
+                'Aktif Tayang ${_wisata.where((item) => item['status_approve'] == 'Y').length}',
             dotColor: const Color(0xFF059669),
             isSelected: _selectedFilter == 1,
           ),
           const SizedBox(width: 8),
           _filterPill(
             index: 2,
-            label: 'Ditinjau 1',
-            dotColor: const Color(0xFF2563EB),
+            label:
+                'Ditinjau ${_wisata.where((item) => item['status_approve'] == 'N').length}',
+            dotColor: MitraPalette.warning,
             isSelected: _selectedFilter == 2,
           ),
           const SizedBox(width: 8),
           _filterPill(
             index: 3,
-            label: 'Perlu Revisi 1',
+            label:
+                'Perlu Revisi ${_wisata.where((item) => item['status_approve'] != 'Y' && item['status_approve'] != 'N').length}',
             dotColor: const Color(0xFFDC2626),
             isSelected: _selectedFilter == 3,
           ),
@@ -792,12 +1059,10 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF1748D1) : Colors.white,
+          color: isSelected ? MitraPalette.primary : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected
-                ? const Color(0xFF1748D1)
-                : const Color(0xFFE2E8F0),
+            color: isSelected ? MitraPalette.primary : MitraPalette.line,
           ),
         ),
         child: Row(
@@ -834,7 +1099,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: MitraPalette.line),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -918,7 +1183,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0F172A),
+                          color: MitraPalette.ink,
                         ),
                       ),
                     ],
@@ -1017,9 +1282,9 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: MitraPalette.canvas,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: MitraPalette.line),
                   ),
                   child: Column(
                     children: [
@@ -1031,7 +1296,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                               const Icon(
                                 Icons.directions_car_filled_outlined,
                                 size: 16,
-                                color: Color(0xFF1748D1),
+                                color: MitraPalette.primary,
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -1050,7 +1315,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                                 style: GoogleFonts.manrope(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF0F172A),
+                                  color: MitraPalette.ink,
                                 ),
                               ),
                               Text(
@@ -1071,9 +1336,9 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                         child: const LinearProgressIndicator(
                           value: 0.68,
                           minHeight: 6,
-                          backgroundColor: Color(0xFFE2E8F0),
+                          backgroundColor: MitraPalette.line,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            Color(0xFF1748D1),
+                            MitraPalette.primary,
                           ),
                         ),
                       ),
@@ -1089,7 +1354,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
+                          color: MitraPalette.primaryLight,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -1100,7 +1365,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                               child: const Icon(
                                 Icons.shopping_bag_outlined,
                                 size: 16,
-                                color: Color(0xFF1748D1),
+                                color: MitraPalette.primary,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -1114,7 +1379,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                                     overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.manrope(
                                       fontSize: 10,
-                                      color: const Color(0xFF64748B),
+                                      color: MitraPalette.muted,
                                     ),
                                   ),
                                   Text(
@@ -1124,7 +1389,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                                     style: GoogleFonts.manrope(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w800,
-                                      color: const Color(0xFF0F172A),
+                                      color: MitraPalette.ink,
                                     ),
                                   ),
                                 ],
@@ -1164,7 +1429,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                                     overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.manrope(
                                       fontSize: 10,
-                                      color: const Color(0xFF64748B),
+                                      color: MitraPalette.muted,
                                     ),
                                   ),
                                   Text(
@@ -1174,7 +1439,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                                     style: GoogleFonts.manrope(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w800,
-                                      color: const Color(0xFF0F172A),
+                                      color: MitraPalette.ink,
                                     ),
                                   ),
                                 ],
@@ -1195,9 +1460,9 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: MitraPalette.canvas,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: MitraPalette.line),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1223,7 +1488,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                                 style: GoogleFonts.manrope(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF0F172A),
+                                  color: MitraPalette.ink,
                                 ),
                               ),
                               Text(
@@ -1232,7 +1497,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                                     : 'Tutup Sementara',
                                 style: GoogleFonts.manrope(
                                   fontSize: 11,
-                                  color: const Color(0xFF64748B),
+                                  color: MitraPalette.muted,
                                 ),
                               ),
                             ],
@@ -1267,7 +1532,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                     Expanded(
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF0F47D1),
+                          backgroundColor: MitraPalette.primaryDark,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -1288,7 +1553,9 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                     const SizedBox(width: 8),
                     IconButton.outlined(
                       style: IconButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFBFDBFE)),
+                        side: const BorderSide(
+                          color: MitraPalette.primaryBorder,
+                        ),
                       ),
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -1301,7 +1568,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                       },
                       icon: const Icon(
                         Icons.open_in_new_rounded,
-                        color: Color(0xFF1748D1),
+                        color: MitraPalette.primary,
                         size: 20,
                       ),
                     ),
@@ -1322,7 +1589,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: MitraPalette.line),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -1353,7 +1620,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                         color: const Color(0xFFF1F5F9),
                         child: const Icon(
                           Icons.water_damage_rounded,
-                          color: Color(0xFF64748B),
+                          color: MitraPalette.muted,
                         ),
                       ),
                     ),
@@ -1404,7 +1671,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                           style: GoogleFonts.manrope(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: const Color(0xFF64748B),
+                            color: MitraPalette.muted,
                           ),
                         ),
                       ],
@@ -1415,7 +1682,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                       style: GoogleFonts.manrope(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF0F172A),
+                        color: MitraPalette.ink,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -1424,14 +1691,14 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                         const Icon(
                           Icons.location_on_outlined,
                           size: 12,
-                          color: Color(0xFF64748B),
+                          color: MitraPalette.muted,
                         ),
                         const SizedBox(width: 2),
                         Text(
-                          'Probolinggo • Wisata Ekstrem',
+                          'Probolinggo â€¢ Wisata Ekstrem',
                           style: GoogleFonts.manrope(
                             fontSize: 11,
-                            color: const Color(0xFF64748B),
+                            color: MitraPalette.muted,
                           ),
                         ),
                       ],
@@ -1537,7 +1804,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: MitraPalette.line),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -1600,7 +1867,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
+                            color: MitraPalette.primaryLight,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -1608,7 +1875,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                             style: GoogleFonts.manrope(
                               fontSize: 9,
                               fontWeight: FontWeight.w800,
-                              color: const Color(0xFF1748D1),
+                              color: MitraPalette.primary,
                             ),
                           ),
                         ),
@@ -1617,7 +1884,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                             const Icon(
                               Icons.schedule,
                               size: 11,
-                              color: Color(0xFF1748D1),
+                              color: MitraPalette.primary,
                             ),
                             const SizedBox(width: 3),
                             Text(
@@ -1625,7 +1892,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                               style: GoogleFonts.manrope(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
-                                color: const Color(0xFF1748D1),
+                                color: MitraPalette.primary,
                               ),
                             ),
                           ],
@@ -1638,7 +1905,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                       style: GoogleFonts.manrope(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF0F172A),
+                        color: MitraPalette.ink,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -1647,14 +1914,14 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                         const Icon(
                           Icons.location_on_outlined,
                           size: 12,
-                          color: Color(0xFF64748B),
+                          color: MitraPalette.muted,
                         ),
                         const SizedBox(width: 2),
                         Text(
-                          'Banyuwangi • Wisata Gunung',
+                          'Banyuwangi â€¢ Wisata Gunung',
                           style: GoogleFonts.manrope(
                             fontSize: 11,
-                            color: const Color(0xFF64748B),
+                            color: MitraPalette.muted,
                           ),
                         ),
                       ],
@@ -1668,7 +1935,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                           'Verifikasi SOP & Pemandu',
                           style: GoogleFonts.manrope(
                             fontSize: 10,
-                            color: const Color(0xFF64748B),
+                            color: MitraPalette.muted,
                           ),
                         ),
                         Text(
@@ -1676,7 +1943,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                           style: GoogleFonts.manrope(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
-                            color: const Color(0xFF0F172A),
+                            color: MitraPalette.ink,
                           ),
                         ),
                       ],
@@ -1687,9 +1954,9 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                       child: const LinearProgressIndicator(
                         value: 0.5,
                         minHeight: 4,
-                        backgroundColor: Color(0xFFE2E8F0),
+                        backgroundColor: MitraPalette.line,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          Color(0xFF1748D1),
+                          MitraPalette.primary,
                         ),
                       ),
                     ),
@@ -1699,7 +1966,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          const Divider(height: 1, color: MitraPalette.line),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1708,7 +1975,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                 'Diajukan 2 hari yang lalu',
                 style: GoogleFonts.manrope(
                   fontSize: 11,
-                  color: const Color(0xFF64748B),
+                  color: MitraPalette.muted,
                 ),
               ),
               InkWell(
@@ -1720,14 +1987,14 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                       style: GoogleFonts.manrope(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1748D1),
+                        color: MitraPalette.primary,
                       ),
                     ),
                     const SizedBox(width: 4),
                     const Icon(
                       Icons.arrow_forward_rounded,
                       size: 13,
-                      color: Color(0xFF1748D1),
+                      color: MitraPalette.primary,
                     ),
                   ],
                 ),
@@ -1773,7 +2040,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                   style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF0F172A),
+                    color: MitraPalette.ink,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -1804,14 +2071,14 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF1748D1),
+                          color: MitraPalette.primary,
                         ),
                       ),
                       const SizedBox(width: 4),
                       const Icon(
                         Icons.north_east_rounded,
                         size: 13,
-                        color: Color(0xFF1748D1),
+                        color: MitraPalette.primary,
                       ),
                     ],
                   ),
@@ -1824,4 +2091,3 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
     );
   }
 }
-

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
-import '../../core/session_manager.dart';
-import 'dashboard_admin_screens.dart';
-import 'login_admin_screens.dart';
+import '../login_screens.dart';
 
 class RegisterAdminScreens extends StatefulWidget {
   const RegisterAdminScreens({super.key});
@@ -31,20 +29,17 @@ class _RegisterAdminScreensState extends State<RegisterAdminScreens> {
   }
 
   Future<void> _register() async {
-    // TODO: ganti dengan proses pendaftaran admin sungguhan (kirim ke backend)
-    await SessionManager.setLoggedIn(role: 'admin');
-
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const DashboardAdminScreens()),
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Pendaftaran admin ditutup. Hubungi pengelola LokaTrip.'),
+      ),
     );
   }
 
   void _keLogin() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const LoginAdminScreens()),
+      MaterialPageRoute(builder: (_) => const LoginScreens()),
     );
   }
 

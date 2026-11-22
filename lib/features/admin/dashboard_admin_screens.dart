@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/admin_auth_service.dart';
+import '../../core/session_manager.dart';
 import '../../widgets/admin_bottom_navigator.dart';
 import '../../widgets/admin_notification_button.dart';
 import 'mitra_admin_screens.dart';
@@ -7,6 +9,7 @@ import 'laporan_admin_screens.dart';
 import 'notifikasi_admin_screens.dart';
 import 'perizinan_admin_screens.dart';
 import 'profil_screens.dart';
+import '../login_screens.dart';
 import 'verifikasi_mitra_admin_screens.dart';
 
 const _navy = Color(0xFF10243A);
@@ -15,8 +18,15 @@ const _muted = Color(0xFF50566A);
 const _page = Color(0xFFF7F8FD);
 const _border = Color(0xFFE9ECF3);
 
-class DashboardAdminScreens extends StatelessWidget {
+class DashboardAdminScreens extends StatefulWidget {
   const DashboardAdminScreens({super.key});
+
+  @override
+  State<DashboardAdminScreens> createState() => _DashboardAdminScreensState();
+}
+
+class _DashboardAdminScreensState extends State<DashboardAdminScreens> {
+  int _summaryRevision = 0;
 
   void _openProfile(BuildContext context) {
     Navigator.pushReplacement(
@@ -62,12 +72,12 @@ class DashboardAdminScreens extends StatelessWidget {
     );
   }
 
-  void _openPermitList(
+  Future<void> _openPermitList(
     BuildContext context, {
     String initialFilter = 'Semua',
     String? initialPermitId,
-  }) {
-    Navigator.push(
+  }) async {
+    await Navigator.push(
       context,
       MaterialPageRoute<void>(
         builder: (_) => PerizinanAdminScreens(
@@ -76,6 +86,7 @@ class DashboardAdminScreens extends StatelessWidget {
         ),
       ),
     );
+    if (mounted) setState(() => _summaryRevision++);
   }
 
   void _openVerification(
@@ -100,16 +111,184 @@ class DashboardAdminScreens extends StatelessWidget {
           note: note,
           status: StatusAuditMitra.menunggu,
           rejectedStep: 0,
-          onApproved: (_) {},
-          onRejected: (_) {},
-          onRevision: () {},
+          onApproved: (_) => _saveWisataDecision(id, 'approve'),
+          onRejected: (_) => _saveWisataDecision(id, 'reject'),
+          onRevision: () => _saveWisataDecision(id, 'pending'),
         ),
       ),
     );
   }
 
+  Future<void> _saveWisataDecision(String id, String decision) async {
+    final token = SessionManager.adminAccessToken;
+    final idValue = int.tryParse(id);
+    if (token == null || idValue == null) {
+      throw const AdminAuthException('Sesi admin atau ID wisata tidak valid.');
+    }
+    await AdminAuthService.decideWisata(
+      accessToken: token,
+      id: idValue,
+      decision: decision,
+    );
+    if (mounted) setState(() => _summaryRevision++);
+  }
+
+  Widget _pendingWisataList() {
+    final token = SessionManager.adminAccessToken;
+    if (token == null) return const Text('Sesi admin tidak tersedia.');
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: AdminAuthService.getWisata(accessToken: token, status: 'N'),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        if (snapshot.hasError)
+          return Text('Daftar wisata belum dapat dimuat: ${snapshot.error}');
+        final rows = snapshot.data ?? const [];
+        if (rows.isEmpty)
+          return const Text('Tidak ada wisata yang menunggu verifikasi.');
+        return Column(
+          children: rows.take(5).map((row) {
+            final ownerValue = row['admin_wisata'];
+            final owner = ownerValue is Map<String, dynamic>
+                ? ownerValue
+                : <String, dynamic>{};
+            final categoryValue = row['kategori'];
+            final category = categoryValue is Map<String, dynamic>
+                ? categoryValue['nama_kategori'] as String?
+                : null;
+            final id = (row['id_wisata'] as num?)?.toInt() ?? 0;
+            final title = row['nama_wisata'] as String? ?? 'Wisata';
+            final partner =
+                owner['nama_lengkap_admin'] as String? ??
+                owner['username'] as String? ??
+                'Mitra';
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _VerificationCard(
+                partner: partner.toUpperCase(),
+                title: title,
+                date: 'Menunggu verifikasi',
+                category: category ?? 'Wisata',
+                documents: 'ID wisata $id',
+                icon: Icons.landscape_rounded,
+                imageColor: const Color(0xFFB8D7C8),
+                onPressed: () => _openVerification(
+                  context,
+                  id: '$id',
+                  partner: partner,
+                  destination: title,
+                  category: category ?? 'Wisata',
+                  dates: 'Menunggu verifikasi admin',
+                  note:
+                      row['deskripsi'] as String? ??
+                      'Periksa informasi wisata mitra.',
+                ),
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _expiringDocumentsList() {
+    final token = SessionManager.adminAccessToken;
+    if (token == null) return const Text('Sesi admin tidak tersedia.');
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: AdminAuthService.getDocuments(accessToken: token),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        if (snapshot.hasError)
+          return Text(
+            'Data masa berlaku dokumen belum dapat dimuat: ${snapshot.error}',
+          );
+        final today = DateTime.now();
+        final todayStart = DateTime(today.year, today.month, today.day);
+        final limit = todayStart.add(const Duration(days: 30));
+        final rows = (snapshot.data ?? const []).where((row) {
+          if (row['status_approve'] != 'Y') return false;
+          final expiry = DateTime.tryParse(
+            row['masa_berlaku_sampai'] as String? ?? '',
+          );
+          return expiry != null &&
+              !expiry.isBefore(todayStart) &&
+              !expiry.isAfter(limit);
+        }).toList();
+        if (rows.isEmpty)
+          return const Text(
+            'Tidak ada dokumen disetujui yang kedaluwarsa dalam 30 hari.',
+          );
+        return Column(
+          children: rows.take(5).map((row) {
+            final ownerValue = row['admin_wisata'];
+            final owner = ownerValue is Map<String, dynamic>
+                ? ownerValue
+                : <String, dynamic>{};
+            final expiryValue = row['masa_berlaku_sampai'] as String;
+            final expiry = DateTime.parse(expiryValue);
+            final daysLeft = expiry.difference(todayStart).inDays;
+            final id = (row['id_dokumen'] as num?)?.toInt();
+            final company =
+                owner['nama_lengkap_admin'] as String? ??
+                owner['username'] as String? ??
+                'Mitra';
+            final type = row['jenis_dokumen'] as String? ?? 'Dokumen legalitas';
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: const Icon(Icons.description_outlined, color: _blue),
+                title: Text(
+                  type,
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                subtitle: Text(
+                  '$company Â· berlaku sampai $expiryValue',
+                  style: GoogleFonts.manrope(fontSize: 10, color: _muted),
+                ),
+                trailing: Text(
+                  '$daysLeft hari',
+                  style: GoogleFonts.manrope(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: _blue,
+                  ),
+                ),
+                onTap: () => _openPermitList(
+                  context,
+                  initialFilter: 'Akan berakhir',
+                  initialPermitId: id == null
+                      ? null
+                      : 'DOC-${id.toString().padLeft(5, '0')}',
+                ),
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (SessionManager.adminAccessToken == null) {
+      return const LoginScreens();
+    }
     return Scaffold(
       backgroundColor: _page,
       body: SafeArea(
@@ -125,86 +304,22 @@ class DashboardAdminScreens extends StatelessWidget {
                   children: [
                     _buildGreeting(),
                     const SizedBox(height: 18),
-                    const _SummaryGrid(),
+                    _SummaryGrid(key: ValueKey(_summaryRevision)),
                     const SizedBox(height: 20),
                     _AuditBanner(
-                      onTap: () => _openVerification(
-                        context,
-                        id: 'IZ-2026-00128',
-                        partner: 'CV Pesona Nusantara',
-                        destination: 'Gunung Bromo Adventure',
-                        category: 'Ekraf & Wisata',
-                        dates: '16 Sep 2026 — 16 Sep 2027',
-                        note:
-                            'Dokumen dasar tercatat; menunggu audit lapangan.',
-                      ),
+                      onTap: () =>
+                          _openPermitList(context, initialFilter: 'Menunggu'),
                     ),
                     const SizedBox(height: 24),
                     _SectionHeading(
                       title: 'Pengajuan Menunggu Verifikasi',
-                      badge: '12 Baru',
+                      badge: 'Supabase',
                       action: 'Semua',
                       onAction: () =>
                           _openPermitList(context, initialFilter: 'Menunggu'),
                     ),
                     const SizedBox(height: 12),
-                    _VerificationCard(
-                      partner: 'CV PESONA NUSANTARA',
-                      title: 'Gunung Bromo Adventure',
-                      date: '16 Sep 2026',
-                      category: 'Paket Wisata Alam',
-                      documents: '4 Dokumen Lengkap',
-                      icon: Icons.landscape_rounded,
-                      imageColor: Color(0xFFB8D7C8),
-                      onPressed: () => _openVerification(
-                        context,
-                        id: 'IZ-2026-00128',
-                        partner: 'CV Pesona Nusantara',
-                        destination: 'Gunung Bromo Adventure',
-                        category: 'Ekraf & Wisata',
-                        dates: '16 Sep 2026 — 16 Sep 2027',
-                        note:
-                            'Dokumen dasar tercatat; menunggu audit lapangan.',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _VerificationCard(
-                      partner: 'PT JELAJAH INDONESIA',
-                      title: 'Coban Talun Wisata',
-                      date: '15 Sep 2026',
-                      category: 'Ekowisata & Trekking',
-                      documents: '3 Dokumen Lengkap',
-                      icon: Icons.forest_rounded,
-                      imageColor: Color(0xFFB7D8D6),
-                      onPressed: () => _openVerification(
-                        context,
-                        id: 'IZ-2026-00129',
-                        partner: 'PT Jelajah Indonesia',
-                        destination: 'Coban Talun Wisata',
-                        category: 'Ekowisata',
-                        dates: '15 Sep 2026 — 15 Sep 2027',
-                        note: 'Berkas menunggu pemeriksaan admin.',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _VerificationCard(
-                      partner: 'POKDARWIS DESA SADE',
-                      title: 'Sade Cultural Tour',
-                      date: '14 Sep 2026',
-                      category: 'Wisata Budaya & Kriya',
-                      documents: '5 Dokumen Terverifikasi',
-                      icon: Icons.holiday_village_rounded,
-                      imageColor: Color(0xFFE8D4AE),
-                      onPressed: () => _openVerification(
-                        context,
-                        id: 'IZ-2026-00130',
-                        partner: 'Pokdarwis Desa Sade',
-                        destination: 'Sade Cultural Tour',
-                        category: 'Wisata Budaya',
-                        dates: '14 Sep 2026 — 14 Sep 2027',
-                        note: 'Dokumen awal sudah diperiksa.',
-                      ),
-                    ),
+                    _pendingWisataList(),
                     const SizedBox(height: 24),
                     _SectionHeading(
                       title: 'Izin Akan Berakhir',
@@ -215,40 +330,7 @@ class DashboardAdminScreens extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _ExpiryAlert(
-                      onTap: () => _openPermitList(
-                        context,
-                        initialFilter: 'Akan berakhir',
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    _LicenseCard(
-                      company: 'CV PESONA NUSANTARA',
-                      title: 'Gunung Bromo Adventure',
-                      detail:
-                          'TDUP / NIB KBLI 79120 • Surat\nKelayakan Wilayah TNBTS',
-                      expiry: '30 Sep 2026',
-                      daysLeft: 'Berakhir 14 hari',
-                      progress: 0.78,
-                      onPressed: () => _openPermitList(
-                        context,
-                        initialPermitId: 'IZ-2026-00128',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _LicenseCard(
-                      company: 'CV ALAM RAYA',
-                      title: 'Batu Adventure Park',
-                      detail:
-                          'Sertifikat CHSE & Asuransi Wisata\nTirta Terpadu',
-                      expiry: '07 Okt 2026',
-                      daysLeft: 'Berakhir 21 hari',
-                      progress: 0.60,
-                      onPressed: () => _openPermitList(
-                        context,
-                        initialPermitId: 'IZ-2026-00114',
-                      ),
-                    ),
+                    _expiringDocumentsList(),
                     const SizedBox(height: 20),
                     const _SyncCard(),
                   ],
@@ -366,80 +448,120 @@ class _DashboardHeader extends StatelessWidget {
   }
 }
 
-class _SummaryGrid extends StatelessWidget {
-  const _SummaryGrid();
+class _SummaryGrid extends StatefulWidget {
+  const _SummaryGrid({super.key});
+
+  @override
+  State<_SummaryGrid> createState() => _SummaryGridState();
+}
+
+class _SummaryGridState extends State<_SummaryGrid> {
+  late final Future<Map<String, dynamic>> _summary = _load();
+
+  Future<Map<String, dynamic>> _load() {
+    final token = SessionManager.adminAccessToken;
+    if (token == null)
+      throw const AdminAuthException('Sesi admin tidak tersedia.');
+    return AdminAuthService.getDashboard(accessToken: token);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _SummaryCard(
-                icon: Icons.storefront_outlined,
-                iconColor: Color(0xFF047857),
-                iconBackground: Color(0xFF9BF4D1),
-                badge: '+4 bln ini',
-                badgeColor: Color(0xFFD8F4E9),
-                value: '128',
-                label: 'Mitra Aktif',
-                note: 'Operasional stabil',
-                noteIcon: Icons.trending_up_rounded,
-              ),
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _summary,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            height: 288,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Text(
+              'Ringkasan admin tidak dapat dimuat: ${snapshot.error}',
+              style: GoogleFonts.manrope(fontSize: 11, color: _muted),
             ),
-            SizedBox(width: 10),
-            Expanded(
-              child: _SummaryCard(
-                icon: Icons.assignment_add,
-                iconColor: Color(0xFFB91C1C),
-                iconBackground: Color(0xFFFFE1DF),
-                badge: 'Perlu review',
-                badgeColor: Color(0xFFFFD8D5),
-                value: '12',
-                label: 'Pengajuan',
-                note: '3 prioritas tinggi',
-                noteIcon: Icons.assignment_late_outlined,
-                noteRed: true,
-              ),
+          );
+        }
+        final data = snapshot.data ?? const <String, dynamic>{};
+        String count(String key) =>
+            (data[key] as num?)?.toInt().toString() ?? '0';
+        final reviews =
+            ((data['wisata_menunggu_verifikasi'] as num?)?.toInt() ?? 0) +
+            ((data['dokumen_menunggu_verifikasi'] as num?)?.toInt() ?? 0);
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _SummaryCard(
+                    icon: Icons.storefront_outlined,
+                    iconColor: Color(0xFF047857),
+                    iconBackground: Color(0xFF9BF4D1),
+                    badge: 'Data Supabase',
+                    badgeColor: Color(0xFFD8F4E9),
+                    value: count('total_mitra'),
+                    label: 'Total Mitra',
+                    note: 'Akun terdaftar',
+                    noteIcon: Icons.trending_up_rounded,
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: _SummaryCard(
+                    icon: Icons.assignment_add,
+                    iconColor: Color(0xFFB91C1C),
+                    iconBackground: Color(0xFFFFE1DF),
+                    badge: 'Perlu review',
+                    badgeColor: Color(0xFFFFD8D5),
+                    value: '$reviews',
+                    label: 'Perlu Review',
+                    note: 'Wisata dan dokumen',
+                    noteIcon: Icons.assignment_late_outlined,
+                    noteRed: true,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _SummaryCard(
+                    icon: Icons.verified_rounded,
+                    iconColor: Color(0xFF123FC4),
+                    iconBackground: Color(0xFFDCE2FF),
+                    badge: 'Valid',
+                    badgeColor: Color(0xFFDCE2FF),
+                    value: count('wisata_aktif'),
+                    label: 'Wisata Aktif',
+                    note: 'Disetujui admin',
+                    noteIcon: Icons.verified_user_outlined,
+                    noteBlue: true,
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: _SummaryCard(
+                    icon: Icons.timer_outlined,
+                    iconColor: Color(0xFF0369A1),
+                    iconBackground: Color(0xFFC9E8FF),
+                    badge: '< 30 Hari',
+                    badgeColor: Color(0xFFD2EDFF),
+                    value: count('dokumen_segera_kedaluwarsa'),
+                    label: 'Izin Akan Berakhir',
+                    note: 'Dalam 30 hari',
+                    noteIcon: Icons.schedule_rounded,
+                    noteBlue: true,
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-        SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _SummaryCard(
-                icon: Icons.verified_rounded,
-                iconColor: Color(0xFF123FC4),
-                iconBackground: Color(0xFFDCE2FF),
-                badge: 'Valid',
-                badgeColor: Color(0xFFDCE2FF),
-                value: '120',
-                label: 'Izin Aktif',
-                note: '93.7% compliant',
-                noteIcon: Icons.verified_user_outlined,
-                noteBlue: true,
-              ),
-            ),
-            SizedBox(width: 10),
-            Expanded(
-              child: _SummaryCard(
-                icon: Icons.timer_outlined,
-                iconColor: Color(0xFF0369A1),
-                iconBackground: Color(0xFFC9E8FF),
-                badge: '< 30 Hari',
-                badgeColor: Color(0xFFD2EDFF),
-                value: '8',
-                label: 'Akan Berakhir',
-                note: 'SLA eskalasi',
-                noteIcon: Icons.schedule_rounded,
-                noteBlue: true,
-              ),
-            ),
-          ],
-        ),
-      ],
+        );
+      },
     );
   }
 }
@@ -615,7 +737,7 @@ class _AuditBanner extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Selesaikan 5 berkas tertunda hari ini',
+                  'Tinjau dokumen yang menunggu pemeriksaan',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(fontSize: 10, color: _muted),
@@ -815,7 +937,7 @@ class _VerificationCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            '● Menunggu',
+                            'â— Menunggu',
                             style: GoogleFonts.manrope(
                               fontSize: 8,
                               fontWeight: FontWeight.w800,
@@ -854,7 +976,7 @@ class _VerificationCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 5),
                         const Text(
-                          '•',
+                          'â€¢',
                           style: TextStyle(color: Color(0xFFB5B8C2)),
                         ),
                         const SizedBox(width: 5),

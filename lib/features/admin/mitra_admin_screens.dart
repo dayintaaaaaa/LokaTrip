@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/admin_auth_service.dart';
+import '../../core/session_manager.dart';
 import '../../widgets/admin_bottom_navigator.dart';
 import '../../widgets/admin_notification_button.dart';
 import 'dashboard_admin_screens.dart';
@@ -22,6 +24,9 @@ enum _MitraStatus { active, pending, rejected, suspended }
 
 class _MitraData {
   final String id;
+  final int? backendId;
+  final String username;
+  final String email;
   final String nama;
   final String destinasi;
   final String lokasi;
@@ -42,6 +47,9 @@ class _MitraData {
 
   const _MitraData({
     required this.id,
+    this.backendId,
+    this.username = '',
+    this.email = '',
     required this.nama,
     required this.destinasi,
     required this.lokasi,
@@ -62,6 +70,7 @@ class _MitraData {
   });
 
   _MitraData copyWith({
+    String? email,
     _MitraStatus? status,
     bool? ditampilkanDiBeranda,
     String? catatanAdmin,
@@ -70,6 +79,9 @@ class _MitraData {
   }) {
     return _MitraData(
       id: id,
+      backendId: backendId,
+      username: username,
+      email: email ?? this.email,
       nama: nama,
       destinasi: destinasi,
       lokasi: lokasi,
@@ -87,6 +99,67 @@ class _MitraData {
       catatanAdmin: catatanAdmin ?? this.catatanAdmin,
       riwayat: riwayat ?? this.riwayat,
       diarsipkan: diarsipkan ?? this.diarsipkan,
+    );
+  }
+
+  factory _MitraData.fromApi(Map<String, dynamic> row) {
+    Map<String, dynamic>? first(dynamic value) {
+      if (value is Map<String, dynamic>) return value;
+      if (value is List &&
+          value.isNotEmpty &&
+          value.first is Map<String, dynamic>) {
+        return value.first as Map<String, dynamic>;
+      }
+      return null;
+    }
+
+    final id = (row['id_mitra'] as num?)?.toInt() ?? 0;
+    final statusRow = first(row['status_mitra_admin']);
+    final attraction = first(row['wisata']);
+    final categoryRow = first(attraction?['kategori']);
+    final docs = row['dokumen'] is List ? row['dokumen'] as List : const [];
+    final rawStatus =
+        statusRow?['status_mitra'] as String? ??
+        (attraction?['status_approve'] == 'Y'
+            ? 'aktif'
+            : 'menunggu_verifikasi');
+    final status = switch (rawStatus) {
+      'aktif' => _MitraStatus.active,
+      'ditolak' => _MitraStatus.rejected,
+      'ditangguhkan' => _MitraStatus.suspended,
+      _ => _MitraStatus.pending,
+    };
+    final docsPending = docs
+        .where((doc) => doc is Map && doc['status_approve'] == 'N')
+        .length;
+    final name =
+        row['nama_lengkap_admin'] as String? ??
+        row['username'] as String? ??
+        'Mitra';
+    return _MitraData(
+      id: 'MIT-${id.toString().padLeft(5, '0')}',
+      backendId: id,
+      username: row['username'] as String? ?? '',
+      email: row['email'] as String? ?? '',
+      nama: name,
+      destinasi: attraction?['nama_wisata'] as String? ?? 'Belum ada wisata',
+      lokasi:
+          attraction?['kota'] as String? ??
+          attraction?['lokasi'] as String? ??
+          '',
+      kategori: categoryRow?['nama_kategori'] as String? ?? 'Wisata',
+      status: status,
+      fotoIcon: Icons.landscape_rounded,
+      fotoColor: const Color(0xFF9CB8A4),
+      legalitas: docs.isEmpty
+          ? 'Belum ada dokumen'
+          : '${docs.length - docsPending}/${docs.length} berkas',
+      dokumen: docs.isEmpty
+          ? 'Belum ada dokumen'
+          : '$docsPending dokumen menunggu verifikasi',
+      ditampilkanDiBeranda:
+          statusRow?['ditampilkan_di_beranda'] as bool? ?? false,
+      catatanAdmin: statusRow?['catatan_admin'] as String? ?? '',
     );
   }
 }
@@ -230,7 +303,7 @@ const _mitraData = [
   ),
 ];
 
-final _mitraDataState = List<_MitraData>.of(_mitraData);
+final _mitraDataState = <_MitraData>[];
 const _mitraStorageKey = 'admin_mitra_records_v1';
 
 class MitraAdminScreens extends StatefulWidget {
@@ -245,6 +318,7 @@ class _MitraAdminScreensState extends State<MitraAdminScreens> {
   int _selectedTab = 1;
   String _selectedCategory = 'Semua kategori';
   bool _newestFirst = true;
+  bool _loading = true;
 
   static const _tabs = [
     'Semua',
@@ -314,8 +388,7 @@ class _MitraAdminScreensState extends State<MitraAdminScreens> {
   }
 
   String _tabCount(int tab) {
-    const baseline = [148, 128, 12, 8, 0];
-    bool matches(_MitraData item) {
+    final count = _mitraDataState.where((item) {
       if (item.diarsipkan) return false;
       if (tab == 0) return true;
       return item.status ==
@@ -325,83 +398,29 @@ class _MitraAdminScreensState extends State<MitraAdminScreens> {
             3 => _MitraStatus.rejected,
             _ => _MitraStatus.suspended,
           };
-    }
-
-    final originalCount = _mitraData.where(matches).length;
-    final updatedCount = _mitraDataState.where(matches).length;
-    return '${baseline[tab] + updatedCount - originalCount}';
+    }).length;
+    return '$count';
   }
 
   Future<void> _loadMitraState() async {
     try {
-      final preferences = await SharedPreferences.getInstance();
-      final saved = preferences.getString(_mitraStorageKey);
-      if (saved == null) return;
-      final decoded = jsonDecode(saved);
-      if (decoded is! List) {
-        throw const FormatException('Format data mitra tidak valid.');
-      }
-
-      final updates = <int, _MitraData>{};
-      for (final entry in decoded) {
-        if (entry is! Map ||
-            entry['index'] is! int ||
-            entry['index'] < 0 ||
-            entry['index'] >= _mitraData.length) {
-          throw const FormatException('Data perubahan mitra tidak valid.');
-        }
-        final index = entry['index'] as int;
-        final base = _mitraData[index];
-        final statusName = entry['status'];
-        final status = _MitraStatus.values.firstWhere(
-          (value) => value.name == statusName,
-          orElse: () =>
-              throw const FormatException('Status mitra tidak valid.'),
+      final token = SessionManager.adminAccessToken;
+      if (token == null)
+        throw const AdminAuthException(
+          'Sesi admin tidak tersedia. Silakan login kembali.',
         );
-        final historyData = entry['riwayat'];
-        if (historyData is! List) {
-          throw const FormatException('Riwayat mitra tidak valid.');
-        }
-        final history = historyData.map((item) {
-          if (item is! Map ||
-              item['title'] is! String ||
-              item['description'] is! String ||
-              item['date'] is! String) {
-            throw const FormatException('Catatan riwayat mitra tidak valid.');
-          }
-          return _MitraHistory(
-            title: item['title'] as String,
-            description: item['description'] as String,
-            date: item['date'] as String,
-            icon: Icons.history_rounded,
-          );
-        }).toList();
-
-        updates[index] = base.copyWith(
-          status: status,
-          ditampilkanDiBeranda: entry['ditampilkanDiBeranda'] is bool
-              ? entry['ditampilkanDiBeranda'] as bool
-              : base.ditampilkanDiBeranda,
-          catatanAdmin: entry['catatanAdmin'] is String
-              ? entry['catatanAdmin'] as String
-              : base.catatanAdmin,
-          riwayat: history,
-          diarsipkan: entry['diarsipkan'] is bool
-              ? entry['diarsipkan'] as bool
-              : false,
-        );
-      }
-
+      final rows = await AdminAuthService.getMitras(accessToken: token);
       if (!mounted) return;
       setState(() {
-        for (final update in updates.entries) {
-          _mitraDataState[update.key] = update.value;
-        }
+        _mitraDataState
+          ..clear()
+          ..addAll(rows.map(_MitraData.fromApi));
+        _loading = false;
       });
-    } on FormatException catch (error) {
-      _showPersistenceError('Data mitra tersimpan tidak dapat dibaca: $error');
-    } on Exception catch (error) {
-      _showPersistenceError('Gagal memuat data mitra tersimpan: $error');
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      _showPersistenceError('Gagal memuat data mitra: $error');
     }
   }
 
@@ -468,69 +487,71 @@ class _MitraAdminScreensState extends State<MitraAdminScreens> {
             _buildSearchRow(),
             _buildTabs(),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                children: [
-                  if (_selectedTab == 2) ...[
-                    const _PendingSummary(),
-                    const SizedBox(height: 12),
-                  ] else if (_selectedTab == 3) ...[
-                    const _RejectedNotice(),
-                    const SizedBox(height: 12),
-                  ] else if (_selectedTab == 1) ...[
-                    _ActiveSummary(
-                      count:
-                          _searchController.text.isEmpty &&
-                              _selectedCategory == 'Semua kategori'
-                          ? _tabCount(1)
-                          : '${mitra.length}',
-                      newestFirst: _newestFirst,
-                      onSort: () =>
-                          setState(() => _newestFirst = !_newestFirst),
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                      children: [
+                        if (_selectedTab == 2) ...[
+                          const _PendingSummary(),
+                          const SizedBox(height: 12),
+                        ] else if (_selectedTab == 3) ...[
+                          const _RejectedNotice(),
+                          const SizedBox(height: 12),
+                        ] else if (_selectedTab == 1) ...[
+                          _ActiveSummary(
+                            count:
+                                _searchController.text.isEmpty &&
+                                    _selectedCategory == 'Semua kategori'
+                                ? _tabCount(1)
+                                : '${mitra.length}',
+                            newestFirst: _newestFirst,
+                            onSort: () =>
+                                setState(() => _newestFirst = !_newestFirst),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        if (mitra.isEmpty)
+                          const _EmptySearchResult()
+                        else
+                          ...mitra.map(
+                            (item) => Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: switch (item.status) {
+                                _MitraStatus.active => _ActiveMitraCard(
+                                  mitra: item,
+                                  onTap: () => _showMitraDetails(item),
+                                ),
+                                _MitraStatus.pending => _PendingMitraCard(
+                                  mitra: item,
+                                  onTap: () => _showMitraDetails(item),
+                                ),
+                                _MitraStatus.rejected => _RejectedMitraCard(
+                                  mitra: item,
+                                  onTap: () => _showMitraDetails(item),
+                                  onArchive: () => _archiveMitra(item),
+                                ),
+                                _MitraStatus.suspended => _ActiveMitraCard(
+                                  mitra: item,
+                                  onTap: () => _showMitraDetails(item),
+                                ),
+                              },
+                            ),
+                          ),
+                        if (_selectedTab == 1 || _selectedTab == 0) ...[
+                          const SizedBox(height: 2),
+                          _ExportCard(onExport: _showExportMessage),
+                        ],
+                        if (_selectedTab == 2) ...[
+                          const SizedBox(height: 4),
+                          const _OperationalStandard(),
+                        ],
+                        if (_selectedTab == 3) ...[
+                          const SizedBox(height: 8),
+                          const _RejectedFooter(),
+                        ],
+                      ],
                     ),
-                    const SizedBox(height: 12),
-                  ],
-                  if (mitra.isEmpty)
-                    const _EmptySearchResult()
-                  else
-                    ...mitra.map(
-                      (item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: switch (item.status) {
-                          _MitraStatus.active => _ActiveMitraCard(
-                            mitra: item,
-                            onTap: () => _showMitraDetails(item),
-                          ),
-                          _MitraStatus.pending => _PendingMitraCard(
-                            mitra: item,
-                            onTap: () => _showMitraDetails(item),
-                          ),
-                          _MitraStatus.rejected => _RejectedMitraCard(
-                            mitra: item,
-                            onTap: () => _showMitraDetails(item),
-                            onArchive: () => _archiveMitra(item),
-                          ),
-                          _MitraStatus.suspended => _ActiveMitraCard(
-                            mitra: item,
-                            onTap: () => _showMitraDetails(item),
-                          ),
-                        },
-                      ),
-                    ),
-                  if (_selectedTab == 1 || _selectedTab == 0) ...[
-                    const SizedBox(height: 2),
-                    _ExportCard(onExport: _showExportMessage),
-                  ],
-                  if (_selectedTab == 2) ...[
-                    const SizedBox(height: 4),
-                    const _OperationalStandard(),
-                  ],
-                  if (_selectedTab == 3) ...[
-                    const SizedBox(height: 8),
-                    const _RejectedFooter(),
-                  ],
-                ],
-              ),
             ),
           ],
         ),
@@ -755,21 +776,63 @@ class _MitraAdminScreensState extends State<MitraAdminScreens> {
       context,
       MaterialPageRoute(builder: (_) => _MitraDetailAdminScreens(mitra: mitra)),
     );
-    if (updatedMitra == null || !mounted) return;
+    if (!mounted) return;
+    if (updatedMitra == null) {
+      await _loadMitraState();
+      return;
+    }
     final index = _mitraDataState.indexWhere((item) => identical(item, mitra));
     if (index >= 0) {
-      setState(() => _mitraDataState[index] = updatedMitra);
-      await _persistMitraState();
+      final token = SessionManager.adminAccessToken;
+      if (token == null || mitra.backendId == null) {
+        _showPersistenceError(
+          'Data mitra tidak dapat disimpan karena sesi atau ID tidak tersedia.',
+        );
+        return;
+      }
+      try {
+        await AdminAuthService.updateMitraStatus(
+          accessToken: token,
+          id: mitra.backendId!,
+          status: switch (updatedMitra.status) {
+            _MitraStatus.active => 'aktif',
+            _MitraStatus.pending => 'menunggu_verifikasi',
+            _MitraStatus.rejected => 'ditolak',
+            _MitraStatus.suspended => 'ditangguhkan',
+          },
+          note: updatedMitra.catatanAdmin,
+          featured: updatedMitra.ditampilkanDiBeranda,
+        );
+        if (mounted) setState(() => _mitraDataState[index] = updatedMitra);
+      } catch (error) {
+        _showPersistenceError('Perubahan mitra gagal disimpan: $error');
+      }
     }
   }
 
   Future<void> _archiveMitra(_MitraData mitra) async {
     final index = _mitraDataState.indexWhere((item) => identical(item, mitra));
-    if (index < 0) return;
-    setState(() {
-      _mitraDataState[index] = mitra.copyWith(diarsipkan: true);
-    });
-    await _persistMitraState();
+    final token = SessionManager.adminAccessToken;
+    if (index < 0 || token == null || mitra.backendId == null) return;
+    try {
+      await AdminAuthService.updateMitraStatus(
+        accessToken: token,
+        id: mitra.backendId!,
+        status: 'ditangguhkan',
+        note: mitra.catatanAdmin,
+        featured: false,
+      );
+      setState(() {
+        _mitraDataState[index] = mitra.copyWith(
+          status: _MitraStatus.suspended,
+          ditampilkanDiBeranda: false,
+          diarsipkan: true,
+        );
+      });
+    } catch (error) {
+      _showPersistenceError('Mitra gagal ditangguhkan: $error');
+      return;
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
@@ -1983,14 +2046,17 @@ class _MitraDetailAdminScreens extends StatefulWidget {
 class _MitraDetailAdminScreensState extends State<_MitraDetailAdminScreens> {
   late _MitraStatus _status;
   late bool _ditampilkanDiBeranda;
+  late String _accountEmail;
   late final TextEditingController _catatanController;
   late final List<_MitraHistory> _history;
+  bool _provisioningAuth = false;
 
   @override
   void initState() {
     super.initState();
     _status = widget.mitra.status;
     _ditampilkanDiBeranda = widget.mitra.ditampilkanDiBeranda;
+    _accountEmail = widget.mitra.email;
     _catatanController = TextEditingController(text: widget.mitra.catatanAdmin);
     _history = widget.mitra.riwayat.isNotEmpty
         ? List.of(widget.mitra.riwayat)
@@ -2097,12 +2163,108 @@ class _MitraDetailAdminScreensState extends State<_MitraDetailAdminScreens> {
     Navigator.pop(
       context,
       widget.mitra.copyWith(
+        email: _accountEmail,
         status: _status,
         ditampilkanDiBeranda: _ditampilkanDiBeranda,
         catatanAdmin: _catatanController.text.trim(),
         riwayat: List.unmodifiable(_history),
       ),
     );
+  }
+
+  Future<void> _provisionAuthAccount() async {
+    if (_provisioningAuth || widget.mitra.backendId == null) return;
+    final formKey = GlobalKey<FormState>();
+    final emailController = TextEditingController(text: _accountEmail);
+    final passwordController = TextEditingController();
+    final credentials = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Buat akun login mitra'),
+        content: SizedBox(
+          width: 420,
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email asli mitra',
+                    hintText: 'mitra@email.com',
+                  ),
+                  validator: (value) =>
+                      value == null ||
+                          !RegExp(
+                            r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                          ).hasMatch(value.trim())
+                      ? 'Masukkan email yang valid.'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Password awal (minimal 8 karakter)',
+                  ),
+                  validator: (value) => value == null || value.length < 8
+                      ? 'Password minimal 8 karakter.'
+                      : null,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (!formKey.currentState!.validate()) return;
+              Navigator.pop(dialogContext, {
+                'email': emailController.text.trim().toLowerCase(),
+                'password': passwordController.text,
+              });
+            },
+            child: const Text('Buat akun'),
+          ),
+        ],
+      ),
+    );
+    emailController.dispose();
+    passwordController.dispose();
+    if (credentials == null || !mounted) return;
+
+    setState(() => _provisioningAuth = true);
+    try {
+      await AdminAuthService.provisionMitraAuth(
+        accessToken: SessionManager.adminAccessToken ?? '',
+        mitraId: widget.mitra.backendId!,
+        email: credentials['email']!,
+        password: credentials['password']!,
+      );
+      if (!mounted) return;
+      setState(() => _accountEmail = credentials['email']!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Akun Auth mitra dibuat untuk ${credentials['email']}. Berikan password awal kepada mitra.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Akun Auth mitra gagal dibuat: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _provisioningAuth = false);
+    }
   }
 
   String _todayLabel() {
@@ -2244,6 +2406,63 @@ class _MitraDetailAdminScreensState extends State<_MitraDetailAdminScreens> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
           children: [
             _MitraIdentityCard(mitra: mitra, status: _status),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: _cardDecoration(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Akun Login Supabase Auth',
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: _mitraNavy,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    _accountEmail.isEmpty
+                        ? 'Belum ada email login.'
+                        : 'Email login: $_accountEmail',
+                    style: GoogleFonts.manrope(
+                      fontSize: 11,
+                      color: _mitraMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _provisioningAuth
+                          ? null
+                          : _provisionAuthAccount,
+                      icon: _provisioningAuth
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.person_add_alt_1_outlined),
+                      label: Text(
+                        _provisioningAuth
+                            ? 'Membuat akun...'
+                            : 'Buat akun Auth / email login',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Password disimpan di Supabase Auth, tidak di tabel mitra.',
+                    style: GoogleFonts.manrope(
+                      fontSize: 10,
+                      color: _mitraMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 18),
             Row(
               children: [

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/api_client.dart';
 import '../../core/app_color.dart';
 import '../../models/kategori.dart';
 import '../../models/wisata.dart';
-import '../../models/wisata_dummy.dart';
 import '../../widgets/bottom_navigator.dart';
-import 'kategori_widgets/banner_kategori.dart';
 import 'kategori_widgets/kartu_kategori.dart';
 import 'kategori_widgets/kartu_atraksi.dart';
 import 'kategori_widgets/kartu_tur.dart';
@@ -30,6 +29,26 @@ class _KategoriScreensState extends State<KategoriScreens> {
   String? _jenis; // null = semua jenis
   bool _mencari = false;
   String _kata = '';
+  List<Wisata> _wisata = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _muatWisata();
+  }
+
+  Future<void> _muatWisata() async {
+    try {
+      final rows = await UserApi.catalog();
+      if (mounted) setState(() => _wisata = rows.map(Wisata.fromApiJson).toList());
+    } catch (error) {
+      _error = error.toString();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -38,7 +57,7 @@ class _KategoriScreensState extends State<KategoriScreens> {
   }
 
   // semua wisata di kategori ini
-  List<Wisata> get _daftarKategori => WisataDummy.semuaWisata
+  List<Wisata> get _daftarKategori => _wisata
       .where(
         (w) =>
             w.kategori == widget.kategori.nama ||
@@ -76,7 +95,6 @@ class _KategoriScreensState extends State<KategoriScreens> {
   Widget build(BuildContext context) {
     final hasil = _hasil;
     final jenis = _daftarJenis;
-    final promo = WisataDummy.promoKategori[widget.kategori.nama];
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -112,13 +130,13 @@ class _KategoriScreensState extends State<KategoriScreens> {
 
             // isi: banner + daftar kartu
             Expanded(
-              child: ListView(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center)))
+                  : ListView(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
                 children: [
-                  if (promo != null && _jenis == null && _kata.isEmpty) ...[
-                    BannerKategori(promo: promo),
-                    const SizedBox(height: 14),
-                  ],
                   if (hasil.isEmpty)
                     _kosong()
                   else

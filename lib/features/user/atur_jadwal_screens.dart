@@ -44,8 +44,8 @@ class _AturJadwalScreensState extends State<AturJadwalScreens> {
   Ketersediaan _info(DateTime t) =>
       KetersediaanDummy.untuk(t, widget.paket.harga);
 
-  int get _hargaDewasa => _info(_tanggal).harga;
-  int get _hargaAnak => KetersediaanDummy.hargaAnak(_hargaDewasa);
+  int get _hargaDewasa => widget.paket.harga;
+  int get _hargaAnak => widget.paket.hargaAnak ?? widget.paket.harga;
   int get _tiket => _dewasa + _anak; // bayi tidak dihitung
   int get _total => _dewasa * _hargaDewasa + _anak * _hargaAnak;
 
@@ -124,6 +124,10 @@ class _AturJadwalScreensState extends State<AturJadwalScreens> {
             bayi: _bayi,
             hargaDewasa: _hargaDewasa,
             hargaAnak: _hargaAnak,
+            idPaket: widget.paket.idPaket,
+            idDetailDewasa: widget.paket.idDetailDewasa,
+            idDetailAnak: widget.paket.idDetailAnak,
+            idDetailBalita: widget.paket.idDetailBalita,
           ),
         ),
       ),

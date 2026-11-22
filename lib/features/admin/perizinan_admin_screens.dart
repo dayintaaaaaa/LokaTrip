@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/admin_auth_service.dart';
+import '../../core/session_manager.dart';
 import '../../widgets/admin_bottom_navigator.dart';
 import '../../widgets/admin_notification_button.dart';
 import 'dashboard_admin_screens.dart';
@@ -24,6 +26,7 @@ class _Permit {
   final String id, category, destination, partner, dates, note, auditor;
   final IconData icon;
   final Color iconBackground;
+  final int? backendId;
   _Status status;
   int rejectedStep;
 
@@ -37,8 +40,9 @@ class _Permit {
     this.auditor,
     this.icon,
     this.iconBackground,
-    this.status,
-  ) : rejectedStep = 0;
+    this.status, {
+    this.backendId,
+  }) : rejectedStep = 0;
 }
 
 class PerizinanAdminScreens extends StatefulWidget {
@@ -57,9 +61,10 @@ class PerizinanAdminScreens extends StatefulWidget {
 
 class _PerizinanAdminScreensState extends State<PerizinanAdminScreens> {
   final _search = TextEditingController();
-  final _permits = _samplePermits();
+  final _permits = <_Permit>[];
   String _filter = 'Semua';
   String _query = '';
+  bool _loading = true;
 
   static const _filters = [
     'Semua',
@@ -73,20 +78,110 @@ class _PerizinanAdminScreensState extends State<PerizinanAdminScreens> {
   @override
   void initState() {
     super.initState();
+    _loadDocuments();
     if (_filters.contains(widget.initialFilter)) {
       _filter = widget.initialFilter;
     }
-    final initialPermitId = widget.initialPermitId;
-    if (initialPermitId != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        for (final permit in _permits) {
-          if (permit.id == initialPermitId) {
-            _openPermit(permit);
-            return;
-          }
+  }
+
+  Future<void> _loadDocuments() async {
+    try {
+      final token = SessionManager.adminAccessToken;
+      if (token == null)
+        throw const AdminAuthException(
+          'Sesi admin tidak tersedia. Silakan login kembali.',
+        );
+      final rows = await AdminAuthService.getDocuments(accessToken: token);
+      final mapped = rows.map((row) {
+        final owner = row['admin_wisata'];
+        final mitra = owner is Map<String, dynamic>
+            ? owner
+            : <String, dynamic>{};
+        final id = (row['id_dokumen'] as num?)?.toInt() ?? 0;
+        final statusValue = row['status_approve'] as String? ?? 'N';
+        final expiry = DateTime.tryParse(
+          row['masa_berlaku_sampai'] as String? ?? '',
+        );
+        final today = DateTime.now();
+        final startOfToday = DateTime(today.year, today.month, today.day);
+        final endOfWindow = startOfToday.add(const Duration(days: 30));
+        final status = switch (statusValue) {
+          'Y' =>
+            expiry != null && expiry.isBefore(startOfToday)
+                ? _Status.expired
+                : expiry != null && !expiry.isAfter(endOfWindow)
+                ? _Status.expiring
+                : _Status.active,
+          'R' => _Status.rejected,
+          _ => _Status.pending,
+        };
+        return _Permit(
+          'DOC-${id.toString().padLeft(5, '0')}',
+          row['jenis_dokumen'] as String? ?? 'Dokumen legalitas',
+          'Dokumen mitra',
+          mitra['nama_lengkap_admin'] as String? ??
+              mitra['username'] as String? ??
+              'Mitra',
+          expiry?.toIso8601String().split('T').first ?? 'Belum ditentukan',
+          row['catatan_admin'] as String? ?? 'Menunggu pemeriksaan admin.',
+          'Admin LokaTrip',
+          Icons.description_outlined,
+          const Color(0xFFE5EDFF),
+          status,
+          backendId: id,
+        );
+      }).toList();
+      if (mounted) {
+        setState(() {
+          _permits
+            ..clear()
+            ..addAll(mapped);
+          _loading = false;
+        });
+        final initialPermitId = widget.initialPermitId;
+        if (initialPermitId != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            for (final permit in _permits) {
+              if (permit.id == initialPermitId) {
+                _openPermit(permit);
+                return;
+              }
+            }
+          });
         }
-      });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _message('Gagal memuat dokumen: $error');
+      }
+    }
+  }
+
+  Future<void> _decideDocument(_Permit permit, String decision) async {
+    final token = SessionManager.adminAccessToken;
+    if (token == null || permit.backendId == null) {
+      throw const AdminAuthException('Sesi atau ID dokumen tidak valid.');
+    }
+    try {
+      await AdminAuthService.decideDocument(
+        accessToken: token,
+        id: permit.backendId!,
+        decision: decision,
+        note: permit.note,
+      );
+      if (!mounted) return;
+      setState(
+        () => permit.status = switch (decision) {
+          'approve' => _Status.active,
+          'reject' => _Status.rejected,
+          _ => _Status.pending,
+        },
+      );
+    } catch (error) {
+      _message('Keputusan dokumen gagal disimpan: $error');
+      rethrow;
     }
   }
 
@@ -155,15 +250,15 @@ class _PerizinanAdminScreensState extends State<PerizinanAdminScreens> {
             _ => StatusAuditMitra.menunggu,
           },
           rejectedStep: permit.rejectedStep,
-          onApproved: (_) => setState(() => permit.status = _Status.active),
-          onRejected: (step) => setState(() {
-            permit.status = _Status.rejected;
+          onApproved: (_) => _decideDocument(permit, 'approve'),
+          onRejected: (step) async {
+            await _decideDocument(permit, 'reject');
             permit.rejectedStep = step;
-          }),
-          onRevision: () => setState(() {
-            permit.status = _Status.pending;
+          },
+          onRevision: () async {
+            await _decideDocument(permit, 'pending');
             permit.rejectedStep = 0;
-          }),
+          },
         ),
       ),
     );
@@ -326,7 +421,14 @@ class _PerizinanAdminScreensState extends State<PerizinanAdminScreens> {
               const SizedBox(height: 10),
               _filterBar(),
               const SizedBox(height: 12),
-              if (_visible.isEmpty)
+              if (_loading)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (_visible.isEmpty)
                 _emptyState()
               else
                 Wrap(
@@ -337,13 +439,6 @@ class _PerizinanAdminScreensState extends State<PerizinanAdminScreens> {
                       SizedBox(width: permitWidth, child: _permitCard(permit)),
                   ],
                 ),
-              const SizedBox(height: 16),
-              _registrationBanner(),
-              const SizedBox(height: 10),
-              Text(
-                'Data contoh untuk rancangan audit; belum terhubung ke backend.',
-                style: GoogleFonts.manrope(fontSize: 11, color: _muted),
-              ),
             ],
           ),
         ),
@@ -372,7 +467,7 @@ class _PerizinanAdminScreensState extends State<PerizinanAdminScreens> {
           ],
         ),
       ),
-      _badge('SLA 98.4%', _green, const Color(0xFFDDF5E9)),
+      _badge('Data Supabase', _green, const Color(0xFFDDF5E9)),
     ],
   );
 
@@ -383,17 +478,35 @@ class _PerizinanAdminScreensState extends State<PerizinanAdminScreens> {
         ? 2
         : 1;
     final itemWidth = (width - 12 * (columns - 1)) / columns;
-    const items = [
-      ('Aktif', '120', 'Kepatuhan SLA 94%', Icons.verified_outlined, _green),
-      ('Menunggu', '12', '3 prioritas', Icons.hourglass_top, Color(0xFF1681B0)),
+    final items = [
+      (
+        'Aktif',
+        _permits.where((permit) => permit.status == _Status.active).length,
+        'Disetujui dan masih berlaku',
+        Icons.verified_outlined,
+        _green,
+      ),
+      (
+        'Menunggu',
+        _permits.where((permit) => permit.status == _Status.pending).length,
+        'Perlu pemeriksaan admin',
+        Icons.hourglass_top,
+        const Color(0xFF1681B0),
+      ),
       (
         'Akan berakhir',
-        '8',
+        _permits.where((permit) => permit.status == _Status.expiring).length,
         'Dalam 30 hari',
         Icons.warning_amber_rounded,
         _blue,
       ),
-      ('Kedaluwarsa', '3', 'Tindakan diperlukan', Icons.cancel_outlined, _red),
+      (
+        'Kedaluwarsa',
+        _permits.where((permit) => permit.status == _Status.expired).length,
+        'Tindakan diperlukan',
+        Icons.cancel_outlined,
+        _red,
+      ),
     ];
     return Wrap(
       spacing: 12,
@@ -402,7 +515,13 @@ class _PerizinanAdminScreensState extends State<PerizinanAdminScreens> {
         for (final item in items)
           SizedBox(
             width: itemWidth,
-            child: _SummaryCard(item.$1, item.$2, item.$3, item.$4, item.$5),
+            child: _SummaryCard(
+              item.$1,
+              item.$2.toString(),
+              item.$3,
+              item.$4,
+              item.$5,
+            ),
           ),
       ],
     );

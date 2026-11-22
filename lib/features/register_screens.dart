@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/api_client.dart';
 import '../core/app_color.dart';
 import '../core/session_manager.dart';
 import '../features/user/home_screens.dart';
@@ -19,6 +20,7 @@ class _RegisterScreensState extends State<RegisterScreens> {
   final _passwordController = TextEditingController();
   final _teleponController = TextEditingController();
   bool _hiddenPass = true;
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -31,14 +33,44 @@ class _RegisterScreensState extends State<RegisterScreens> {
   }
 
   Future<void> _register() async {
-    // nanti diganti proses daftar sungguhan (kirim ke backend)
-    await SessionManager.setLoggedIn();
-
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const HomeScreens()),
-    );
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      final result = await UserApi.register(
+        fullName: _namaController.text.trim(),
+        username: _usernameController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: _teleponController.text.trim(),
+        password: _passwordController.text,
+      );
+      final token = result['access_token'] as String?;
+      if (token == null || token.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Akun dibuat. Periksa email untuk verifikasi sebelum login.')),
+          );
+          _keLogin();
+        }
+        return;
+      }
+      await SessionManager.setUserSession(
+        accessToken: token,
+        refreshToken: result['refresh_token'] as String?,
+      );
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreens()),
+      );
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   void _keLogin() {
@@ -189,7 +221,7 @@ class _RegisterScreensState extends State<RegisterScreens> {
                           width: 200,
                           height: 44,
                           child: ElevatedButton(
-                            onPressed: _register, 
+                            onPressed: _loading ? null : _register,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColor.kuning,
                               foregroundColor: AppColor.putih,
@@ -199,7 +231,7 @@ class _RegisterScreensState extends State<RegisterScreens> {
                               ),
                             ),
                             child: Text(
-                              'Sign in',
+                              _loading ? 'Memproses…' : 'Sign in',
                               style: GoogleFonts.manrope(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,

@@ -1,14 +1,18 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import '../../core/mitra_theme.dart';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/api_client.dart';
+import '../../core/session_manager.dart';
 import '../../widgets/mitra_bottom_navigator.dart';
 import 'wisata_saya_mitra_screen.dart';
 
-const _blue = Color(0xFF0646C7);
+const _blue = MitraPalette.primary;
 const _ink = Color(0xFF14243A);
 const _muted = Color(0xFF697386);
 const _ground = Color(0xFFF5F7FC);
@@ -42,12 +46,12 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
       'price',
       'quota',
       'hours',
-      'nib',
-      'license',
     ])
       name: TextEditingController(),
   };
   final _documents = <String, String>{};
+  final _uploadedDocumentRows = <String, Map<String, dynamic>>{};
+  final _previousFilesNeedReupload = <String>[];
 
   int _step = 0;
   String _category = 'Wisata Alam';
@@ -56,6 +60,10 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
   Uint8List? _photo;
   bool _agreed = false;
   bool _loading = true;
+  bool _submitting = false;
+  bool _uploadingDocuments = false;
+  bool _draggingDocuments = false;
+  String? _photoMimeType;
 
   String _value(String key) => _fields[key]!.text;
 
@@ -84,9 +92,25 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
       _category = data['category'] as String? ?? _category;
       _submissionId = data['submissionId'] as String? ?? '';
       _agreed = data['agreed'] as bool? ?? false;
-      _documents.addAll(
-        Map<String, String>.from(data['documents'] as Map? ?? {}),
+      final savedDocuments = Map<String, String>.from(
+        data['documents'] as Map? ?? {},
       );
+      final uploaded = data['uploadedDocumentRows'];
+      if (uploaded is Map) {
+        for (final entry in uploaded.entries) {
+          if (entry.key is String && entry.value is Map) {
+            _uploadedDocumentRows[entry.key as String] =
+                Map<String, dynamic>.from(entry.value as Map);
+          }
+        }
+      }
+      for (final entry in savedDocuments.entries) {
+        if (_uploadedDocumentRows.containsKey(entry.key)) {
+          _documents[entry.key] = entry.value;
+        } else {
+          _previousFilesNeedReupload.add(entry.value);
+        }
+      }
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -101,6 +125,7 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
       'submissionId': _submissionId,
       'agreed': _agreed,
       'documents': _documents,
+      'uploadedDocumentRows': _uploadedDocumentRows,
     });
     await (await SharedPreferences.getInstance()).setString(
       _draftKey,
@@ -126,6 +151,7 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
       setState(() {
         _photo = bytes;
         _photoName = file.name;
+        _photoMimeType = _mimeType(file.name);
       });
     } catch (error, stackTrace) {
       debugPrint('Gagal memilih foto wisata: $error');
@@ -134,24 +160,76 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
     }
   }
 
-  Future<void> _pickDocument(String title) async {
+  Future<void> _pickPerizinanFiles() async {
     try {
-      final file = await openFile(
+      final files = await openFiles(
         acceptedTypeGroups: const [
           XTypeGroup(
-            label: 'Dokumen',
-            extensions: ['pdf', 'jpg', 'jpeg', 'png'],
+            label: 'Dokumen perizinan',
+            extensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
           ),
         ],
       );
-      if (file == null) return;
-      if (!mounted) return;
-      setState(() => _documents[title] = file.name);
-      await _saveDraft();
+      await _uploadPerizinanFiles(files);
     } catch (error, stackTrace) {
-      debugPrint('Gagal memilih dokumen: $error');
+      debugPrint('Gagal memilih dokumen perizinan: $error');
       debugPrintStack(stackTrace: stackTrace);
-      if (mounted) _message('Dokumen tidak dapat dibuka. Pilih file lain.');
+      if (mounted) _message('Dokumen tidak dapat dibuka: $error');
+    }
+  }
+
+  Future<void> _uploadPerizinanFiles(List<XFile> files) async {
+    if (files.isEmpty || _uploadingDocuments) return;
+    final token = await SessionManager.currentMitraToken();
+    if (token == null) {
+      if (mounted) {
+        _message('Sesi mitra tidak ditemukan. Silakan masuk kembali.');
+      }
+      return;
+    }
+    setState(() => _uploadingDocuments = true);
+    var uploadedCount = 0;
+    try {
+      for (final file in files) {
+        final bytes = await file.readAsBytes();
+        if (bytes.isEmpty || bytes.length > 8 * 1024 * 1024) {
+          _message('${file.name}: ukuran dokumen maksimal 8 MB.');
+          continue;
+        }
+        final result = await MitraApi.uploadDokumen(
+          token: token,
+          jenisDokumen: 'Dokumen perizinan',
+          nomorDokumen: '',
+          fileName: file.name,
+          mimeType: _mimeType(file.name),
+          bytes: bytes,
+        );
+        final document = result['document'];
+        if (document is! Map<String, dynamic>) {
+          throw const ApiException('Data dokumen yang tersimpan tidak valid.');
+        }
+        final id = document['id_dokumen']?.toString();
+        if (id == null || id.isEmpty) {
+          throw const ApiException('Supabase tidak mengembalikan ID dokumen.');
+        }
+        if (!mounted) return;
+        setState(() {
+          _documents[id] = file.name;
+          _uploadedDocumentRows[id] = document;
+          _previousFilesNeedReupload.remove(file.name);
+        });
+        uploadedCount++;
+        await _saveDraft();
+      }
+      if (mounted && uploadedCount > 0) {
+        _message('$uploadedCount dokumen perizinan tersimpan di Supabase.');
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Gagal mengunggah dokumen perizinan: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (mounted) _message('Unggahan ke Supabase gagal: $error');
+    } finally {
+      if (mounted) setState(() => _uploadingDocuments = false);
     }
   }
 
@@ -163,9 +241,7 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
       return;
     }
     if (_step == 2) {
-      final now = DateTime.now();
-      _submissionId =
-          'SUB-${now.year}-${now.millisecondsSinceEpoch.remainder(10000).toString().padLeft(4, '0')}';
+      _submissionId = '';
     }
     setState(() => _step = (_step + 1).clamp(0, 3).toInt());
     await _saveDraft();
@@ -178,23 +254,72 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
   }
 
   Future<void> _submitAndGoToWisataSaya() async {
-    await _saveDraft();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('mitra_application_submitted', true);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Pengajuan kemitraan berhasil dikirim ke Admin LokaTrip!'),
-        backgroundColor: Color(0xFF059669),
-      ),
-    );
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, _, _) => const WisataSayaMitraScreen(),
-        transitionDuration: Duration.zero,
-      ),
-    );
+    if (_submitting || _uploadingDocuments) return;
+    final filesToReselect = _documents.keys
+        .where((title) => !_uploadedDocumentRows.containsKey(title))
+        .toList(growable: false);
+    if (filesToReselect.isNotEmpty) {
+      _message(
+        'Unggah ulang berkas ${filesToReselect.join(', ')} agar tersimpan di Supabase.',
+      );
+      return;
+    }
+    final token = await SessionManager.currentMitraToken();
+    if (token == null) {
+      _message('Sesi mitra tidak ditemukan. Silakan masuk kembali.');
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      final result = await MitraApi.submitPengajuan(
+        token: token,
+        values: {
+          'nama_wisata': _value('destination'),
+          'deskripsi': _value('description'),
+          'kategori': _category,
+          'lokasi': _value('location'),
+          'nama_paket': _value('ticket'),
+          'harga': int.tryParse(_value('price').replaceAll('.', '')) ?? 0,
+          'kuota': int.tryParse(_value('quota').replaceAll('.', '')) ?? 0,
+          'jam_operasional': _value('hours'),
+        },
+        fotoName: _photoName.isEmpty ? null : _photoName,
+        fotoMimeType: _photoMimeType,
+        fotoBytes: _photo,
+        dokumen: const [],
+      );
+      await _clearDraft();
+      if (!mounted) return;
+      final application = result['application'];
+      final idWisata = application is Map ? application['id_wisata'] : null;
+      _message(
+        'Pengajuan berhasil dikirim${idWisata == null ? '' : ' (ID wisata $idWisata)'}. Status menunggu verifikasi admin.',
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute<void>(builder: (_) => const WisataSayaMitraScreen()),
+      );
+    } catch (error) {
+      if (mounted) _message(error.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _clearDraft() async {
+    await (await SharedPreferences.getInstance()).remove(_draftKey);
+    _documents.clear();
+    _uploadedDocumentRows.clear();
+  }
+
+  String _mimeType(String name) {
+    final extension = name.split('.').last.toLowerCase();
+    return switch (extension) {
+      'pdf' => 'application/pdf',
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      _ => 'image/jpeg',
+    };
   }
 
   void _message(String text) {
@@ -204,45 +329,48 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: _ground,
-    body: SafeArea(
-      child: Column(
-        children: [
-          _header(),
-          _progress(),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator(color: _blue))
-                : LayoutBuilder(
-                    builder: (context, size) => SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(
-                        size.maxWidth > 900 ? 32 : 16,
-                        20,
-                        size.maxWidth > 900 ? 32 : 16,
-                        24,
-                      ),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 920),
-                          child: _stage(size.maxWidth > 900),
+  Widget build(BuildContext context) => Theme(
+    data: mitraTheme(Theme.of(context)),
+    child: Scaffold(
+      backgroundColor: _ground,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _header(),
+            _progress(),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator(color: _blue))
+                  : LayoutBuilder(
+                      builder: (context, size) => SingleChildScrollView(
+                        padding: EdgeInsets.fromLTRB(
+                          size.maxWidth > 900 ? 32 : 16,
+                          20,
+                          size.maxWidth > 900 ? 32 : 16,
+                          24,
+                        ),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 920),
+                            child: _stage(size.maxWidth > 900),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-          ),
-          if (!_loading) _actions(),
-        ],
+            ),
+            if (!_loading) _actions(),
+          ],
+        ),
       ),
-    ),
-    bottomNavigationBar: MitraBottomNavigator(
-      currentIndex: 0,
-      onTap: (index) async {
-        if (index == 0) return;
-        await _saveDraft();
-        if (!context.mounted) return;
-        MitraBottomNavigator.navigateTo(context, index);
-      },
+      bottomNavigationBar: MitraBottomNavigator(
+        currentIndex: 0,
+        onTap: (index) async {
+          if (index == 0) return;
+          await _saveDraft();
+          if (!context.mounted) return;
+          MitraBottomNavigator.navigateTo(context, index);
+        },
+      ),
     ),
   );
 
@@ -477,20 +605,38 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       _intro(
-        'Tahap 3: Legalitas',
-        'Masukkan nomor izin dan pilih berkas pendukung.',
+        'Tahap 3: Dokumen perizinan',
+        'Unggah semua berkas perizinan sekaligus. Admin akan memeriksanya.',
       ),
       const SizedBox(height: 14),
-      _panel('Nomor perizinan', Icons.badge_outlined, [
-        _field('nib', 'Nomor Induk Berusaha (NIB)', required: true),
-        _upload('NIB'),
-        _field('license', 'Nomor izin usaha / TDUP', required: true),
-        _upload('Izin usaha'),
-      ]),
-      const SizedBox(height: 12),
-      _panel('Asuransi pengunjung', Icons.health_and_safety_outlined, [
-        _upload('Asuransi'),
-      ]),
+      _perizinanDropZone(),
+      if (_documents.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        _panel('Berkas tersimpan', Icons.cloud_done_outlined, [
+          for (final entry in _documents.entries)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: _green, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(entry.value, style: _textStyle(12))),
+                  Text(
+                    'Tersimpan',
+                    style: _textStyle(10, color: _green, bold: true),
+                  ),
+                ],
+              ),
+            ),
+        ]),
+      ],
+      if (_previousFilesNeedReupload.isNotEmpty) ...[
+        const SizedBox(height: 10),
+        Text(
+          'Berkas dari draft lama belum tersimpan online: ${_previousFilesNeedReupload.join(', ')}. Unggah kembali jika masih diperlukan.',
+          style: _textStyle(11, color: const Color(0xFFB45309)),
+        ),
+      ],
       const SizedBox(height: 12),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -525,46 +671,73 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
       ),
       const SizedBox(height: 8),
       Text(
-        'File hanya dipilih di perangkat ini; pengiriman ke server belum tersedia.',
+        'Berkas yang dipilih langsung tersimpan privat di Supabase.',
         style: _textStyle(11, color: _muted),
       ),
     ],
   );
 
-  Widget _upload(String title) => Padding(
-    padding: const EdgeInsets.only(top: 8, bottom: 10),
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  Widget _perizinanDropZone() => DropTarget(
+    onDragEntered: (_) => setState(() => _draggingDocuments = true),
+    onDragExited: (_) => setState(() => _draggingDocuments = false),
+    onDragDone: (details) {
+      setState(() => _draggingDocuments = false);
+      _uploadPerizinanFiles(details.files);
+    },
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: _wash,
-        borderRadius: BorderRadius.circular(10),
+        color: _draggingDocuments ? const Color(0xFFE4EDFF) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _draggingDocuments ? _blue : _line,
+          width: _draggingDocuments ? 2 : 1,
+        ),
       ),
-      child: Row(
+      child: Column(
         children: [
           Icon(
-            _documents.containsKey(title)
-                ? Icons.check_circle
+            _draggingDocuments
+                ? Icons.move_to_inbox_outlined
                 : Icons.cloud_upload_outlined,
-            color: _documents.containsKey(title) ? _green : _blue,
+            size: 36,
+            color: _blue,
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              _documents[title] ?? '$title • PDF atau JPG',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: _textStyle(12),
+          const SizedBox(height: 9),
+          Text(
+            _draggingDocuments
+                ? 'Lepaskan dokumen di sini'
+                : 'Seret dan lepas semua dokumen perizinan',
+            textAlign: TextAlign.center,
+            style: _textStyle(14, bold: true),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            'PDF, JPG, PNG, atau WEBP • Maksimal 8 MB per file',
+            textAlign: TextAlign.center,
+            style: _textStyle(11, color: _muted),
+          ),
+          const SizedBox(height: 13),
+          OutlinedButton.icon(
+            onPressed: _uploadingDocuments ? null : _pickPerizinanFiles,
+            icon: _uploadingDocuments
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.attach_file),
+            label: Text(
+              _uploadingDocuments
+                  ? 'Mengunggah dokumen…'
+                  : 'Pilih beberapa file',
             ),
-          ),
-          TextButton(
-            onPressed: () => _pickDocument(title),
-            child: Text(_documents.containsKey(title) ? 'Ganti' : 'Pilih file'),
           ),
         ],
       ),
     ),
   );
-
   Widget _trackingStage() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
@@ -582,18 +755,18 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _tag('SIMULASI LOKAL', color: const Color(0xFF9FF4D2)),
+            _tag('PENGAJUAN MITRA', color: const Color(0xFF9FF4D2)),
             const SizedBox(height: 10),
             Text(
               'Nomor pengajuan',
               style: _textStyle(12, color: Colors.white70),
             ),
             Text(
-              '#$_submissionId',
-              style: _textStyle(23, bold: true, color: Colors.white),
+              'Dibuat saat dikirim',
+              style: _textStyle(18, bold: true, color: Colors.white),
             ),
             Text(
-              'Status: Menunggu Review Admin (simulasi)',
+              'Status: Siap dikirim ke admin',
               style: _textStyle(12, bold: true, color: const Color(0xFF9FF4D2)),
             ),
           ],
@@ -616,7 +789,7 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
       ]),
       const SizedBox(height: 12),
       _tag(
-        'Belum terhubung ke server; pengajuan belum diterima admin.',
+        'Berkas perizinan tersimpan di Supabase. Data wisata dikirim saat pengajuan dikirim.',
         color: _muted,
       ),
     ],
@@ -668,16 +841,36 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final primary = FilledButton.icon(
-              onPressed: _step == 3 ? _submitAndGoToWisataSaya : _next,
-              icon: Icon(
-                _step == 3 ? Icons.check_circle_outline : Icons.arrow_forward,
+              onPressed: _submitting
+                  ? null
+                  : _step == 3
+                  ? _submitAndGoToWisataSaya
+                  : _next,
+              icon: _submitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(
+                      _step == 3
+                          ? Icons.check_circle_outline
+                          : Icons.arrow_forward,
+                    ),
+              label: Text(
+                _submitting
+                    ? 'Mengirim pengajuan…'
+                    : switch (_step) {
+                        0 => 'Lanjut ke Tahap 2: Tiket & Kuota',
+                        1 => 'Lanjut ke Tahap 3: Legalitas',
+                        2 => 'Siapkan Pengajuan Tahap 4',
+                        _ => 'Kirim Pengajuan',
+                      },
+                textAlign: TextAlign.center,
               ),
-              label: Text(switch (_step) {
-                0 => 'Lanjut ke Tahap 2: Tiket & Kuota',
-                1 => 'Lanjut ke Tahap 3: Legalitas',
-                2 => 'Siapkan Pengajuan Tahap 4',
-                _ => 'Kirim Pengajuan & Buka Wisata Saya',
-              }, textAlign: TextAlign.center),
               style: _primaryButton,
             );
             final secondary = OutlinedButton.icon(

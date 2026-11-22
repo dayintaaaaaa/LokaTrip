@@ -22,9 +22,9 @@ class VerifikasiMitraAdminScreens extends StatefulWidget {
   final String note;
   final StatusAuditMitra status;
   final int rejectedStep;
-  final ValueChanged<int> onApproved;
-  final ValueChanged<int> onRejected;
-  final VoidCallback onRevision;
+  final Future<void> Function(int) onApproved;
+  final Future<void> Function(int) onRejected;
+  final Future<void> Function() onRevision;
 
   const VerifikasiMitraAdminScreens({
     super.key,
@@ -57,35 +57,49 @@ class _VerifikasiMitraAdminScreensState
     StatusAuditMitra.aktif => 3,
     StatusAuditMitra.ditolak => widget.rejectedStep - 1,
   };
+  bool _saving = false;
 
-  void _revise() {
-    setState(() {
+  Future<void> _revise() async {
+    await _save(() => widget.onRevision(), () {
       _status = StatusAuditMitra.menunggu;
       _rejectedStep = 0;
       _step = 0;
-    });
-    widget.onRevision();
-    _message('Permintaan revisi dicatat. Audit dimulai kembali dari Data.');
+    }, 'Permintaan revisi dicatat. Audit dimulai kembali dari Data.');
   }
 
-  void _reject() {
+  Future<void> _reject() async {
     final rejectedAt = _step + 1;
-    setState(() {
+    await _save(() => widget.onRejected(rejectedAt), () {
       _status = StatusAuditMitra.ditolak;
       _rejectedStep = rejectedAt;
-    });
-    widget.onRejected(rejectedAt);
-    _message('Pengajuan ditolak pada tahap ${_steps[_step]}.');
+    }, 'Pengajuan ditolak pada tahap ${_steps[_step]}.');
   }
 
-  void _approve() {
-    setState(() {
+  Future<void> _approve() async {
+    await _save(() => widget.onApproved(4), () {
       _status = StatusAuditMitra.aktif;
       _rejectedStep = 0;
       _step = 3;
-    });
-    widget.onApproved(4);
-    _message('Izin diterbitkan dan mitra diaktifkan.');
+    }, 'Izin diterbitkan dan mitra diaktifkan.');
+  }
+
+  Future<void> _save(
+    Future<void> Function() persist,
+    VoidCallback apply,
+    String successMessage,
+  ) async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await persist();
+      if (!mounted) return;
+      setState(apply);
+      _message(successMessage);
+    } catch (error) {
+      if (mounted) _message('Perubahan gagal disimpan: $error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   void _message(String value) {
@@ -393,12 +407,7 @@ class _VerifikasiMitraAdminScreensState
       _auditRow('Destinasi', widget.destination),
       _auditRow('Kategori usaha', widget.category),
     ],
-    1 => [
-      _documentRow('Dokumen badan usaha'),
-      _documentRow('Izin operasional wisata'),
-      _documentRow('Asuransi pengunjung'),
-      _documentRow('Dokumen pendukung'),
-    ],
+    1 => [_documentRow('Dokumen perizinan yang diunggah')],
     2 => [
       _documentRow('Paket wisata dan area operasi'),
       _documentRow('Kendaraan dan standar keselamatan'),
@@ -455,7 +464,7 @@ class _VerifikasiMitraAdminScreensState
 
   Widget _documentRow(String label) {
     final failedDocument = switch (_rejectedStep) {
-      2 => 'Izin operasional wisata',
+      2 => 'Dokumen perizinan yang diunggah',
       3 => 'Kendaraan dan standar keselamatan',
       _ => '',
     };
@@ -524,14 +533,14 @@ class _VerifikasiMitraAdminScreensState
       children: [
         if (!active && !rejected && _step < 3)
           FilledButton.icon(
-            onPressed: () => setState(() => _step++),
+            onPressed: _saving ? null : () => setState(() => _step++),
             icon: const Icon(Icons.arrow_forward),
             label: Text('Lanjut ke ${_steps[_step + 1]} (Tahap ${_step + 2})'),
             style: _primaryButton,
           ),
         if (!active && _step == 3)
           FilledButton.icon(
-            onPressed: _approve,
+            onPressed: _saving ? null : _approve,
             icon: const Icon(Icons.verified_outlined),
             label: const Text('Terbitkan izin & aktifkan mitra'),
             style: _primaryButton,
@@ -539,7 +548,7 @@ class _VerifikasiMitraAdminScreensState
         if (!active && !rejected && _step == 1) ...[
           const SizedBox(height: 9),
           OutlinedButton.icon(
-            onPressed: _reject,
+            onPressed: _saving ? null : _reject,
             icon: const Icon(Icons.cancel_outlined),
             label: const Text('Tolak pengajuan'),
             style: OutlinedButton.styleFrom(foregroundColor: _red),
@@ -548,7 +557,7 @@ class _VerifikasiMitraAdminScreensState
         if (!active && !rejected && _step == 3) ...[
           const SizedBox(height: 9),
           OutlinedButton.icon(
-            onPressed: _reject,
+            onPressed: _saving ? null : _reject,
             icon: const Icon(Icons.cancel_outlined),
             label: const Text('Tolak pengajuan mitra'),
             style: OutlinedButton.styleFrom(foregroundColor: _red),
@@ -556,7 +565,7 @@ class _VerifikasiMitraAdminScreensState
         ],
         if (!active && rejected) ...[
           FilledButton.icon(
-            onPressed: _revise,
+            onPressed: _saving ? null : _revise,
             icon: const Icon(Icons.edit_note),
             label: const Text('Minta perbaikan data'),
             style: _primaryButton,
@@ -577,7 +586,7 @@ class _VerifikasiMitraAdminScreensState
         if (!active && !rejected && _step < 3) ...[
           const SizedBox(height: 8),
           TextButton.icon(
-            onPressed: _revise,
+            onPressed: _saving ? null : _revise,
             icon: const Icon(Icons.edit_note),
             label: const Text('Minta revisi'),
           ),

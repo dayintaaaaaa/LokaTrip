@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/mitra_theme.dart';
 
+import '../../core/api_client.dart';
 import '../../core/session_manager.dart';
 import '../../widgets/mitra_bottom_navigator.dart';
 import '../login_screens.dart';
@@ -15,294 +17,140 @@ class ProfilMitraScreen extends StatefulWidget {
 }
 
 class _ProfilMitraScreenState extends State<ProfilMitraScreen> {
+  bool _loadingProfile = true;
   bool _isBalanceVisible = true;
+  bool _credentialUpdating = false;
+  Map<String, dynamic> _profile = const {};
+  Map<String, dynamic> _summary = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final token = await SessionManager.currentMitraToken();
+      if (token == null) {
+        throw const ApiException(
+          'Sesi mitra tidak ditemukan. Silakan masuk kembali.',
+        );
+      }
+      final results = await Future.wait([
+        MitraApi.profile(token),
+        MitraApi.ringkasan(token),
+      ]);
+      final result = results[0];
+      final profile = result['mitra'];
+      if (profile is! Map<String, dynamic>) {
+        throw const ApiException('Data profil mitra tidak valid.');
+      }
+      final summary = results[1]['ringkasan'];
+      if (!mounted) return;
+      setState(() {
+        _profile = profile;
+        _summary = summary is Map<String, dynamic> ? summary : const {};
+        _loadingProfile = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _loadingProfile = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  String get _partnerId {
+    final id = _profile['id_mitra'];
+    if (id == null) return '-';
+    return 'MIT-${id.toString().padLeft(5, '0')}';
+  }
+
+  Future<void> _logout() async {
+    final token = await SessionManager.currentMitraToken();
+    try {
+      if (token != null) await MitraApi.logout(token);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Sesi lokal diakhiri: $error')));
+      }
+    }
+    await SessionManager.logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const LoginScreens()),
+      (_) => false,
+    );
+  }
 
   void _copyPartnerId() {
-    Clipboard.setData(const ClipboardData(text: 'MIT-00128'));
+    Clipboard.setData(ClipboardData(text: _partnerId));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('ID Kemitraan MIT-00128 berhasil disalin.'),
+      SnackBar(
+        content: Text('ID Kemitraan $_partnerId berhasil disalin.'),
         duration: Duration(seconds: 2),
       ),
     );
   }
 
-  void _showTarikDanaDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Tarik Dana Manual',
-          style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 16),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Saldo siap cair:',
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                color: const Color(0xFF64748B),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Rp 46.200.000',
-              style: GoogleFonts.manrope(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF1748D1),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Rekening Tujuan: Bank Mandiri (1420019283741)\na.n CV PESONA NUSANTARA',
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                color: const Color(0xFF334155),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Proses pencairan diproses H-1 hari kerja SLA real-time.',
-              style: GoogleFonts.manrope(
-                fontSize: 11,
-                color: const Color(0xFF059669),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF1748D1),
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Permintaan penarikan dana manual Rp 46.200.000 sedang diproses ke Bank Mandiri.',
-                  ),
-                ),
-              );
-            },
-            child: const Text('Konfirmasi Penarikan'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showRiwayatPayoutDialog() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Riwayat Payout & Komisi',
-                      style: GoogleFonts.manrope(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0F172A),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 20),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _payoutItem(
-                  date: '11 Sep 2026',
-                  nominal: 'Rp 38.450.000',
-                  bank: 'Bank Mandiri - Selesai',
-                  statusColor: const Color(0xFF059669),
-                ),
-                const SizedBox(height: 8),
-                _payoutItem(
-                  date: '04 Sep 2026',
-                  nominal: 'Rp 42.100.000',
-                  bank: 'Bank Mandiri - Selesai',
-                  statusColor: const Color(0xFF059669),
-                ),
-                const SizedBox(height: 8),
-                _payoutItem(
-                  date: '28 Agu 2026',
-                  nominal: 'Rp 29.800.000',
-                  bank: 'Bank Mandiri - Selesai',
-                  statusColor: const Color(0xFF059669),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _payoutItem({
-    required String date,
-    required String nominal,
-    required String bank,
-    required Color statusColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                nominal,
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                bank,
-                style: GoogleFonts.manrope(
-                  fontSize: 11,
-                  color: const Color(0xFF64748B),
-                ),
-              ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                'Berhasil',
-                style: GoogleFonts.manrope(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: statusColor,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                date,
-                style: GoogleFonts.manrope(
-                  fontSize: 10,
-                  color: const Color(0xFF94A3B8),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _logout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Keluar dari Akun Mitra',
-          style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 16),
-        ),
-        content: Text(
-          'Apakah Anda yakin ingin keluar dari Portal Mitra LokaTrip?',
-          style: GoogleFonts.manrope(fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Ya, Keluar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      await SessionManager.logout();
-      if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreens()),
-        (route) => false,
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    const bg = Color(0xFFF8FAFC);
+    const bg = MitraPalette.canvas;
 
-    return Scaffold(
-      backgroundColor: bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildTopAppBar(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 800),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildPageHeader(),
-                        const SizedBox(height: 16),
-                        _buildPartnerOverviewCard(),
-                        const SizedBox(height: 20),
-                        _buildFinancialWalletSection(),
-                        const SizedBox(height: 20),
-                        _buildCompanyPicSection(),
-                        const SizedBox(height: 20),
-                        _buildLogoutButton(),
-                        const SizedBox(height: 20),
-                        _buildFooter(),
-                      ],
+    return Theme(
+      data: mitraTheme(Theme.of(context)),
+      child: Scaffold(
+        backgroundColor: bg,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildTopAppBar(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 800),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildPageHeader(),
+                          const SizedBox(height: 16),
+                          if (_loadingProfile)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(32),
+                                child: CircularProgressIndicator(),
+                              ),
+                            )
+                          else ...[
+                            _buildPartnerOverviewCard(),
+                            const SizedBox(height: 20),
+                            _buildFinancialWalletSection(),
+                            const SizedBox(height: 20),
+                            _buildCompanyPicSection(),
+                            const SizedBox(height: 20),
+                            _buildSecuritySection(),
+                          ],
+                          const SizedBox(height: 20),
+                          _buildLogoutButton(),
+                          const SizedBox(height: 20),
+                          _buildFooter(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+        bottomNavigationBar: const MitraBottomNavigator(currentIndex: 3),
       ),
-      bottomNavigationBar: const MitraBottomNavigator(currentIndex: 3),
     );
   }
 
@@ -313,7 +161,7 @@ class _ProfilMitraScreenState extends State<ProfilMitraScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+        border: Border(bottom: BorderSide(color: MitraPalette.line)),
       ),
       child: Row(
         children: [
@@ -322,7 +170,7 @@ class _ProfilMitraScreenState extends State<ProfilMitraScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: const Color(0xFF1748D1),
+              color: MitraPalette.primary,
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -340,18 +188,11 @@ class _ProfilMitraScreenState extends State<ProfilMitraScreen> {
           Stack(
             children: [
               IconButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Semua sistem & payout operasional berjalan lancar.',
-                      ),
-                    ),
-                  );
-                },
+                onPressed: _loadingProfile ? null : _loadProfile,
+                tooltip: 'Muat ulang data profil',
                 icon: const Icon(
                   Icons.notifications_none_rounded,
-                  color: Color(0xFF0F172A),
+                  color: MitraPalette.ink,
                   size: 24,
                 ),
                 style: IconButton.styleFrom(
@@ -361,25 +202,13 @@ class _ProfilMitraScreenState extends State<ProfilMitraScreen> {
                   ),
                 ),
               ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEF4444),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(width: 8),
           // Profile Avatar
           const CircleAvatar(
             radius: 18,
-            backgroundColor: Color(0xFF1748D1),
+            backgroundColor: MitraPalette.primary,
             child: Icon(Icons.person, color: Colors.white, size: 20),
           ),
         ],
@@ -395,9 +224,9 @@ class _ProfilMitraScreenState extends State<ProfilMitraScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
+            color: MitraPalette.primaryLight,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFBFDBFE)),
+            border: Border.all(color: MitraPalette.primaryBorder),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -405,7 +234,7 @@ class _ProfilMitraScreenState extends State<ProfilMitraScreen> {
               const Icon(
                 Icons.check_circle_outline,
                 size: 13,
-                color: Color(0xFF1748D1),
+                color: MitraPalette.primary,
               ),
               const SizedBox(width: 5),
               Text(
@@ -413,7 +242,7 @@ class _ProfilMitraScreenState extends State<ProfilMitraScreen> {
                 style: GoogleFonts.manrope(
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1748D1),
+                  color: MitraPalette.primary,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -426,29 +255,195 @@ class _ProfilMitraScreenState extends State<ProfilMitraScreen> {
           style: GoogleFonts.manrope(
             fontSize: 22,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF0F172A),
+            color: MitraPalette.ink,
           ),
         ),
         const SizedBox(height: 4),
         Text(
-          'Kelola informasi badan usaha, rekening pencairan pendapatan tiket, dan keamanan akun mitra resmi.',
-          style: GoogleFonts.manrope(
-            fontSize: 12,
-            color: const Color(0xFF64748B),
-          ),
+          'Lihat dan perbarui informasi akun mitra yang tersimpan di LokaTrip.',
+          style: GoogleFonts.manrope(fontSize: 12, color: MitraPalette.muted),
         ),
       ],
     );
   }
 
-  // Partner Profile Overview Card
-  Widget _buildPartnerOverviewCard() {
+  String _formatRupiah(num amount) {
+    final digits = amount.round().toString();
+    final result = StringBuffer();
+    for (var index = 0; index < digits.length; index++) {
+      if (index > 0 && (digits.length - index) % 3 == 0) result.write('.');
+      result.write(digits[index]);
+    }
+    return 'Rp $result';
+  }
+
+  Widget _buildFinancialWalletSection() {
+    final paymentValue = (_summary['nilai_pembayaran_berhasil'] as num?) ?? 0;
+    final paidOrders = (_summary['pesanan_terbayar'] as num?)?.toInt() ?? 0;
+    final destinationCount =
+        (_summary['total_destinasi'] as num?)?.toInt() ?? 0;
+    final approvedDestinations =
+        (_summary['destinasi_disetujui'] as num?)?.toInt() ?? 0;
+    final documentCount = (_summary['total_dokumen'] as num?)?.toInt() ?? 0;
+    final approvedDocuments =
+        (_summary['dokumen_disetujui'] as num?)?.toInt() ?? 0;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: MitraPalette.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.account_balance_wallet_outlined,
+                color: MitraPalette.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Ringkasan Mitra',
+                  style: GoogleFonts.manrope(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: MitraPalette.ink,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () =>
+                    setState(() => _isBalanceVisible = !_isBalanceVisible),
+                icon: Icon(
+                  _isBalanceVisible
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  size: 18,
+                ),
+                tooltip: _isBalanceVisible
+                    ? 'Sembunyikan nilai'
+                    : 'Tampilkan nilai',
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Nilai pembayaran berhasil (bruto)',
+            style: GoogleFonts.manrope(fontSize: 11, color: MitraPalette.muted),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            _isBalanceVisible ? _formatRupiah(paymentValue) : 'Rp ••••••••',
+            style: GoogleFonts.manrope(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: MitraPalette.primary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$paidOrders pesanan telah dibayar',
+            style: GoogleFonts.manrope(fontSize: 11, color: MitraPalette.muted),
+          ),
+          const Divider(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: _summaryStat(
+                  'Destinasi',
+                  '$approvedDestinations / $destinationCount',
+                  Icons.landscape_outlined,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _summaryStat(
+                  'Legalitas',
+                  '$approvedDocuments / $documentCount',
+                  Icons.verified_user_outlined,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Angka pembayaran adalah total transaksi berhasil, bukan saldo pencairan.',
+            style: GoogleFonts.manrope(fontSize: 10, color: MitraPalette.muted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryStat(String title, String value, IconData icon) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: MitraPalette.canvas,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: MitraPalette.line),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, color: MitraPalette.primary, size: 18),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.manrope(
+                  fontSize: 10,
+                  color: MitraPalette.muted,
+                ),
+              ),
+              Text(
+                value,
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: MitraPalette.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildCompanyPicSection() {
+    final rows = <(String, String, IconData)>[
+      (
+        'Nama mitra / PIC',
+        (_profile['nama_lengkap_admin'] as String?) ?? '-',
+        Icons.business_outlined,
+      ),
+      (
+        'Username',
+        (_profile['username'] as String?) ?? '-',
+        Icons.alternate_email,
+      ),
+      (
+        'Email akun',
+        (_profile['email'] as String?) ?? '-',
+        Icons.email_outlined,
+      ),
+      (
+        'Telepon operasional',
+        (_profile['no_telephone'] as String?) ?? '-',
+        Icons.phone_outlined,
+      ),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: MitraPalette.line),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -458,214 +453,554 @@ class _ProfilMitraScreenState extends State<ProfilMitraScreen> {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              // Avatar PN with checkmark
-              Stack(
+              const Icon(
+                Icons.business_rounded,
+                size: 18,
+                color: MitraPalette.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Informasi Badan Usaha & PIC',
+                  style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: MitraPalette.ink,
+                  ),
+                ),
+              ),
+              _statusPill(
+                (_summary['status_mitra'] as String?) ?? 'menunggu_verifikasi',
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          for (var index = 0; index < rows.length; index++) ...[
+            _companyInfoRow(
+              icon: rows[index].$3,
+              label: rows[index].$1,
+              value: rows[index].$2,
+            ),
+            if (index < rows.length - 1) const SizedBox(height: 14),
+          ],
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFF1F5F9),
+              foregroundColor: MitraPalette.primary,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            onPressed: () async {
+              final updated = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(builder: (_) => const UbahDataMitraScreen()),
+              );
+              if (updated == true) _loadProfile();
+            },
+            icon: const Icon(Icons.edit_outlined, size: 16),
+            label: Text(
+              'Ubah Data Perusahaan & PIC',
+              style: GoogleFonts.manrope(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecuritySection() => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(MitraMetrics.cardRadius),
+      border: Border.all(color: MitraPalette.line),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: MitraPalette.primaryLight,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.security_outlined,
+                size: 19,
+                color: MitraPalette.primary,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 26,
-                    backgroundColor: const Color(0xFF1445D1),
-                    child: Text(
-                      'PN',
-                      style: GoogleFonts.manrope(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
+                  Text(
+                    'Keamanan akun',
+                    style: GoogleFonts.manrope(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: MitraPalette.ink,
                     ),
                   ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF059669),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: const Icon(
-                        Icons.check,
-                        size: 10,
-                        color: Colors.white,
-                      ),
+                  Text(
+                    'Atur email login dan kata sandi portal mitra.',
+                    style: GoogleFonts.manrope(
+                      fontSize: 11,
+                      color: MitraPalette.muted,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'CV Pesona Nusantara',
-                      style: GoogleFonts.manrope(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF0F172A),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Pengelola Wisata Bromo Adventure',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11,
-                        color: const Color(0xFF64748B),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        Text(
-                          'ID Kemitraan: ',
-                          style: GoogleFonts.manrope(
-                            fontSize: 11,
-                            color: const Color(0xFF94A3B8),
-                          ),
-                        ),
-                        InkWell(
-                          onTap: _copyPartnerId,
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEFF6FF),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: const Color(0xFFBFDBFE),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'MIT-00128',
-                                  style: GoogleFonts.sourceCodePro(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF1748D1),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                const Icon(
-                                  Icons.copy_rounded,
-                                  size: 11,
-                                  color: Color(0xFF1748D1),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Badges Row
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1748D1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.shield_rounded,
-                      size: 12,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Mitra Resmi Tier 1',
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.star_rounded,
-                      size: 13,
-                      color: Color(0xFFD97706),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      'Rating Pelayanan 4.9 ★',
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFB45309),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Status Akun Aktif Pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFDCFCE7),
-              borderRadius: BorderRadius.circular(16),
             ),
-            child: Row(
+          ],
+        ),
+        const SizedBox(height: 18),
+        _securityActionRow(
+          icon: Icons.email_outlined,
+          label: 'Email login',
+          value: (_profile['email'] as String?) ?? 'Email tidak tersedia',
+          buttonLabel: 'Ubah',
+          onPressed: _credentialUpdating ? null : _showChangeEmailDialog,
+        ),
+        const Divider(height: 24),
+        _securityActionRow(
+          icon: Icons.lock_outline_rounded,
+          label: 'Password',
+          value: 'Perbarui kata sandi akun Anda',
+          buttonLabel: 'Ubah',
+          onPressed: _credentialUpdating ? null : _showChangePasswordDialog,
+        ),
+        if (_credentialUpdating) ...[
+          const SizedBox(height: 14),
+          const LinearProgressIndicator(minHeight: 2),
+        ],
+      ],
+    ),
+  );
+
+  Widget _securityActionRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required String buttonLabel,
+    required VoidCallback? onPressed,
+  }) => Row(
+    children: [
+      Icon(icon, size: 19, color: MitraPalette.muted),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                color: MitraPalette.muted,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.manrope(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: MitraPalette.ink,
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(width: 8),
+      TextButton(onPressed: onPressed, child: Text(buttonLabel)),
+    ],
+  );
+
+  Future<void> _showChangePasswordDialog() async {
+    final formKey = GlobalKey<FormState>();
+    final current = TextEditingController();
+    final next = TextEditingController();
+    final confirm = TextEditingController();
+    var obscureCurrent = true;
+    var obscureNext = true;
+    var obscureConfirm = true;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          scrollable: true,
+          title: Text(
+            'Ubah password',
+            style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF16A34A),
-                    shape: BoxShape.circle,
+                TextFormField(
+                  controller: current,
+                  obscureText: obscureCurrent,
+                  decoration: _credentialInput(
+                    'Password saat ini',
+                    obscureCurrent,
+                    () =>
+                        setDialogState(() => obscureCurrent = !obscureCurrent),
+                  ),
+                  validator: (value) => value == null || value.isEmpty
+                      ? 'Masukkan password saat ini.'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: next,
+                  obscureText: obscureNext,
+                  decoration: _credentialInput(
+                    'Password baru',
+                    obscureNext,
+                    () => setDialogState(() => obscureNext = !obscureNext),
+                  ),
+                  validator: (value) => value == null || value.length < 8
+                      ? 'Password minimal 8 karakter.'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: confirm,
+                  obscureText: obscureConfirm,
+                  decoration: _credentialInput(
+                    'Ulangi password baru',
+                    obscureConfirm,
+                    () =>
+                        setDialogState(() => obscureConfirm = !obscureConfirm),
+                  ),
+                  validator: (value) => value != next.text
+                      ? 'Konfirmasi password belum cocok.'
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Simpan password'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result == true && mounted) {
+      await _runCredentialUpdate(
+        () => MitraApi.changePassword(
+          currentPassword: current.text,
+          newPassword: next.text,
+        ),
+        successMessage: 'Password berhasil diperbarui.',
+      );
+    }
+    current.dispose();
+    next.dispose();
+    confirm.dispose();
+  }
+
+  Future<void> _showChangeEmailDialog() async {
+    final formKey = GlobalKey<FormState>();
+    final email = TextEditingController();
+    final password = TextEditingController();
+    final currentEmail = (_profile['email'] as String?)?.trim().toLowerCase();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        title: Text(
+          'Ubah email login',
+          style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: email,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Email baru',
+                  prefixIcon: Icon(Icons.alternate_email_rounded),
+                ),
+                validator: (value) {
+                  final candidate = value?.trim() ?? '';
+                  if (!RegExp(
+                    r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                  ).hasMatch(candidate)) {
+                    return 'Masukkan alamat email yang valid.';
+                  }
+                  if (candidate.toLowerCase() == currentEmail) {
+                    return 'Gunakan email yang berbeda.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: password,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Password saat ini',
+                  prefixIcon: Icon(Icons.lock_outline_rounded),
+                ),
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Masukkan password saat ini.'
+                    : null,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Selesaikan konfirmasi email, lalu masuk kembali memakai email baru.',
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  height: 1.4,
+                  color: MitraPalette.muted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (!formKey.currentState!.validate()) return;
+              Navigator.pop(dialogContext, true);
+            },
+            child: const Text('Kirim konfirmasi'),
+          ),
+        ],
+      ),
+    );
+    if (result == true && mounted) {
+      await _runCredentialUpdate(
+        () => MitraApi.changeEmail(
+          currentPassword: password.text,
+          newEmail: email.text,
+        ),
+        successMessage:
+            'Tautan konfirmasi email sudah dikirim. Selesaikan konfirmasi untuk mengaktifkan email baru.',
+      );
+    }
+    email.dispose();
+    password.dispose();
+  }
+
+  InputDecoration _credentialInput(
+    String label,
+    bool obscure,
+    VoidCallback onToggle,
+  ) => InputDecoration(
+    labelText: label,
+    suffixIcon: IconButton(
+      tooltip: obscure ? 'Tampilkan password' : 'Sembunyikan password',
+      onPressed: onToggle,
+      icon: Icon(
+        obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+      ),
+    ),
+  );
+
+  Future<void> _runCredentialUpdate(
+    Future<void> Function() update, {
+    required String successMessage,
+  }) async {
+    setState(() => _credentialUpdating = true);
+    try {
+      await update();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(successMessage)));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _credentialUpdating = false);
+    }
+  }
+
+  Widget _companyInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: MitraPalette.primaryLight,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, size: 18, color: MitraPalette.primary),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                color: MitraPalette.muted,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: MitraPalette.ink,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+
+  Widget _statusPill(String status) {
+    final active = status == 'aktif';
+    final color = active ? const Color(0xFF15803D) : const Color(0xFFB45309);
+    final label = switch (status) {
+      'aktif' => 'Aktif',
+      'ditolak' => 'Perlu perbaikan',
+      'ditangguhkan' => 'Ditangguhkan',
+      _ => 'Menunggu verifikasi',
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .1),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.manrope(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPartnerOverviewCard() {
+    final name = (_profile['nama_lengkap_admin'] as String?)?.trim();
+    final initials = (name?.isNotEmpty == true ? name! : 'M')
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part[0].toUpperCase())
+        .join();
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: MitraPalette.line),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 27,
+            backgroundColor: MitraPalette.primary,
+            child: Text(
+              initials,
+              style: GoogleFonts.manrope(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name?.isNotEmpty == true ? name! : 'Nama mitra belum diatur',
+                  style: GoogleFonts.manrope(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: MitraPalette.ink,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(height: 3),
                 Text(
-                  'Akun Aktif',
+                  (_profile['email'] as String?) ?? 'Email tidak tersedia',
                   style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF15803D),
+                    fontSize: 11,
+                    color: MitraPalette.muted,
                   ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _statusPill(
+                      (_summary['status_mitra'] as String?) ??
+                          'menunggu_verifikasi',
+                    ),
+                    ActionChip(
+                      visualDensity: VisualDensity.compact,
+                      label: Text(
+                        _partnerId,
+                        style: GoogleFonts.sourceCodePro(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      avatar: const Icon(Icons.copy_rounded, size: 13),
+                      onPressed: _copyPartnerId,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -675,550 +1010,66 @@ class _ProfilMitraScreenState extends State<ProfilMitraScreen> {
     );
   }
 
-  // Section 2: Ringkasan Finansial & Dompet
-  Widget _buildFinancialWalletSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.account_balance_wallet_outlined,
-                  size: 18,
-                  color: Color(0xFF1748D1),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Ringkasan Finansial & Dompet',
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF0F172A),
-                  ),
-                ),
-              ],
+  Widget _buildLogoutButton() => OutlinedButton.icon(
+    style: OutlinedButton.styleFrom(
+      foregroundColor: const Color(0xFFDC2626),
+      backgroundColor: const Color(0xFFFEF2F2),
+      minimumSize: const Size.fromHeight(48),
+      side: const BorderSide(color: Color(0xFFFEE2E2)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    onPressed: () async {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Keluar dari Akun Mitra'),
+          content: const Text(
+            'Apakah Anda yakin ingin keluar dari Portal Mitra LokaTrip?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Batal'),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFECFDF5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF059669),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'SLA Real-Time',
-                    style: GoogleFonts.manrope(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF059669),
-                    ),
-                  ),
-                ],
-              ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Ya, Keluar'),
             ),
           ],
         ),
-        const SizedBox(height: 10),
+      );
+      if (confirmed == true) await _logout();
+    },
+    icon: const Icon(Icons.logout_rounded, size: 18),
+    label: Text(
+      'Keluar dari Akun Mitra',
+      style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700),
+    ),
+  );
 
-        // Financial Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+  Widget _buildFooter() => Column(
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.verified_user_outlined,
+            size: 13,
+            color: MitraPalette.primary,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Ready Balance Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Saldo Hasil Penjualan Tiket Siap Cair',
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      color: const Color(0xFF64748B),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      setState(() => _isBalanceVisible = !_isBalanceVisible);
-                    },
-                    icon: Icon(
-                      _isBalanceVisible
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                      size: 18,
-                      color: const Color(0xFF94A3B8),
-                    ),
-                    constraints: const BoxConstraints(),
-                    padding: EdgeInsets.zero,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _isBalanceVisible ? 'Rp 46.200.000' : 'Rp ••••••••••',
-                style: GoogleFonts.manrope(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1748D1),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Divider(height: 1, color: Color(0xFFE2E8F0)),
-              const SizedBox(height: 10),
-
-              // Scheduled payout
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.calendar_month_outlined,
-                    size: 15,
-                    color: Color(0xFF1748D1),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: RichText(
-                      text: TextSpan(
-                        style: GoogleFonts.manrope(
-                          fontSize: 11,
-                          color: const Color(0xFF475569),
-                        ),
-                        children: [
-                          const TextSpan(
-                            text: 'Pencairan terjadwal berikutnya: ',
-                          ),
-                          TextSpan(
-                            text: 'Kamis, 18 Sep 2026',
-                            style: GoogleFonts.manrope(
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF0F172A),
-                            ),
-                          ),
-                          const TextSpan(text: ' (H-1 Payout LokaTrip)'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              // Bank Box
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: const Color(0xFF1748D1),
-                      child: const Icon(
-                        Icons.account_balance_rounded,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Bank Mandiri - 1420019283741',
-                            style: GoogleFonts.manrope(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF0F172A),
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFDCFCE7),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  'Terverifikasi ✓',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF15803D),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            'a.n CV PESONA NUSANTARA',
-                            style: GoogleFonts.manrope(
-                              fontSize: 10,
-                              color: const Color(0xFF64748B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Button 1: Solid Blue Tarik Dana Manual
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF1748D1),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: _showTarikDanaDialog,
-                icon: const Icon(Icons.payments_outlined, size: 17),
-                label: Text(
-                  'Tarik Dana Manual',
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Button 2: Light Blue Riwayat Payout & Komisi
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFEFF6FF),
-                  foregroundColor: const Color(0xFF1748D1),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: Color(0xFFBFDBFE)),
-                  ),
-                ),
-                onPressed: _showRiwayatPayoutDialog,
-                icon: const Icon(Icons.receipt_long_outlined, size: 17),
-                label: Text(
-                  'Riwayat Payout & Komisi',
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(width: 5),
+          Text(
+            'Portal Mitra LokaTrip',
+            style: GoogleFonts.manrope(fontSize: 10, color: MitraPalette.muted),
           ),
-        ),
-      ],
-    );
-  }
-
-  // Section 3: Informasi Badan Usaha & PIC
-  Widget _buildCompanyPicSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.business_rounded,
-                  size: 18,
-                  color: Color(0xFF1748D1),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Informasi Badan Usaha & PIC',
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF0F172A),
-                  ),
-                ),
-              ],
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.verified_user_outlined,
-                    size: 11,
-                    color: Color(0xFF1748D1),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Tervalidasi NIB',
-                    style: GoogleFonts.manrope(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1748D1),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-
-        // Company Details Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // PIC Penanggung Jawab
-              _companyInfoRow(
-                icon: Icons.badge_outlined,
-                label: 'PIC Penanggung Jawab',
-                value: 'Hendra Wijaya',
-                extra: Text(
-                  'Direktur Operasional',
-                  style: GoogleFonts.manrope(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1748D1),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Email Resmi Perusahaan
-              _companyInfoRow(
-                icon: Icons.email_outlined,
-                label: 'Email Resmi Perusahaan',
-                value: 'hendra@pesonanusantara.id',
-              ),
-              const SizedBox(height: 14),
-
-              // Nomor WhatsApp Operasional
-              _companyInfoRow(
-                icon: Icons.chat_bubble_outline_rounded,
-                label: 'Nomor WhatsApp Operasional',
-                value: '+62 811-2345-6789',
-                extra: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDCFCE7),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'Terhubung',
-                    style: GoogleFonts.manrope(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF15803D),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Alamat Kantor / Basecamp
-              _companyInfoRow(
-                icon: Icons.location_on_outlined,
-                label: 'Alamat Kantor / Basecamp Wisata',
-                value:
-                    'Jl. Raya Bromo No. 45, Sukapura, Kab. Probolinggo, Jawa Timur',
-              ),
-              const SizedBox(height: 16),
-
-              // Edit Button
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFF1F5F9),
-                  foregroundColor: const Color(0xFF1748D1),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const UbahDataMitraScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.edit_outlined, size: 16),
-                label: Text(
-                  'Ubah Data Perusahaan & PIC',
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _companyInfoRow({
-    required IconData icon,
-    required String label,
-    required String value,
-    Widget? extra,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, size: 18, color: const Color(0xFF1748D1)),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: GoogleFonts.manrope(
-                  fontSize: 11,
-                  color: const Color(0xFF64748B),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      value,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0F172A),
-                      ),
-                    ),
-                  ),
-                  if (extra != null) ...[const SizedBox(width: 8), extra],
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Logout Button
-  Widget _buildLogoutButton() {
-    return OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: const Color(0xFFDC2626),
-        backgroundColor: const Color(0xFFFEF2F2),
-        minimumSize: const Size.fromHeight(48),
-        side: const BorderSide(color: Color(0xFFFEE2E2)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ],
       ),
-      onPressed: _logout,
-      icon: const Icon(Icons.logout_rounded, size: 18),
-      label: Text(
-        'Keluar dari Akun Mitra',
-        style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700),
+      const SizedBox(height: 5),
+      Text(
+        'Hak Cipta © 2026 PT LokaTrip Nusantara Terpadu.',
+        textAlign: TextAlign.center,
+        style: GoogleFonts.manrope(fontSize: 9, color: const Color(0xFF94A3B8)),
       ),
-    );
-  }
-
-  // Footer
-  Widget _buildFooter() {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.verified_user_outlined,
-              size: 13,
-              color: Color(0xFF1748D1),
-            ),
-            const SizedBox(width: 5),
-            Text(
-              'LokaTrip Mitra Versi 2.4.0 (Enterprise Partner Build)',
-              style: GoogleFonts.manrope(
-                fontSize: 10,
-                color: const Color(0xFF64748B),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Hak Cipta © 2026 PT LokaTrip Nusantara Terpadu. All rights reserved.',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.manrope(
-            fontSize: 9,
-            color: const Color(0xFF94A3B8),
-          ),
-        ),
-      ],
-    );
-  }
+    ],
+  );
 }

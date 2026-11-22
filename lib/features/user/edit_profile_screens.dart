@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/api_client.dart';
 import '../../core/app_color.dart';
+import '../../core/session_manager.dart';
 import '../../widgets/sub_app_bar.dart';
 
 class EditProfileScreens extends StatefulWidget {
@@ -11,18 +13,45 @@ class EditProfileScreens extends StatefulWidget {
 }
 
 class _EditProfileScreensState extends State<EditProfileScreens> {
-  // TODO: isi awal dari data backend
-  final _namaC = TextEditingController(text: 'Aditya Pratama');
-  final _emailC = TextEditingController(text: 'aditya.pratama@email.com');
-  final _teleponC = TextEditingController(text: '0812-3456-7890');
+  final _namaC = TextEditingController();
+  final _emailC = TextEditingController();
+  final _teleponC = TextEditingController();
 
-  DateTime _tanggalLahir = DateTime(1996, 8, 14);
+  DateTime _tanggalLahir = DateTime(2000, 1, 1);
   String _gender = 'Laki-laki';
+  bool _loading = true;
+  bool _saving = false;
 
   static const _bulan = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _muatProfil();
+  }
+
+  Future<void> _muatProfil() async {
+    try {
+      final token = await SessionManager.currentUserToken();
+      if (token == null || token.isEmpty) throw const ApiException('Silakan login kembali.');
+      final result = await UserApi.profile(token);
+      final user = result['user'] as Map<String, dynamic>?;
+      if (user == null) throw const ApiException('Data profil tidak tersedia.');
+      _namaC.text = user['nama_lengkap_user'] as String? ?? '';
+      _emailC.text = user['email'] as String? ?? '';
+      _teleponC.text = user['no_telephone'] as String? ?? '';
+      final birthDate = DateTime.tryParse(user['tgl_lahir'] as String? ?? '');
+      if (birthDate != null) _tanggalLahir = birthDate;
+      _gender = user['jenis_kelamin'] == 'P' ? 'Perempuan' : 'Laki-laki';
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -42,17 +71,28 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
     if (hasil != null) setState(() => _tanggalLahir = hasil);
   }
 
-  void _simpan() {
-    // TODO: kirim ke backend
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Perubahan berhasil disimpan',
-          style: GoogleFonts.manrope(),
-        ),
-      ),
-    );
-    Navigator.pop(context);
+  Future<void> _simpan() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      final token = await SessionManager.currentUserToken();
+      if (token == null || token.isEmpty) throw const ApiException('Silakan login kembali.');
+      await UserApi.updateProfile(token, {
+        'nama_lengkap_user': _namaC.text.trim(),
+        'no_telephone': _teleponC.text.trim(),
+        'tgl_lahir': '${_tanggalLahir.year.toString().padLeft(4, '0')}-${_tanggalLahir.month.toString().padLeft(2, '0')}-${_tanggalLahir.day.toString().padLeft(2, '0')}',
+        'jenis_kelamin': _gender == 'Perempuan' ? 'P' : 'L',
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Perubahan berhasil disimpan', style: GoogleFonts.manrope())),
+      );
+      Navigator.pop(context);
+    } on ApiException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -65,7 +105,9 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
       body: Column(
         children: [
           const SubAppBar(title: 'Edit Profile'),
-          Expanded(
+          if (_loading)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          else Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Column(
@@ -100,7 +142,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                   _kartu(
                     label: 'Email Akun',
                     child: _field(_emailC, Icons.mail_outline,
-                        tipe: TextInputType.emailAddress),
+                        tipe: TextInputType.emailAddress, enabled: false),
                     info: 'E-tiket dan kode booking instan dikirimkan ke alamat email ini.',
                     infoIcon: Icons.mail_outline,
                   ),
@@ -168,10 +210,10 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: _simpan,
+                  onPressed: _saving ? null : _simpan,
                   icon: const Icon(Icons.save_outlined, size: 18),
                   label: Text(
-                    'Simpan Perubahan',
+                    _saving ? 'Menyimpan…' : 'Simpan Perubahan',
                     style: GoogleFonts.manrope(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -348,6 +390,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
     TextEditingController c,
     IconData? icon, {
     TextInputType tipe = TextInputType.text,
+    bool enabled = true,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -365,6 +408,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
             child: TextField(
               controller: c,
               keyboardType: tipe,
+              enabled: enabled,
               style: GoogleFonts.manrope(fontSize: 12, color: AppColor.hitam),
               decoration: const InputDecoration(
                 border: InputBorder.none,

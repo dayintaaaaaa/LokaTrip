@@ -3,7 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
 import '../../core/session_manager.dart';
-import 'login_admin_screens.dart';
+import '../../features/login_screens.dart';
 import 'dashboard_admin_screens.dart';
 
 class SplashAdminScreens extends StatefulWidget {
@@ -28,15 +28,17 @@ class _SplashAdminScreensState extends State<SplashAdminScreens>
     _controller.addStatusListener((status) async {
       if (status == AnimationStatus.completed) {
         final loggedIn = await SessionManager.isLoggedIn();
+        final role = await SessionManager.accountRole();
+        final hasAdminToken = await SessionManager.currentAdminToken() != null;
 
         if (!mounted) return;
 
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => loggedIn
+            builder: (_) => loggedIn && role == 'admin' && hasAdminToken
                 ? const DashboardAdminScreens()
-                : const LoginAdminScreens(),
+                : const LoginScreens(),
           ),
         );
       }
@@ -102,7 +104,10 @@ class _SplashAdminScreensState extends State<SplashAdminScreens>
               top: 52,
               right: 20,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColor.ungu,
                   borderRadius: BorderRadius.circular(20),
@@ -110,8 +115,11 @@ class _SplashAdminScreensState extends State<SplashAdminScreens>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.shield_rounded,
-                        size: 11, color: AppColor.putih),
+                    const Icon(
+                      Icons.shield_rounded,
+                      size: 11,
+                      color: AppColor.putih,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'ADMIN',
@@ -171,8 +179,9 @@ class _SplashAdminScreensState extends State<SplashAdminScreens>
                                 value: _controller.value,
                                 minHeight: 4,
                                 color: AppColor.ungu,
-                                backgroundColor:
-                                    AppColor.ungu.withValues(alpha: 0.15),
+                                backgroundColor: AppColor.ungu.withValues(
+                                  alpha: 0.15,
+                                ),
                               ),
                             );
                           },
