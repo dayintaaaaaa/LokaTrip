@@ -6,16 +6,28 @@ import '../../core/app_color.dart';
 import '../../core/format_rupiah.dart';
 import '../../models/data_checkout.dart';
 import '../../models/data_pemesanan.dart';
+<<<<<<< HEAD
 import '../../models/profil_dummy.dart';
 import 'checkout_widgets/banner_waktu.dart';
 import 'checkout_widgets/form_pemesanan.dart';
 import 'checkout_widgets/kartu_care_extra.dart';
+=======
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/profile_service.dart';
+import 'checkout_widgets/banner_waktu.dart';
+import 'checkout_widgets/form_pemesanan.dart';
+>>>>>>> 2cc143eaec4226f7464f6bfe3044a0c8686df5b1
 import 'checkout_widgets/rincian_pembayaran.dart';
 import 'checkout_widgets/ringkasan_pesanan.dart';
 import 'checkout_widgets/stepper_checkout.dart';
 import 'metode_pembayaran_screens.dart';
 
+<<<<<<< HEAD
 // Langkah 1 checkout: isi data pemesan dan pilih Care Extra.
+=======
+// Langkah 1 checkout: isi data pemesan. Pesanan di database baru dibuat
+// di langkah berikutnya (tombol "Bayar Sekarang" di Metode Pembayaran).
+>>>>>>> 2cc143eaec4226f7464f6bfe3044a0c8686df5b1
 class CheckoutScreens extends StatefulWidget {
   final DataPemesanan pesanan; // hasil dari Atur Jadwal & Pengunjung
 
@@ -41,16 +53,26 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
   Timer? _timer;
 
   bool _pakaiProfil = false;
+<<<<<<< HEAD
   bool _careExtra = false;
 
   RincianHarga get _rincian => RincianHarga(
     pesanan: widget.pesanan,
     careExtra: _careExtra,
   );
+=======
+  Map<String, dynamic>? _profil; // baris tabel users milik akun yang login
+
+  RincianHarga get _rincian => RincianHarga(pesanan: widget.pesanan);
+>>>>>>> 2cc143eaec4226f7464f6bfe3044a0c8686df5b1
 
   @override
   void initState() {
     super.initState();
+<<<<<<< HEAD
+=======
+    _muatProfil();
+>>>>>>> 2cc143eaec4226f7464f6bfe3044a0c8686df5b1
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_sisaDetik.value <= 1) {
         t.cancel();
@@ -97,14 +119,41 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
     if (mounted) Navigator.pop(context);
   }
 
+  // ambil data akun yang sedang login (nama, email, telepon)
+  Future<void> _muatProfil() async {
+    try {
+      final p = await ProfileService().getProfile();
+      if (!mounted) return;
+      setState(() => _profil = p);
+    } catch (e) {
+      debugPrint('Gagal memuat profil: $e');
+    }
+  }
+
   // switch "Gunakan profil akun": isi otomatis, atau kosongkan lagi
   void _gantiProfil(bool nyala) {
+    final profil = _profil;
+    if (nyala && profil == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Data profil belum tersedia, isi data pemesan secara manual',
+            style: GoogleFonts.manrope(),
+          ),
+        ),
+      );
+      return;
+    }
     setState(() {
       _pakaiProfil = nyala;
       if (nyala) {
-        _namaC.text = ProfilDummy.nama;
-        _emailC.text = ProfilDummy.email;
-        _teleponC.text = ProfilDummy.telepon;
+        _namaC.text = (profil!['nama_lengkap_user'] ?? '') as String;
+        // email ada di akun login (auth), bukan di tabel users
+        _emailC.text = Supabase.instance.client.auth.currentUser?.email ?? '';
+        // di database +62812..., di form ditampilkan 0812...
+        _teleponC.text = ProfileService.keFormatLokal(
+          (profil['no_telephone'] ?? '') as String,
+        );
       } else {
         _namaC.clear();
         _emailC.clear();
@@ -136,7 +185,6 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
       rincian: _rincian,
     );
 
-    // (langkah 2) sambil membawa `data`.
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => MetodePembayaranScreens(data: data)),
@@ -178,11 +226,14 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
                     onBerubah: () => setState(() {}),
                   ),
                   const SizedBox(height: 14),
+<<<<<<< HEAD
                   KartuCareExtra(
                     aktif: _careExtra,
                     onUbah: (v) => setState(() => _careExtra = v),
                   ),
                   const SizedBox(height: 14),
+=======
+>>>>>>> 2cc143eaec4226f7464f6bfe3044a0c8686df5b1
                   RincianPembayaran(rincian: r),
                 ],
               ),

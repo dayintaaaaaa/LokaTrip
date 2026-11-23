@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../core/format_rupiah.dart';
+import 'paket_wisata.dart';
 import 'wisata.dart';
 
 // Satu opsi paket / tiket yang bisa dipilih di halaman detail.
@@ -13,6 +15,9 @@ class PaketTiket {
   final int harga;
   final String? hargaUsd; // contoh: '(~USD $32.50)', untuk tiket WNA
   final String satuan; // contoh: '/orang'
+  final int? idPaket; // id paket_wisata di database (untuk pemesanan)
+  final int? hargaAnak; // tarif anak-anak (3-12 th), null = tidak ada
+  final int? hargaBalita; // tarif balita (<3 th), 0 = gratis
 
   const PaketTiket({
     required this.nama,
@@ -25,6 +30,9 @@ class PaketTiket {
     this.fitur = const [],
     this.hargaUsd,
     this.satuan = '/orang',
+    this.idPaket,
+    this.hargaAnak,
+    this.hargaBalita,
   });
 }
 
@@ -107,6 +115,77 @@ class DetailWisata {
     (Icons.event_available_outlined, 'Gratis Batal', 'Pengembalian 100%'),
     (Icons.confirmation_number_outlined, 'Tiket Resmi', 'Langsung masuk via scan'),
   ];
+
+  static String _judul(String s) =>
+    s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+  // Dibuat dari data Supabase (wisata + paket_wisata + detail_paket).
+  factory DetailWisata.dariSupabase(Wisata w) {
+    final paket = [...w.paket]..sort((a, b) => a.idPaket.compareTo(b.idPaket));
+
+    int? tarif(PaketWisata p, String tipe) {
+      for (final d in p.detail) {
+        if (d.tipePengunjung == tipe) return d.harga;
+      }
+      return null;
+    }
+
+    String rp(int h) => h == 0 ? 'Gratis' : formatRupiah(h);
+
+    PaketTiket ubah(PaketWisata p) {
+      final dewasa = tarif(p, 'dewasa');
+      final anak = tarif(p, 'anak_anak');
+      final balita = tarif(p, 'balita');
+
+      return PaketTiket(
+        idPaket: p.idPaket,
+        nama: p.namaPaket,
+        namaPendek: 'Paket ${_judul(p.tipePaket)}',
+        label: p.tipePaket.toUpperCase(), // STANDAR / REGULER
+        deskripsi: p.deskripsi ??
+            'E-tiket dikirim langsung setelah pembayaran. '
+                'Tunjukkan kode QR di pintu masuk.',
+        fitur: [
+          if (dewasa != null) 'Dewasa ${rp(dewasa)}',
+          if (anak != null) 'Anak-anak ${rp(anak)}',
+          if (balita != null) 'Balita ${rp(balita)}',
+        ],
+        harga: dewasa ?? anak ?? balita ?? 0,
+        hargaAnak: anak,
+        hargaBalita: balita,
+      );
+    }
+
+    return DetailWisata(
+      wisataId: w.id,
+      judul: w.nama,
+      gambar: w.gambar,
+      jumlahFoto: w.fotoList.isEmpty ? 1 : w.fotoList.length,
+      badge: [
+        if (w.labelGambar != null) w.labelGambar!.toUpperCase(),
+        if (w.tipe != null) w.tipe!.toUpperCase(),
+      ],
+      rating: w.rating,
+      jumlahUlasan: w.jumlahUlasan,
+      lokasi: w.lokasi,
+      wilayah: w.kota == null ? 'Indonesia' : '${w.kota}, Indonesia',
+      grup: [
+        GrupTiket(
+          nama: 'Umum',
+          paket: paket.isEmpty
+              ? const [
+                  PaketTiket(
+                    nama: 'Paket belum tersedia',
+                    namaPendek: 'Belum tersedia',
+                    deskripsi: 'Paket tiket untuk wisata ini belum tersedia.',
+                    harga: 0,
+                  ),
+                ]
+              : paket.map(ubah).toList(),
+        ),
+      ],
+    );
+  }
 
     // Dipakai untuk wisata yang belum punya data detail lengkap.
   // DUMMY: harga WNA & paket reguler diturunkan dari harga wisata,

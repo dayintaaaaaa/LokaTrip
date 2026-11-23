@@ -5,6 +5,7 @@ import 'package:lokatrip/services/auth_service.dart';
 import '../core/app_color.dart';
 import '../features/login_screens.dart';
 import '../features/user/home_screens.dart';
+import '../features/reset_password_screens.dart';
 
 class SplashScreens extends StatefulWidget {
   const SplashScreens({super.key});
@@ -25,12 +26,21 @@ class _SplashScreensState extends State<SplashScreens>
       duration: const Duration(seconds: 3),
     );
 
-    // setelah loading, lanjut ke home atau login
+    // setelah loading, lanjut ke home, login, atau layar reset password
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        final loggedIn = AuthService().isLoggedIn;
-
         if (!mounted) return;
+
+        // user datang dari link reset password di email
+        if (AuthService.sedangPulihkanPassword) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const ResetPasswordScreens()),
+          );
+          return;
+        }
+
+        final loggedIn = AuthService().isLoggedIn;
 
         Navigator.pushReplacement(
           context,

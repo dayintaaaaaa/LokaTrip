@@ -108,13 +108,16 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
                         onPilih: () => setState(() => _paket = i),
                       ),
                     ),
-                  const SizedBox(height: 4),
-                  FasilitasTur(
-                    termasuk: _g.termasuk,
-                    tidakTermasuk: _g.tidakTermasuk,
-                  ),
-                  const SizedBox(height: 22),
-                  UlasanPengunjung(daftar: _d.ulasan),
+                    const SizedBox(height: 4),
+                    if (_g.termasuk.isNotEmpty || _g.tidakTermasuk.isNotEmpty)
+                      FasilitasTur(
+                        termasuk: _g.termasuk,
+                        tidakTermasuk: _g.tidakTermasuk,
+                      ),
+                    if (_d.ulasan.isNotEmpty) ...[
+                      const SizedBox(height: 22),
+                      UlasanPengunjung(daftar: _d.ulasan),
+                    ],
                 ],
               ),
             ),
@@ -679,15 +682,20 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
               ),
               const SizedBox(width: 12),
               ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          AturJadwalScreens(detail: _d, grup: _g, paket: _p),
-                    ),
-                  );
-                },
+                 onPressed: p.harga <= 0
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AturJadwalScreens(
+                              detail: _d,
+                              grup: _g,
+                              paket: _p,
+                            ),
+                          ),
+                        );
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColor.ungu,
                   foregroundColor: AppColor.putih,

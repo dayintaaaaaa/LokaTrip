@@ -1,13 +1,79 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
 import '../../core/format_rupiah.dart';
 import '../../core/format_waktu.dart';
 import '../../models/data_checkout.dart';
+import '../../services/pemesanan_service.dart';
 import '../../widgets/qr_palsu.dart';
 import 'bukti_transaksi_screens.dart';
+
+// Catat pembayaran ke Supabase (simulasi, khusus pengembangan), lalu buka
+// bukti transaksi. Wisata dummy (tanpa idPaket) tidak punya pesanan di
+// database, jadi langsung ke bukti transaksi seperti sebelumnya.
+Future<void> _prosesBayar({
+  required BuildContext context,
+  required DataCheckout data,
+  required String orderId,
+  required String metodeLabel,
+  required String metodeDb,
+  String? penyedia,
+  required ValueChanged<bool> sedangMemproses,
+}) async {
+  debugPrint('Simulasi bayar ditekan: orderId=$orderId '
+      'idPaket=${data.pesanan.paket.idPaket} metode=$metodeDb');
+
+  if (data.pesanan.paket.idPaket != null) {
+    sedangMemproses(true);
+    try {
+      // DIAGNOSIS (hapus setelah masalah ketemu): hanya mencetak ada/tidaknya,
+      // JANGAN mencetak isi header karena berisi token login.
+      final klien = Supabase.instance.client;
+      final h = klien.rest.headers;
+      debugPrint(
+        'apikey ada? ${(h['apikey'] ?? '').isNotEmpty} | '
+        'sesi login ada? ${klien.auth.currentSession != null}',
+      );
+
+      await PemesananService().bayarSimulasi(
+        kodePesan: orderId,
+        metode: metodeDb,
+        penyedia: penyedia,
+      );
+      debugPrint('Simulasi bayar berhasil');
+    } on PemesananGagal catch (e) {
+      debugPrint('Simulasi bayar gagal: ${e.pesan}');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.teknis == null ? e.pesan : '${e.pesan}\n[${e.teknis}]',
+              style: GoogleFonts.manrope(),
+            ),
+          ),
+        );
+      }
+      return;
+    } finally {
+      sedangMemproses(false);
+    }
+  }
+
+  if (!context.mounted) return;
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (_) => BuktiTransaksiScreens(
+        data: data,
+        orderId: orderId,
+        metode: metodeLabel,
+      ),
+    ),
+  );
+}
 
 // ================== PEMBAYARAN QRIS ==================
 class QrisScreens extends StatefulWidget {
@@ -23,6 +89,7 @@ class QrisScreens extends StatefulWidget {
 class _QrisScreensState extends State<QrisScreens> {
   Duration _sisa = const Duration(minutes: 14, seconds: 59);
   Timer? _timer;
+  bool _memproses = false;
 
   @override
   void initState() {
@@ -49,18 +116,18 @@ class _QrisScreensState extends State<QrisScreens> {
     );
   }
 
+  // TODO: status lunas seharusnya datang dari webhook payment gateway.
+  // Tombol simulasi ini hanya untuk development.
   void _simulasiBerhasil() {
-    // TODO: status "paid" seharusnya datang dari webhook payment gateway,
-    // tombol simulasi ini hanya untuk development.
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BuktiTransaksiScreens(
-          data: widget.data,
-          orderId: widget.orderId,
-          metode: 'QRIS Instan',
-        ),
-      ),
+    _prosesBayar(
+      context: context,
+      data: widget.data,
+      orderId: widget.orderId,
+      metodeLabel: 'QRIS Instan',
+      metodeDb: 'qris',
+      sedangMemproses: (v) {
+        if (mounted) setState(() => _memproses = v);
+      },
     );
   }
 
@@ -155,8 +222,8 @@ class _QrisScreensState extends State<QrisScreens> {
                         ),
                         Text(
                           'NMID: ID102003928190',
-                          style:
-                              GoogleFonts.manrope(fontSize: 9, color: AppColor.abu),
+                          style: GoogleFonts.manrope(
+                              fontSize: 9, color: AppColor.abu),
                         ),
                         const SizedBox(height: 10),
                         Divider(
@@ -222,6 +289,7 @@ class _QrisScreensState extends State<QrisScreens> {
             icon: Icons.shield_outlined,
             teks: 'Simulasi Bayar Berhasil',
             onTap: habis ? null : _simulasiBerhasil,
+            memproses: _memproses,
           ),
         ],
       ),
@@ -251,6 +319,7 @@ class PembayaranLainScreens extends StatefulWidget {
 class _PembayaranLainScreensState extends State<PembayaranLainScreens> {
   Duration _sisa = const Duration(minutes: 14, seconds: 59);
   Timer? _timer;
+  bool _memproses = false;
 
   // TODO: nomor VA / link bayar berasal dari payment gateway
   late final String _nomor =
@@ -273,6 +342,30 @@ class _PembayaranLainScreensState extends State<PembayaranLainScreens> {
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  // nilai enum metode_bayar_enum di database
+  // (PayLater belum punya nilai enum, jadi ditolak server)
+  String get _metodeDb => switch (widget.jenis) {
+        1 => 'virtual_account',
+        2 => 'dompet_digital',
+        3 => 'kartu_kredit',
+        _ => 'paylater',
+      };
+
+  // TODO: status lunas seharusnya datang dari webhook payment gateway.
+  void _simulasiBerhasil() {
+    _prosesBayar(
+      context: context,
+      data: widget.data,
+      orderId: widget.orderId,
+      metodeLabel: widget.metode,
+      metodeDb: _metodeDb,
+      penyedia: widget.metode,
+      sedangMemproses: (v) {
+        if (mounted) setState(() => _memproses = v);
+      },
+    );
   }
 
   List<String> get _langkah => switch (widget.jenis) {
@@ -374,6 +467,7 @@ class _PembayaranLainScreensState extends State<PembayaranLainScreens> {
           _tombolBawah(
             icon: Icons.shield_outlined,
             teks: 'Simulasi Bayar Berhasil',
+<<<<<<< HEAD
             onTap: habis
                 ? null
                 : () => Navigator.pushReplacement(
@@ -386,6 +480,10 @@ class _PembayaranLainScreensState extends State<PembayaranLainScreens> {
                         ),
                       ),
                     ),
+=======
+            onTap: habis ? null : _simulasiBerhasil,
+            memproses: _memproses,
+>>>>>>> 2cc143eaec4226f7464f6bfe3044a0c8686df5b1
           ),
         ],
       ),
@@ -632,6 +730,7 @@ Widget _tombolBawah({
   required IconData icon,
   required String teks,
   required VoidCallback? onTap,
+  bool memproses = false,
 }) {
   return Container(
     padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
@@ -641,10 +740,19 @@ Widget _tombolBawah({
       child: SizedBox(
         width: double.infinity,
         child: ElevatedButton.icon(
-          onPressed: onTap,
-          icon: Icon(icon, size: 17),
+          onPressed: memproses ? null : onTap,
+          icon: memproses
+              ? const SizedBox(
+                  width: 17,
+                  height: 17,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColor.putih,
+                  ),
+                )
+              : Icon(icon, size: 17),
           label: Text(
-            teks,
+            memproses ? 'Memproses...' : teks,
             style: GoogleFonts.manrope(
               fontSize: 12,
               fontWeight: FontWeight.w700,

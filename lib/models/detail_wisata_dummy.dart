@@ -8,6 +8,8 @@ class DetailDummy {
 
   // wisata lain otomatis dibuatkan dari data Wisata-nya
   static DetailWisata untuk(Wisata w) {
+    // data dari Supabase (punya paket) -> pakai data asli
+    if (w.paket.isNotEmpty) return DetailWisata.dariSupabase(w);
     if (_idBorobudur.contains(w.id)) return _borobudur(w);
     return DetailWisata.dariWisata(w);
   }

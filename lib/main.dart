@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:lokatrip/services/auth_service.dart';
+import 'features/reset_password_screens.dart';
 import '../core/app_color.dart';
 import 'features/splash_screens.dart';
+
+final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -9,6 +13,17 @@ Future<void> main() async {
     url: 'https://eokrqohaofdiaabpcnyg.supabase.co',
     anonKey: 'sb_publishable_vWVipF4azgzcdtS8rg7CbA_zPg_MMF7',
   );
+
+  // Saat user membuka link reset password dari email
+  Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    if (data.event == AuthChangeEvent.passwordRecovery) {
+      AuthService.sedangPulihkanPassword = true;
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => const ResetPasswordScreens()),
+      );
+    }
+  });
+
   runApp(const MyApp());
 }
 
@@ -40,6 +55,7 @@ class MyApp extends StatelessWidget {
         colorScheme: .fromSeed(seedColor: AppColor.ungu),
       ),
       home: const SplashScreens(),
+      navigatorKey: navigatorKey,
     );
   }
 }
