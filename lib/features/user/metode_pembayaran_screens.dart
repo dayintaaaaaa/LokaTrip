@@ -5,6 +5,7 @@ import '../../core/app_color.dart';
 import '../../core/format_rupiah.dart';
 import '../../core/format_waktu.dart';
 import '../../models/data_checkout.dart';
+import '../../services/pemesanan_service.dart';
 import '../../widgets/gambar_wisata.dart';
 import 'checkout_widgets/stepper_checkout.dart';
 import 'pembayaran_screens.dart';
@@ -27,8 +28,16 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
   Duration _sisa = const Duration(minutes: 15);
   Timer? _timer;
 
-  // TODO: kode pesanan sebaiknya dibuat backend (fungsi create_order)
-  late final String _orderId =
+  final _service = PemesananService();
+
+  // Pesanan dari database. Dibuat sekali saja, saat pertama kali menekan
+  // "Bayar Sekarang". Kalau user kembali dari halaman bayar lalu menekan
+  // lagi, pesanan yang sama dipakai (tidak membuat pesanan baru).
+  HasilPemesanan? _hasil;
+  bool _memproses = false;
+
+  // kode lokal untuk wisata dummy (belum punya paket di database)
+  late final String _kodeDummy =
       'LKT-${DateTime.now().millisecondsSinceEpoch % 10000000}';
 
   DataCheckout get _d => widget.data;
@@ -60,22 +69,63 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
         _ => 'PayLater',
       };
 
-  void _bayar() {
-    if (_sisa.inSeconds <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Waktu pembayaran habis, ulangi pemesanan',
-              style: GoogleFonts.manrope()),
-        ),
+  void _pesan(String teks) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(teks, style: GoogleFonts.manrope())),
+    );
+  }
+
+  // Buat pesanan di Supabase (sekali saja). Mengembalikan kode pesanan,
+  // atau null kalau gagal (pesan error sudah ditampilkan).
+  Future<String?> _siapkanPesanan() async {
+    final p = _d.pesanan;
+
+    // wisata dummy: belum ada paket di database
+    if (p.paket.idPaket == null) return _kodeDummy;
+
+    setState(() => _memproses = true);
+    try {
+      _hasil ??= await _service.buat(
+        idPaket: p.paket.idPaket!,
+        tanggal: p.tanggal,
+        jumlahPerTipe: {
+          'dewasa': p.dewasa,
+          'anak_anak': p.anak,
+          'balita': p.bayi,
+        },
       );
+    } on PemesananGagal catch (e) {
+      _pesan(e.pesan);
+      return null;
+    } finally {
+      if (mounted) setState(() => _memproses = false);
+    }
+
+    // jaga-jaga: total di layar harus sama dengan total di server
+    if (_hasil!.totalBayar != _d.rincian.total) {
+      _pesan('Harga tiket berubah, silakan ulangi pemesanan');
+      return null;
+    }
+    return _hasil!.kodePesan;
+  }
+
+  Future<void> _bayar() async {
+    if (_memproses) return;
+
+    if (_sisa.inSeconds <= 0) {
+      _pesan('Waktu pembayaran habis, ulangi pemesanan');
       return;
     }
 
+    final kode = await _siapkanPesanan();
+    if (kode == null || !mounted) return;
+
     final Widget tujuan = _metode == 0
-        ? QrisScreens(data: _d, orderId: _orderId)
+        ? QrisScreens(data: _d, orderId: kode)
         : PembayaranLainScreens(
             data: _d,
-            orderId: _orderId,
+            orderId: kode,
             metode: _labelMetode,
             jenis: _metode,
           );
@@ -97,10 +147,6 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _ringkasan(),
-                  if (_d.rincian.kupon != null && _d.rincian.diskon > 0) ...[
-                    const SizedBox(height: 10),
-                    _chipKupon(),
-                  ],
                   const SizedBox(height: 18),
                   Row(
                     children: [
@@ -331,61 +377,6 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _chipKupon() {
-    final k = _d.rincian.kupon!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColor.biru.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.local_offer, size: 15, color: AppColor.ungu),
-          const SizedBox(width: 8),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                text: 'Kupon ',
-                style: GoogleFonts.manrope(fontSize: 11, color: AppColor.hitam),
-                children: [
-                  TextSpan(
-                    text: k.kode,
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColor.ungu,
-                    ),
-                  ),
-                  TextSpan(
-                    text: ' Hemat ${formatRupiah(_d.rincian.diskon)}',
-                    style:
-                        GoogleFonts.manrope(fontSize: 11, color: AppColor.hitam),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColor.putih,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              'Terpasang',
-              style: GoogleFonts.manrope(
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                color: AppColor.ungu,
-              ),
-            ),
           ),
         ],
       ),
@@ -658,10 +649,19 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
               ),
             ),
             ElevatedButton.icon(
-              onPressed: _bayar,
-              icon: const Icon(Icons.lock_outline, size: 16),
+              onPressed: _memproses ? null : _bayar,
+              icon: _memproses
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColor.putih,
+                      ),
+                    )
+                  : const Icon(Icons.lock_outline, size: 16),
               label: Text(
-                'Bayar Sekarang',
+                _memproses ? 'Memproses...' : 'Bayar Sekarang',
                 style: GoogleFonts.manrope(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,

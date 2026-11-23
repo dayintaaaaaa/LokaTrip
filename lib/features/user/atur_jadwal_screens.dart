@@ -8,15 +8,20 @@ import '../../core/format_tanggal.dart';
 import '../../models/data_pemesanan.dart';
 import '../../models/detail_wisata.dart';
 import '../../models/ketersediaan_dummy.dart';
+import '../../services/pemesanan_service.dart';
 import 'atur_jadwal_widgets/jumlah_pengunjung.dart';
 import 'atur_jadwal_widgets/kalender_kunjungan.dart';
 import 'atur_jadwal_widgets/ringkasan_wisata.dart';
-import 'checkout_screens.dart'; // <- baru
+import 'checkout_screens.dart';
 
 // Langkah pertama pemesanan: pilih tanggal kunjungan dan jumlah pengunjung.
+//
+// Wisata dari Supabase (PaketTiket.idPaket terisi) memakai sisa kuota asli
+// dari tabel kuota_harian. Wisata dummy (idPaket null) tetap memakai
+// KetersediaanDummy supaya halaman yang belum disambungkan tidak rusak.
 class AturJadwalScreens extends StatefulWidget {
   final DetailWisata detail;
-  final GrupTiket grup; // WNI / WNA yang dipilih di halaman detail
+  final GrupTiket grup; // grup tiket yang dipilih di halaman detail
   final PaketTiket paket;
 
   const AturJadwalScreens({
@@ -33,19 +38,37 @@ class AturJadwalScreens extends StatefulWidget {
 class _AturJadwalScreensState extends State<AturJadwalScreens> {
   static const _latar = Color(0xFFF5F6FA);
 
+  // kuota di database tersedia 60 hari: hari ini + 59 hari
+  static const _hariKuota = 59;
+
+  final _service = PemesananService();
+
   late final DateTime _awal; // hari ini
-  late final DateTime _akhir; // setahun ke depan
+  late final DateTime _akhir; // batas akhir kalender
   late DateTime _bulan; // bulan yang tampil di kalender
   late DateTime _tanggal; // tanggal terpilih
   int _dewasa = 1;
   int _anak = 0;
   int _bayi = 0;
 
-  Ketersediaan _info(DateTime t) =>
-      KetersediaanDummy.untuk(t, widget.paket.harga);
+  Map<DateTime, int> _kuota = {}; // tanggal -> sisa kuota (data asli)
+  bool _memuat = false;
+  String? _errorMuat;
+
+  // wisata dari Supabase punya idPaket, wisata dummy tidak
+  bool get _nyata => widget.paket.idPaket != null;
+
+  Ketersediaan _info(DateTime t) {
+    if (!_nyata) return KetersediaanDummy.untuk(t, widget.paket.harga);
+    // tanggal yang tidak ada di tabel kuota dianggap belum tersedia
+    final sisa = _kuota[DateTime(t.year, t.month, t.day)] ?? 0;
+    return Ketersediaan(harga: widget.paket.harga, kuota: sisa);
+  }
 
   int get _hargaDewasa => _info(_tanggal).harga;
-  int get _hargaAnak => KetersediaanDummy.hargaAnak(_hargaDewasa);
+  int get _hargaAnak => _nyata
+      ? (widget.paket.hargaAnak ?? 0)
+      : KetersediaanDummy.hargaAnak(_hargaDewasa);
   int get _tiket => _dewasa + _anak; // bayi tidak dihitung
   int get _total => _dewasa * _hargaDewasa + _anak * _hargaAnak;
 
@@ -55,14 +78,54 @@ class _AturJadwalScreensState extends State<AturJadwalScreens> {
     _info(_tanggal).kuota,
   );
 
+  bool get _bisaLanjut =>
+      !_memuat && _errorMuat == null && !_info(_tanggal).penuh;
+
   @override
   void initState() {
     super.initState();
     final sekarang = DateTime.now();
     _awal = DateTime(sekarang.year, sekarang.month, sekarang.day);
-    _akhir = DateTime(_awal.year + 1, _awal.month, _awal.day);
-    _tanggal = _tanggalPertamaTersedia();
+    _akhir = _nyata
+        ? DateTime(_awal.year, _awal.month, _awal.day + _hariKuota)
+        : DateTime(_awal.year + 1, _awal.month, _awal.day);
+    // data asli: tanggal pertama dicari setelah kuota selesai dimuat
+    _tanggal = _nyata
+        ? DateTime(_awal.year, _awal.month, _awal.day + 1)
+        : _tanggalPertamaTersedia();
     _bulan = DateTime(_tanggal.year, _tanggal.month);
+    _muat();
+  }
+
+  // ambil sisa kuota per tanggal dari Supabase
+  Future<void> _muat() async {
+    if (!_nyata) return;
+    setState(() {
+      _memuat = true;
+      _errorMuat = null;
+    });
+    try {
+      final data = await _service.sisaKuota(
+        widget.paket.idPaket!,
+        dari: _awal,
+        sampai: _akhir,
+      );
+      if (!mounted) return;
+      setState(() {
+        _kuota = data;
+        _tanggal = _tanggalPertamaTersedia();
+        _bulan = DateTime(_tanggal.year, _tanggal.month);
+        _sesuaikanJumlah();
+        _memuat = false;
+      });
+    } catch (e) {
+      debugPrint('Gagal memuat kuota: $e');
+      if (!mounted) return;
+      setState(() {
+        _errorMuat = 'Gagal memuat jadwal. Periksa koneksi internetmu.';
+        _memuat = false;
+      });
+    }
   }
 
   // mulai dari besok, cari tanggal pertama yang kuotanya masih ada
@@ -140,43 +203,78 @@ class _AturJadwalScreensState extends State<AturJadwalScreens> {
           children: [
             _header(),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-                children: [
-                  RingkasanWisata(
-                    judul: widget.detail.judul,
-                    lokasi: widget.detail.lokasi,
-                    gambar: widget.detail.gambar,
-                  ),
-                  const SizedBox(height: 14),
-                  KalenderKunjungan(
-                    bulan: _bulan,
-                    terpilih: _tanggal,
-                    awal: _awal,
-                    akhir: _akhir,
-                    ketersediaan: _info,
-                    onPilih: _pilihTanggal,
-                    onGantiBulan: _gantiBulan,
-                  ),
-                  const SizedBox(height: 14),
-                  JumlahPengunjung(
-                    dewasa: _dewasa,
-                    anak: _anak,
-                    bayi: _bayi,
-                    hargaDewasa: _hargaDewasa,
-                    hargaAnak: _hargaAnak,
-                    bisaTambahTiket: _tiket < _maksTiket,
-                    bisaTambahBayi: _bayi < _dewasa,
-                    onDewasa: _ubahDewasa,
-                    onAnak: _ubahAnak,
-                    onBayi: _ubahBayi,
-                  ),
-                ],
-              ),
+              child: _memuat
+                  ? const Center(child: CircularProgressIndicator())
+                  : _errorMuat != null
+                  ? _galatMuat()
+                  : _isi(),
             ),
           ],
         ),
         bottomNavigationBar: _barTotal(),
+      ),
+    );
+  }
+
+  // isi halaman: ringkasan, kalender, jumlah pengunjung
+  Widget _isi() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+      children: [
+        RingkasanWisata(
+          judul: widget.detail.judul,
+          lokasi: widget.detail.lokasi,
+          gambar: widget.detail.gambar,
+        ),
+        const SizedBox(height: 14),
+        KalenderKunjungan(
+          bulan: _bulan,
+          terpilih: _tanggal,
+          awal: _awal,
+          akhir: _akhir,
+          ketersediaan: _info,
+          onPilih: _pilihTanggal,
+          onGantiBulan: _gantiBulan,
+        ),
+        const SizedBox(height: 14),
+        JumlahPengunjung(
+          dewasa: _dewasa,
+          anak: _anak,
+          bayi: _bayi,
+          hargaDewasa: _hargaDewasa,
+          hargaAnak: _hargaAnak,
+          bisaTambahTiket: _tiket < _maksTiket,
+          bisaTambahBayi: _bayi < _dewasa,
+          onDewasa: _ubahDewasa,
+          onAnak: _ubahAnak,
+          onBayi: _ubahBayi,
+        ),
+      ],
+    );
+  }
+
+  // tampil kalau kuota gagal dimuat
+  Widget _galatMuat() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.wifi_off_rounded, size: 40, color: AppColor.abu),
+            const SizedBox(height: 8),
+            Text(
+              _errorMuat!,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.manrope(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColor.abu,
+              ),
+            ),
+            TextButton(onPressed: _muat, child: const Text('Coba lagi')),
+          ],
+        ),
       ),
     );
   }
@@ -275,19 +373,13 @@ class _AturJadwalScreensState extends State<AturJadwalScreens> {
                         ),
                       ),
                     ),
-                    Text(
-                      'Termasuk pajak & asuransi',
-                      style: GoogleFonts.manrope(
-                        fontSize: 9,
-                        color: AppColor.abu,
-                      ),
-                    ),
                   ],
                 ),
               ),
               const SizedBox(width: 12),
               ElevatedButton(
-                onPressed: _lanjut,
+                // nonaktif saat kuota belum dimuat, gagal dimuat, atau penuh
+                onPressed: _bisaLanjut ? _lanjut : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColor.ungu,
                   foregroundColor: AppColor.putih,
@@ -360,11 +452,6 @@ class _AturJadwalScreensState extends State<AturJadwalScreens> {
             if (_bayi > 0) _barisRincian('Bayi × $_bayi', 'Gratis'),
             Divider(color: AppColor.abu.withValues(alpha: 0.2)),
             _barisRincian('Total', formatRupiah(_total), tebal: true),
-            const SizedBox(height: 6),
-            Text(
-              'Harga sudah termasuk pajak & asuransi.',
-              style: GoogleFonts.manrope(fontSize: 10, color: AppColor.abu),
-            ),
           ],
         ),
       ),

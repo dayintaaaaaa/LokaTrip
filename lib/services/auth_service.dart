@@ -22,6 +22,9 @@ class AuthService {
     return p;
   }
 
+  /// True saat user datang dari link reset password.
+  static bool sedangPulihkanPassword = false;
+
   /// Daftar akun baru.
   /// Return true  -> user langsung login (Confirm email dimatikan).
   /// Return false -> user harus konfirmasi lewat email dulu.
@@ -99,11 +102,24 @@ class AuthService {
   /// Kirim link reset password ke email.
   Future<void> forgotPassword(String email) async {
     try {
-      await _db.auth.resetPasswordForEmail(email.trim());
+      await _db.auth.resetPasswordForEmail(
+        email.trim(),
+        redirectTo: 'lokatrip://reset-password',
+      );
     } on AuthException catch (e) {
       throw AuthFailure(e.message);
     } catch (_) {
       throw AuthFailure('Gagal mengirim email, coba lagi');
+    }
+  }
+
+  Future<void> ubahPassword(String passwordBaru) async {
+    try {
+      await _db.auth.updateUser(UserAttributes(password: passwordBaru));
+    } on AuthException catch (e) {
+      throw AuthFailure(e.message);
+    } catch (_) {
+      throw AuthFailure('Gagal mengubah password, coba lagi');
     }
   }
 

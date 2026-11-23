@@ -108,7 +108,7 @@ class BuktiTransaksiScreens extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'E-Tiket Anda telah terbit & dikirim ke email',
+                      'E-Tiket Anda telah terbit.',
                       style: GoogleFonts.manrope(
                           fontSize: 10, color: AppColor.abu),
                     ),

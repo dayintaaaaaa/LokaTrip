@@ -6,19 +6,17 @@ import '../../core/app_color.dart';
 import '../../core/format_rupiah.dart';
 import '../../models/data_checkout.dart';
 import '../../models/data_pemesanan.dart';
-import '../../models/kupon_dummy.dart';
-import '../../models/profil_dummy.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/profile_service.dart';
 import 'checkout_widgets/banner_waktu.dart';
 import 'checkout_widgets/form_pemesanan.dart';
-import 'checkout_widgets/kartu_care_extra.dart';
-import 'checkout_widgets/kartu_kupon.dart';
 import 'checkout_widgets/rincian_pembayaran.dart';
 import 'checkout_widgets/ringkasan_pesanan.dart';
 import 'checkout_widgets/stepper_checkout.dart';
-import 'pilih_kupon_screens.dart';
 import 'metode_pembayaran_screens.dart';
 
-// Langkah 1 checkout: isi data pemesan, pilih Care Extra, pasang kupon.
+// Langkah 1 checkout: isi data pemesan. Pesanan di database baru dibuat
+// di langkah berikutnya (tombol "Bayar Sekarang" di Metode Pembayaran).
 class CheckoutScreens extends StatefulWidget {
   final DataPemesanan pesanan; // hasil dari Atur Jadwal & Pengunjung
 
@@ -39,29 +37,19 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
   final _namaF = FocusNode();
   final _emailF = FocusNode();
   final _teleponF = FocusNode();
-  final _kodeC = TextEditingController();
 
   final _sisaDetik = ValueNotifier<int>(_batasDetik);
   Timer? _timer;
 
   bool _pakaiProfil = false;
-  bool _careExtra = false;
-  Kupon? _kupon; 
-  String? _errorKupon;
+  Map<String, dynamic>? _profil; // baris tabel users milik akun yang login
 
-  RincianHarga get _rincian => RincianHarga(
-    pesanan: widget.pesanan,
-    careExtra: _careExtra,
-    kupon: _kupon,
-  );
+  RincianHarga get _rincian => RincianHarga(pesanan: widget.pesanan);
 
   @override
   void initState() {
     super.initState();
-        // kupon bawaan dari desain, dipasang hanya kalau memenuhi syarat minimal
-    if (KuponDummy.bawaan.layak(widget.pesanan.total)) {
-      _kupon = KuponDummy.bawaan;
-    }
+    _muatProfil();
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_sisaDetik.value <= 1) {
         t.cancel();
@@ -83,7 +71,6 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
     _namaF.dispose();
     _emailF.dispose();
     _teleponF.dispose();
-    _kodeC.dispose();
     super.dispose();
   }
 
@@ -109,64 +96,46 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
     if (mounted) Navigator.pop(context);
   }
 
+  // ambil data akun yang sedang login (nama, email, telepon)
+  Future<void> _muatProfil() async {
+    try {
+      final p = await ProfileService().getProfile();
+      if (!mounted) return;
+      setState(() => _profil = p);
+    } catch (e) {
+      debugPrint('Gagal memuat profil: $e');
+    }
+  }
+
   // switch "Gunakan profil akun": isi otomatis, atau kosongkan lagi
   void _gantiProfil(bool nyala) {
+    final profil = _profil;
+    if (nyala && profil == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Data profil belum tersedia, isi data pemesan secara manual',
+            style: GoogleFonts.manrope(),
+          ),
+        ),
+      );
+      return;
+    }
     setState(() {
       _pakaiProfil = nyala;
       if (nyala) {
-        _namaC.text = ProfilDummy.nama;
-        _emailC.text = ProfilDummy.email;
-        _teleponC.text = ProfilDummy.telepon;
+        _namaC.text = (profil!['nama_lengkap_user'] ?? '') as String;
+        // email ada di akun login (auth), bukan di tabel users
+        _emailC.text = Supabase.instance.client.auth.currentUser?.email ?? '';
+        // di database +62812..., di form ditampilkan 0812...
+        _teleponC.text = ProfileService.keFormatLokal(
+          (profil['no_telephone'] ?? '') as String,
+        );
       } else {
         _namaC.clear();
         _emailC.clear();
         _teleponC.clear();
       }
-    });
-  }
-
-    void _pakaiKupon() {
-    final kode = _kodeC.text.trim();
-    if (kode.isEmpty) {
-      setState(() => _errorKupon = 'Masukkan kode kupon dulu');
-      return;
-    }
-    final k = KuponDummy.cari(kode);
-    setState(() {
-      if (k == null) {
-        _errorKupon = 'Kode kupon tidak ditemukan';
-      } else if (!k.layak(_rincian.subtotalTiket)) {
-        _errorKupon = 'Minimal transaksi ${formatRupiah(k.minTransaksi)}';
-      } else {
-        _kupon = k;
-        _errorKupon = null;
-        _kodeC.clear();
-      }
-    });
-  }
-
-  Future<void> _pilihDariDaftar() async {
-    final hasil = await Navigator.push<KuponHasil>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PilihKuponScreens(
-          subtotal: _rincian.subtotalTiket,
-          terpilih: _kupon,
-        ),
-      ),
-    );
-    if (hasil != null) {
-      setState(() {
-        _kupon = hasil.kupon;
-        _errorKupon = null;
-      });
-    }
-  }
-
-  void _hapusKupon() {
-    setState(() {
-      _kupon = null;
-      _errorKupon = null;
     });
   }
 
@@ -193,7 +162,6 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
       rincian: _rincian,
     );
 
-    // (langkah 2) sambil membawa `data`.
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => MetodePembayaranScreens(data: data)),
@@ -233,21 +201,6 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
                     pakaiProfil: _pakaiProfil,
                     onPakaiProfil: _gantiProfil,
                     onBerubah: () => setState(() {}),
-                  ),
-                  const SizedBox(height: 14),
-                  KartuCareExtra(
-                    aktif: _careExtra,
-                    onUbah: (v) => setState(() => _careExtra = v),
-                  ),
-                  const SizedBox(height: 14),
-                  KartuKupon(
-                    kupon: _kupon,
-                    diskon: r.diskon,
-                    kodeC: _kodeC,
-                    error: _errorKupon,
-                    onPakai: _pakaiKupon,
-                    onHapus: _hapusKupon,
-                    onPilih: _pilihDariDaftar,
                   ),
                   const SizedBox(height: 14),
                   RincianPembayaran(rincian: r),

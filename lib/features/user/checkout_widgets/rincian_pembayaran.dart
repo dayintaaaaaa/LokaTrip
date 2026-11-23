@@ -5,6 +5,7 @@ import '../../../core/format_rupiah.dart';
 import '../../../models/data_checkout.dart';
 
 // Kartu "Rincian Pembayaran": baris harga + Total Pembayaran.
+// Total sama dengan total_bayar di database (harga tiket saja).
 class RincianPembayaran extends StatelessWidget {
   final RincianHarga rincian;
 
@@ -46,45 +47,21 @@ class RincianPembayaran extends StatelessWidget {
           if (p.anak > 0)
             _baris('Tiket Anak (${p.anak}x)', formatRupiah(r.tiketAnak)),
           if (p.bayi > 0) _baris('Tiket Bayi (${p.bayi}x)', 'GRATIS'),
-          if (r.careExtra)
-            _baris(
-              'Lokatrip Care Extra (${p.tiket}x)',
-              formatRupiah(r.biayaCare),
-            ),
-          if (r.kupon != null)
-            _baris(
-              'Diskon Promo (${r.kupon!.kode})',
-              '-${formatRupiah(r.diskon)}',
-              warna: AppColor.ungu,
-            ),
-          _baris('Biaya Layanan & Pajak', 'GRATIS', gratis: true),
+          _baris('Biaya Layanan', formatRupiah(r.biayaLayanan)),
           const SizedBox(height: 6),
           Divider(color: AppColor.ungu.withValues(alpha: 0.12)),
           const SizedBox(height: 6),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Total Pembayaran',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: AppColor.hitam,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Termasuk seluruh retribusi resmi',
-                      style: GoogleFonts.manrope(
-                        fontSize: 9,
-                        color: AppColor.abu,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  'Total Pembayaran',
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColor.hitam,
+                  ),
                 ),
               ),
               Text(
@@ -102,14 +79,7 @@ class RincianPembayaran extends StatelessWidget {
     );
   }
 
-  Widget _baris(
-    String kiri,
-    String kanan, {
-    Color? warna,
-    bool gratis = false,
-  }) {
-    final dasar = warna ?? AppColor.hitam;
-
+  Widget _baris(String kiri, String kanan, {bool gratis = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
@@ -119,7 +89,7 @@ class RincianPembayaran extends StatelessWidget {
               kiri,
               style: GoogleFonts.manrope(
                 fontSize: 11.5,
-                color: warna ?? AppColor.hitam.withValues(alpha: 0.75),
+                color: AppColor.hitam.withValues(alpha: 0.75),
               ),
             ),
           ),
@@ -128,7 +98,7 @@ class RincianPembayaran extends StatelessWidget {
             style: GoogleFonts.manrope(
               fontSize: gratis ? 10 : 11.5,
               fontWeight: gratis ? FontWeight.w800 : FontWeight.w700,
-              color: gratis ? AppColor.ungu : dasar,
+              color: gratis ? AppColor.ungu : AppColor.hitam,
             ),
           ),
         ],
