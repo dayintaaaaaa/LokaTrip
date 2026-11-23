@@ -5,7 +5,6 @@ import '../../../core/format_rupiah.dart';
 import '../../../models/data_checkout.dart';
 
 // Kartu "Rincian Pembayaran": baris harga + Total Pembayaran.
-// Total sama dengan total_bayar di database (harga tiket saja).
 class RincianPembayaran extends StatelessWidget {
   final RincianHarga rincian;
 
@@ -39,15 +38,29 @@ class RincianPembayaran extends StatelessWidget {
                   ),
                 ),
               ),
-              Icon(Icons.receipt_long_outlined, size: 18, color: AppColor.abu),
+              const Icon(
+                Icons.receipt_long_outlined,
+                size: 18,
+                color: AppColor.abu,
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          _baris('Tiket Dewasa (${p.dewasa}x)', formatRupiah(r.tiketDewasa)),
+          _baris(
+            'Tiket Dewasa (${p.dewasa}x)',
+            formatRupiah(r.tiketDewasa),
+          ),
           if (p.anak > 0)
-            _baris('Tiket Anak (${p.anak}x)', formatRupiah(r.tiketAnak)),
-          if (p.bayi > 0) _baris('Tiket Bayi (${p.bayi}x)', 'GRATIS'),
-          _baris('Biaya Layanan', formatRupiah(r.biayaLayanan)),
+            _baris(
+              'Tiket Anak (${p.anak}x)',
+              formatRupiah(r.tiketAnak),
+            ),
+          if (p.bayi > 0)
+            _baris('Tiket Bayi (${p.bayi}x)', 'GRATIS'),
+          _baris(
+            'Biaya Layanan',
+            formatRupiah(r.biayaLayanan),
+          ),
           const SizedBox(height: 6),
           Divider(color: AppColor.ungu.withValues(alpha: 0.12)),
           const SizedBox(height: 6),
@@ -79,7 +92,7 @@ class RincianPembayaran extends StatelessWidget {
     );
   }
 
-  Widget _baris(String kiri, String kanan, {bool gratis = false}) {
+  Widget _baris(String kiri, String kanan) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
@@ -96,9 +109,9 @@ class RincianPembayaran extends StatelessWidget {
           Text(
             kanan,
             style: GoogleFonts.manrope(
-              fontSize: gratis ? 10 : 11.5,
-              fontWeight: gratis ? FontWeight.w800 : FontWeight.w700,
-              color: gratis ? AppColor.ungu : AppColor.hitam,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: AppColor.hitam,
             ),
           ),
         ],

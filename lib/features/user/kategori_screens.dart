@@ -6,7 +6,6 @@ import '../../models/kategori.dart';
 import '../../models/wisata.dart';
 import '../../models/wisata_dummy.dart';
 import '../../widgets/bottom_navigator.dart';
-import 'kategori_widgets/banner_kategori.dart';
 import 'kategori_widgets/kartu_kategori.dart';
 import 'kategori_widgets/kartu_atraksi.dart';
 import 'kategori_widgets/kartu_tur.dart';
@@ -76,7 +75,6 @@ class _KategoriScreensState extends State<KategoriScreens> {
   Widget build(BuildContext context) {
     final hasil = _hasil;
     final jenis = _daftarJenis;
-    final promo = WisataDummy.promoKategori[widget.kategori.nama];
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -109,16 +107,11 @@ class _KategoriScreensState extends State<KategoriScreens> {
                 ),
               ),
             ),
-
-            // isi: banner + daftar kartu
+            // isi: daftar kartu
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
                 children: [
-                  if (promo != null && _jenis == null && _kata.isEmpty) ...[
-                    BannerKategori(promo: promo),
-                    const SizedBox(height: 14),
-                  ],
                   if (hasil.isEmpty)
                     _kosong()
                   else
@@ -141,7 +134,6 @@ class _KategoriScreensState extends State<KategoriScreens> {
    // gaya kartu per kategori; yang tidak terdaftar memakai gaya Candi
   static const _kartuLokasiDiBawah = {'Atraksi & Rekreasi'};
   static const _kartuTur = {'Tur & Open Trip'};
-  static const _diskonSebagaiOff = {'Waterpark & Kolam'};
 
   Widget _kartu(Wisata w) {
     void bukaDetail() {
@@ -175,7 +167,6 @@ class _KategoriScreensState extends State<KategoriScreens> {
     return KartuKategori(
       wisata: w,
       onTap: bukaDetail,
-      diskonOff: _diskonSebagaiOff.contains(nama),
     );
   }
 

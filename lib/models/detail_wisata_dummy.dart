@@ -53,7 +53,6 @@ class DetailDummy {
                 'Sandal Upanat Khusus',
               ],
               harga: 375000,
-              hargaAsli: 450000,
             ),
             PaketTiket(
               nama: 'Reguler Sunset & Borobudur Walking Tour',
@@ -105,7 +104,6 @@ class DetailDummy {
                 'Sarapan Dagi Hill',
               ],
               harga: 500000,
-              hargaAsli: 650000,
               hargaUsd: '(~USD \$32.50)',
             ),
             PaketTiket(

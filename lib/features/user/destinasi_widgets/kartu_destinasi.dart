@@ -98,42 +98,6 @@ class KartuDestinasi extends StatelessWidget {
                     ),
                   ],
 
-                  // bonus
-                  if (w.bonus != null) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColor.kuning.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: AppColor.kuning.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.monetization_on_outlined,
-                              size: 13, color: AppColor.kuning),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              w.bonus!,
-                              style: GoogleFonts.manrope(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF8A5A00),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-
                   const SizedBox(height: 12),
 
                   // harga + tombol
@@ -144,47 +108,13 @@ class KartuDestinasi extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (w.hargaAsli != null)
-                              Row(
-                                children: [
-                                  Text(
-                                    formatRupiah(w.hargaAsli!),
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 10,
-                                      color: AppColor.abu,
-                                      decoration: TextDecoration.lineThrough,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 5,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColor.kuning
-                                          .withValues(alpha: 0.25),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      '-${w.diskonPersen}%',
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w800,
-                                        color: const Color(0xFF8A5A00),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              )
-                            else
-                              Text(
-                                'Mulai dari',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 10,
-                                  color: AppColor.abu,
-                                ),
+                            Text(
+                              'Mulai dari',
+                              style: GoogleFonts.manrope(
+                                fontSize: 10,
+                                color: AppColor.abu,
                               ),
+                            ),
                             Text.rich(
                               TextSpan(
                                 children: [

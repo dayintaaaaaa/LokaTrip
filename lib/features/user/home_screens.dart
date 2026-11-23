@@ -7,7 +7,6 @@ import '../../services/wisata_service.dart';
 import '../../widgets/bottom_navigator.dart';
 import '../../widgets/top_navigator.dart';
 import 'home_widgets/destinasi_populer.dart';
-import 'home_widgets/flash_sale_section.dart';
 import 'home_widgets/home_header.dart';
 import 'home_widgets/jaminan_tiket.dart';
 import 'home_widgets/kategori_wisata.dart';
@@ -91,10 +90,6 @@ class _HomeScreensState extends State<HomeScreens> {
                     SizedBox(height: 20),
                     KategoriWisata(),
                     SizedBox(height: 24),
-                    FlashSaleSection(
-                      daftar: WisataDummy.flashSale,
-                      berakhirPada: WisataDummy.flashSaleBerakhir,
-                    ),
                     SizedBox(height: 24),
 
                     // destinasi terpopuler (data asli)

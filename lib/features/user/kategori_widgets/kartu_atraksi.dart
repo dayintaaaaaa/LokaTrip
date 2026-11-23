@@ -128,47 +128,13 @@ class KartuAtraksi extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (w.hargaAsli != null)
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 5,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColor.biru
-                                          .withValues(alpha: 0.18),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      '${w.diskonPersen}%',
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppColor.ungu,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    formatRupiah(w.hargaAsli!),
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 10,
-                                      color: AppColor.abu,
-                                      decoration: TextDecoration.lineThrough,
-                                    ),
-                                  ),
-                                ],
-                              )
-                            else
-                              Text(
-                                'Mulai dari',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 10,
-                                  color: AppColor.abu,
-                                ),
+                            Text(
+                              'Mulai dari',
+                              style: GoogleFonts.manrope(
+                                fontSize: 10,
+                                color: AppColor.abu,
                               ),
+                            ),
                             Text.rich(
                               TextSpan(
                                 children: [

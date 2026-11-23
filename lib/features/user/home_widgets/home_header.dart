@@ -9,9 +9,7 @@ class _ChipData {
 }
 
 class HomeHeader extends StatelessWidget {
-  final String poin;
-
-  const HomeHeader({super.key, this.poin = '24.500'});
+  const HomeHeader({super.key});
 
   // isi chip cepat
   static const _chips = [
@@ -68,9 +66,6 @@ class HomeHeader extends StatelessWidget {
                   ),
                 ),
 
-                SizedBox(width: 12),
-
-                _chipPoin(),
               ],
             ),
           ),
@@ -182,35 +177,4 @@ class HomeHeader extends StatelessWidget {
     );
   }
 
-  // chip loka-poin
-  Widget _chipPoin() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColor.kuning,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'LOKA-POIN',
-            style: GoogleFonts.manrope(
-              fontSize: 8,
-              fontWeight: FontWeight.w700,
-              color: AppColor.putih,
-            ),
-          ),
-          Text(
-            poin,
-            style: GoogleFonts.outfit(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColor.putih,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

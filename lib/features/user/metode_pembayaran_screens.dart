@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../../core/app_color.dart';
 import '../../core/format_rupiah.dart';
 import '../../core/format_waktu.dart';
@@ -30,13 +31,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
 
   final _service = PemesananService();
 
-  // Pesanan dari database. Dibuat sekali saja, saat pertama kali menekan
-  // "Bayar Sekarang". Kalau user kembali dari halaman bayar lalu menekan
-  // lagi, pesanan yang sama dipakai (tidak membuat pesanan baru).
   HasilPemesanan? _hasil;
   bool _memproses = false;
 
-  // kode lokal untuk wisata dummy (belum punya paket di database)
   late final String _kodeDummy =
       'LKT-${DateTime.now().millisecondsSinceEpoch % 10000000}';
 
@@ -76,12 +73,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
     );
   }
 
-  // Buat pesanan di Supabase (sekali saja). Mengembalikan kode pesanan,
-  // atau null kalau gagal (pesan error sudah ditampilkan).
   Future<String?> _siapkanPesanan() async {
     final p = _d.pesanan;
 
-    // wisata dummy: belum ada paket di database
     if (p.paket.idPaket == null) return _kodeDummy;
 
     setState(() => _memproses = true);
@@ -102,7 +96,6 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
       if (mounted) setState(() => _memproses = false);
     }
 
-    // jaga-jaga: total di layar harus sama dengan total di server
     if (_hasil!.totalBayar != _d.rincian.total) {
       _pesan('Harga tiket berubah, silakan ulangi pemesanan');
       return null;
@@ -148,27 +141,13 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                 children: [
                   _ringkasan(),
                   const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Pilih Metode Pembayaran',
-                          style: GoogleFonts.manrope(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: AppColor.hitam,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        'BEBAS BIAYA ADMIN',
-                        style: GoogleFonts.manrope(
-                          fontSize: 8,
-                          fontWeight: FontWeight.w800,
-                          color: AppColor.ungu,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Pilih Metode Pembayaran',
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColor.hitam,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   _metodeKartu(
@@ -176,7 +155,6 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                     icon: Icons.qr_code_2,
                     judul: 'QRIS Instan',
                     sub: 'Scan otomatis lewat GoPay, OVO, BCA, DANA, ShopeePay',
-                    badge: 'Rekomendasi',
                     info: const ['GOPAY', 'OVO', 'BCA', 'DANA'],
                   ),
                   _metodeKartu(
@@ -196,13 +174,23 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                   Row(
                     children: [
                       Expanded(
-                        child: _metodeKecil(3, Icons.credit_card,
-                            'Kartu Kredit', 'Visa/Master', AppColor.abu),
+                        child: _metodeKecil(
+                          3,
+                          Icons.credit_card,
+                          'Kartu Kredit',
+                          'Visa/Master',
+                          AppColor.abu,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: _metodeKecil(4, Icons.access_time, 'PayLater',
-                            'Cicilan 0%', AppColor.kuning),
+                        child: _metodeKecil(
+                          4,
+                          Icons.access_time,
+                          'PayLater',
+                          'Cicilan 0%',
+                          AppColor.kuning,
+                        ),
                       ),
                     ],
                   ),
@@ -237,7 +225,10 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                 children: [
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back, color: AppColor.hitam),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: AppColor.hitam,
+                    ),
                   ),
                   Expanded(
                     child: Text(
@@ -251,8 +242,10 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                   ),
                   Container(
                     margin: const EdgeInsets.only(right: 16),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: habis
                           ? AppColor.abu.withValues(alpha: 0.3)
@@ -262,8 +255,11 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.timer_outlined,
-                            size: 13, color: AppColor.kuning),
+                        const Icon(
+                          Icons.timer_outlined,
+                          size: 13,
+                          color: AppColor.kuning,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           formatWaktu(_sisa),
@@ -314,7 +310,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColor.biru.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(4),
@@ -331,8 +329,10 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                     const SizedBox(width: 6),
                     Text(
                       tglPendek(p.tanggal),
-                      style:
-                          GoogleFonts.manrope(fontSize: 9, color: AppColor.abu),
+                      style: GoogleFonts.manrope(
+                        fontSize: 9,
+                        color: AppColor.abu,
+                      ),
                     ),
                   ],
                 ),
@@ -351,7 +351,10 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                   '${p.teksTamu} • ${p.paket.namaPendek}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(fontSize: 9, color: AppColor.abu),
+                  style: GoogleFonts.manrope(
+                    fontSize: 9,
+                    color: AppColor.abu,
+                  ),
                 ),
               ],
             ),
@@ -389,7 +392,6 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
     required IconData icon,
     required String judul,
     required String sub,
-    String? badge,
     List<String> info = const [],
     List<String> dropdown = const [],
   }) {
@@ -407,7 +409,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
             color: AppColor.putih,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: aktif ? AppColor.ungu : AppColor.abu.withValues(alpha: 0.2),
+              color: aktif
+                  ? AppColor.ungu
+                  : AppColor.abu.withValues(alpha: 0.2),
               width: aktif ? 2 : 1,
             ),
           ),
@@ -429,44 +433,21 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                judul,
-                                style: GoogleFonts.manrope(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColor.hitam,
-                                ),
-                              ),
-                            ),
-                            if (badge != null) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColor.kuning.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  badge,
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColor.kuning,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
+                        Text(
+                          judul,
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppColor.hitam,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           sub,
                           style: GoogleFonts.manrope(
-                              fontSize: 10, color: AppColor.abu),
+                            fontSize: 10,
+                            color: AppColor.abu,
+                          ),
                         ),
                       ],
                     ),
@@ -493,24 +474,29 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                 Wrap(
                   spacing: 6,
                   children: info
-                      .map((t) => Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppColor.latar,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                  color: AppColor.abu.withValues(alpha: 0.2)),
+                      .map(
+                        (t) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColor.latar,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: AppColor.abu.withValues(alpha: 0.2),
                             ),
-                            child: Text(
-                              t,
-                              style: GoogleFonts.manrope(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                color: AppColor.hitam.withValues(alpha: 0.7),
-                              ),
+                          ),
+                          child: Text(
+                            t,
+                            style: GoogleFonts.manrope(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: AppColor.hitam.withValues(alpha: 0.7),
                             ),
-                          ))
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
               ],
@@ -526,7 +512,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: dipilih ? AppColor.ungu : AppColor.latar,
                           borderRadius: BorderRadius.circular(20),
@@ -536,7 +524,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                           style: GoogleFonts.manrope(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: dipilih ? AppColor.putih : AppColor.hitam,
+                            color: dipilih
+                                ? AppColor.putih
+                                : AppColor.hitam,
                           ),
                         ),
                       ),
@@ -552,7 +542,12 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
   }
 
   Widget _metodeKecil(
-      int index, IconData icon, String judul, String sub, Color warnaSub) {
+    int index,
+    IconData icon,
+    String judul,
+    String sub,
+    Color warnaSub,
+  ) {
     final aktif = _metode == index;
     return InkWell(
       onTap: () => setState(() => _metode = index),
@@ -563,7 +558,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
           color: AppColor.putih,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: aktif ? AppColor.ungu : AppColor.abu.withValues(alpha: 0.2),
+            color: aktif
+                ? AppColor.ungu
+                : AppColor.abu.withValues(alpha: 0.2),
             width: aktif ? 2 : 1,
           ),
         ),
@@ -597,7 +594,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
               ),
             ),
             Icon(
-              aktif ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              aktif
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
               size: 18,
               color: aktif ? AppColor.ungu : AppColor.abu,
             ),
@@ -671,8 +670,10 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                 backgroundColor: AppColor.ungu,
                 foregroundColor: AppColor.putih,
                 elevation: 0,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 16,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -688,7 +689,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
     return BoxDecoration(
       color: AppColor.putih,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: AppColor.abu.withValues(alpha: 0.15)),
+      border: Border.all(
+        color: AppColor.abu.withValues(alpha: 0.15),
+      ),
     );
   }
 }

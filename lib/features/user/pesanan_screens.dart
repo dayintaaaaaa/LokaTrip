@@ -739,7 +739,7 @@ class _PesananScreensState extends State<PesananScreens> {
                                 style: _gaya(11.5, w: FontWeight.w800)),
                             const SizedBox(height: 2),
                             Text(
-                              'Dapatkan 500 Poin Lokatrip dengan memberi rating & ulasan.',
+                              'Bagikan pengalamanmu lewat rating dan ulasan.',
                               style: _gaya(10.5, c: AppColor.abu, h: 1.35),
                             ),
                           ],
@@ -827,7 +827,7 @@ class _PesananScreensState extends State<PesananScreens> {
     );
   }
 
-  // ---------------- potongan kecil ----------------
+  // ---------------- elemen tambahan ----------------
   Widget _jadwalTotal(Pesanan p) {
     final huruf = !p.aktif;
     String t(String s) => huruf ? s.toUpperCase() : s;

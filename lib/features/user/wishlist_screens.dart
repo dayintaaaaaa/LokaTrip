@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
@@ -18,9 +19,6 @@ class WishlistScreens extends StatefulWidget {
 }
 
 class _WishlistScreensState extends State<WishlistScreens> {
-  // Daftar diambil sekali saat halaman dibuka: wisata yang sedang difavoritkan.
-  // Kalau hati ditekan lagi di sini, kartunya tetap tampil (hati jadi putih)
-  // sampai halaman ditutup, jadi masih bisa dibatalkan.
   late final List<Wisata> _daftar;
 
   @override
@@ -57,8 +55,6 @@ class _WishlistScreensState extends State<WishlistScreens> {
                   ],
                 ),
                 const SizedBox(height: 2),
-
-                // jumlah ikut berubah saat hati ditekan
                 ValueListenableBuilder<Set<int>>(
                   valueListenable: FavoritStore.ids,
                   builder: (context, ids, _) {
@@ -74,7 +70,6 @@ class _WishlistScreensState extends State<WishlistScreens> {
                   },
                 ),
                 const SizedBox(height: 12),
-
                 if (_daftar.isEmpty) _kosong() else ..._daftar.map(_kartu),
               ],
             ),
@@ -171,15 +166,6 @@ class _WishlistScreensState extends State<WishlistScreens> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (w.hargaAsli != null)
-                            Text(
-                              'Rp ${formatAngka(w.hargaAsli!)}',
-                              style: GoogleFonts.manrope(
-                                fontSize: 10,
-                                color: AppColor.abu,
-                                decoration: TextDecoration.lineThrough,
-                              ),
-                            ),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.baseline,
                             textBaseline: TextBaseline.alphabetic,
@@ -259,17 +245,12 @@ class _WishlistScreensState extends State<WishlistScreens> {
   }
 
   Widget _gambar(Wisata w) {
-    // label kiri atas: diskon kalau ada, kalau tidak 'Popular Choice'
-    // untuk rating tinggi
     String? teksBadge;
-    Color warnaBadge = AppColor.kuning;
-    Color warnaTeksBadge = AppColor.ungu;
-    if (w.diskonPersen > 0) {
-      teksBadge = 'Diskon ${w.diskonPersen}%';
-    } else if ((w.rating ?? 0) >= 4.9) {
+    Color warnaBadge = AppColor.ungu;
+    Color warnaTeksBadge = AppColor.putih;
+
+    if ((w.rating ?? 0) >= 4.9) {
       teksBadge = 'Popular Choice';
-      warnaBadge = AppColor.ungu;
-      warnaTeksBadge = AppColor.putih;
     }
 
     final labelKategori = w.kategori ?? w.subkategori;
@@ -280,10 +261,7 @@ class _WishlistScreensState extends State<WishlistScreens> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // gambar (placeholder sama dengan halaman lain)
           GambarWisata(path: w.gambar),
-
-          // bayangan gelap di bawah supaya teks rating terbaca
           Positioned(
             left: 0,
             right: 0,
@@ -302,8 +280,6 @@ class _WishlistScreensState extends State<WishlistScreens> {
               ),
             ),
           ),
-
-          // badge diskon + chip info
           Positioned(
             top: 10,
             left: 10,
@@ -356,15 +332,11 @@ class _WishlistScreensState extends State<WishlistScreens> {
               ],
             ),
           ),
-
-          // tombol love: sama dengan kartu di halaman Wisata
           Positioned(
             top: 4,
             right: 6,
             child: TombolFavorit(wisataId: w.id),
           ),
-
-          // rating + kategori
           Positioned(
             left: 10,
             right: 10,

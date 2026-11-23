@@ -1,21 +1,11 @@
-import 'package:flutter/material.dart';
 import '../models/wisata.dart';
-import '../models/promo_kategori.dart';
 
 class WisataDummy {
-  // waktu berakhir dihitung sekali (static), jadi timer tidak
-  // mulai ulang setiap Home dibangun ulang
-  static final DateTime flashSaleBerakhir = DateTime.now().add(
-    const Duration(hours: 4, minutes: 28, seconds: 10),
-  );
-
   // gabungan semua wisata, dipakai Wishlist untuk mencari id yang difavoritkan.
   // id harus unik antar daftar.
   static List<Wisata> get semuaWisata => [
-    ...flashSale,
     ...populer,
     ...tripAkhirPekan,
-    ...flashKilat,
     ...terpopuler,
     ...katalog,
     ...destinasiPopuler,
@@ -26,33 +16,6 @@ class WisataDummy {
     ...playgroundMalang,
     ...spaMalang,
     ...alamMalang,
-  ];
-
-  static const List<Wisata> flashSale = [
-    Wisata(
-      id: 1,
-      nama: '1-Day Speedboat Tour Komodo & Pulau Padar',
-      lokasi: 'Labuan Bajo, NTT',
-      harga: 799000,
-      hargaAsli: 1450000,
-      sisaTiket: 4,
-    ),
-    Wisata(
-      id: 2,
-      nama: 'Borobudur Sunrise & Stupa Tour',
-      lokasi: 'Magelang, Jawa Tengah',
-      harga: 275000,
-      hargaAsli: 500000,
-      sisaTiket: 12,
-    ),
-    Wisata(
-      id: 3,
-      nama: 'Nusa Penida Day Trip Instagramable',
-      lokasi: 'Klungkung, Bali',
-      harga: 390000,
-      hargaAsli: 650000,
-      sisaTiket: 7,
-    ),
   ];
 
   static const List<Wisata> populer = [
@@ -129,54 +92,13 @@ class WisataDummy {
     ),
   ];
 
-  // waktu berakhir dihitung sekali (static final, bukan const)
-  static final DateTime kilatBerakhir = DateTime.now().add(
-    const Duration(hours: 4, minutes: 12, seconds: 35),
-  );
-
-  static final DateTime bannerBerakhir = DateTime.now().add(
-    const Duration(hours: 8, minutes: 24, seconds: 12),
-  );
-
-  static const List<Wisata> flashKilat = [
-    Wisata(
-      id: 201,
-      nama: 'Jatim Park 3 Dino Park',
-      lokasi: 'Batu, Malang',
-      kota: 'Malang',
-      harga: 95000,
-      hargaAsli: 135000,
-      terjualPersen: 78,
-    ),
-    Wisata(
-      id: 202,
-      nama: 'GWK Cultural Park',
-      lokasi: 'Ungasan, Badung',
-      kota: 'Bali',
-      harga: 85000,
-      hargaAsli: 115000,
-      terjualPersen: 85,
-      sisaTiket: 8,
-    ),
-    Wisata(
-      id: 203,
-      nama: 'Saloka Theme Park',
-      lokasi: 'Ambarawa, Semarang',
-      kota: 'Semarang',
-      harga: 110000,
-      hargaAsli: 138000,
-      terjualPersen: 55,
-    ),
-  ];
-
   static const List<Wisata> terpopuler = [
     Wisata(
       id: 301,
       nama: 'Candi Borobudur Heritage & Sunrise Pass',
       lokasi: 'Magelang, Jawa Tengah',
       kota: 'Magelang',
-      harga: 50000,
-      hargaAsli: 75000,
+      harga: 75000,
       rating: 4.9,
       jumlahUlasan: 12800,
       tipe: 'Konfirmasi Instan',
@@ -186,23 +108,19 @@ class WisataDummy {
       nama: 'Candi Prambanan & Ramayana Ballet',
       lokasi: 'Sleman, Yogyakarta',
       kota: 'Yogyakarta',
-      harga: 65000,
-      hargaAsli: 85000,
+      harga: 85000,
       rating: 4.8,
       jumlahUlasan: 8400,
-      poin: 450,
     ),
     Wisata(
       id: 303,
       nama: 'Taman Safari Prigen Tiket Reguler',
       lokasi: 'Prigen, Pasuruan',
       kota: 'Pasuruan',
-      harga: 120000,
-      hargaAsli: 150000,
+      harga: 150000,
       rating: 4.7,
       jumlahUlasan: 6100,
       tipe: 'Konfirmasi Instan',
-      poin: 300,
     ),
   ];
 
@@ -213,8 +131,7 @@ class WisataDummy {
       lokasi: 'Bantul, Yogyakarta',
       kota: 'Yogyakarta',
       subkategori: 'Petualangan Offroad & Pantai',
-      harga: 320000,
-      hargaAsli: 375000,
+      harga: 375000,
       rating: 4.8,
       jumlahUlasan: 850,
       satuanHarga: '/jeep',
@@ -225,8 +142,7 @@ class WisataDummy {
       lokasi: 'Gunungkidul, Yogyakarta',
       kota: 'Yogyakarta',
       subkategori: 'Cave Tubing & Susur Sungai',
-      harga: 45000,
-      hargaAsli: 60000,
+      harga: 60000,
       rating: 4.7,
       jumlahUlasan: 1200,
       satuanHarga: '/orang',
@@ -237,8 +153,7 @@ class WisataDummy {
       lokasi: 'Patuk, Gunungkidul',
       kota: 'Yogyakarta',
       subkategori: 'Sunset View & Spot Foto',
-      harga: 25000,
-      hargaAsli: 30000,
+      harga: 30000,
       rating: 4.7,
       jumlahUlasan: 2100,
       satuanHarga: '/orang',
@@ -253,13 +168,11 @@ class WisataDummy {
       kota: 'Jawa Tengah',
       subkategori: 'Cagar Budaya UNESCO',
       labelGambar: '#1 TERLARIS MINGGU INI',
-      harga: 65000,
-      hargaAsli: 75000,
+      harga: 75000,
       rating: 4.9,
       jumlahUlasan: 14200,
       satuanHarga: '/orang',
       fitur: ['Konfirmasi Instan', 'Bisa Reschedule'],
-      bonus: 'Bonus Cashback 10% Poin Loka',
     ),
     Wisata(
       id: 502,
@@ -268,8 +181,7 @@ class WisataDummy {
       kota: 'Bali',
       subkategori: 'Taman Budaya & Teater',
       labelGambar: '#2 Terpopuler Bali',
-      harga: 90000,
-      hargaAsli: 125000,
+      harga: 125000,
       rating: 4.8,
       jumlahUlasan: 3800,
       satuanHarga: '/orang',
@@ -282,8 +194,7 @@ class WisataDummy {
       kota: 'Yogyakarta',
       subkategori: 'Wisata Sejarah',
       labelGambar: '#3 Wisata Budaya',
-      harga: 65000,
-      hargaAsli: 85000,
+      harga: 85000,
       rating: 4.8,
       jumlahUlasan: 2400,
       satuanHarga: '/orang',
@@ -296,8 +207,7 @@ class WisataDummy {
       kota: 'Jawa Timur',
       subkategori: 'Theme Park & Edukasi',
       labelGambar: 'Pilihan Keluarga',
-      harga: 98000,
-      hargaAsli: 140000,
+      harga: 140000,
       rating: 4.8,
       jumlahUlasan: 1900,
       satuanHarga: '/orang',
@@ -318,65 +228,6 @@ class WisataDummy {
     ),
   ];
 
-  // banner promo per kategori (kunci = nama kategori)
-  static const Map<String, PromoKategori> promoKategori = {
-    'Candi & Budaya': PromoKategori(
-      label: 'EKSKLUSIF LOKATRIP',
-      periode: 'Hingga 31 Mar',
-      judul: 'Promo Eksplor Budaya Nusantara',
-      deskripsi: 'Diskon 25% s.d Rp 75.000 dengan kode:',
-      kode: 'KELANABUDAYA',
-    ),
-    'Atraksi & Rekreasi': PromoKategori(
-      label: 'FLASH PROMO',
-      judul: 'Special Pass Liburan Hemat',
-      deskripsi: 'Cashback 20K Poin Loka & bebas antre!',
-      tombol: 'Klaim',
-    ),
-    'Waterpark & Kolam': PromoKategori(
-      label: 'WEEKEND SALE',
-      judul: 'Splash Weekend Promo',
-      deskripsi: 'Voucher diskon waterpark favorit se-Indonesia',
-      kode: 'BYURSEGAR',
-      awalanKode: 'Kode Kupon:',
-      catatan: 'S&K Berlaku',
-      ikon: Icons.water_drop_outlined,
-    ),
-    'Tur & Open Trip': PromoKategori(
-      label: 'FLASH VOUCHER',
-      periode: 'Sisa 3 Hari',
-      judul: 'Open Trip Seru Se-Indonesia',
-      deskripsi: 'Cashback 15% Poin untuk pemesanan minggu ini',
-      kode: 'LOKAPETUALANG',
-      awalanKode: 'KODE KUPON:',
-      tombol: 'Salin',
-    ),
-    'Playground': PromoKategori(
-      label: 'SPECIAL KELUARGA',
-      judul: 'Liburan Ceria Anak',
-      deskripsi: 'Gratis 1 pendamping dewasa untuk tiap 10 anak',
-      kode: 'MAINSERU',
-      awalanKode: 'KODE KUPON:',
-      tombol: 'Salin Kupon',
-    ),
-    'Spa & Pijat': PromoKategori(
-      label: 'PROMO EKSKLUSIF',
-      judul: 'Me Time Hemat - Potongan Rp 50.000',
-      deskripsi: 'Gunakan kode saat checkout reservasi pertamamu',
-      kode: 'RELAKSASI',
-      awalanKode: 'Kode:',
-      catatan: 'S&K Berlaku',
-    ),
-    'Alam & Outbound': PromoKategori(
-      label: 'PROMO PETUALANG',
-      judul: 'Eksplorasi Alam Nusantara',
-      deskripsi: 'Cashback 10% s.d Rp 100.000',
-      kode: 'ALAMASRI',
-      awalanKode: 'KODE KUPON:',
-      tombol: 'Salin',
-    ),
-  };
-
   static const List<Wisata> candiBudaya = [
     Wisata(
       id: 601,
@@ -390,8 +241,7 @@ class WisataDummy {
       termasuk: 'Guide Sejarah Lokal',
       rating: 4.8,
       jumlahUlasan: 2300,
-      harga: 35000,
-      hargaAsli: 45000,
+      harga: 45000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -406,8 +256,7 @@ class WisataDummy {
       termasuk: 'Tiket Masuk Termasuk',
       rating: 4.7,
       jumlahUlasan: 1500,
-      harga: 30000,
-      hargaAsli: 40000,
+      harga: 40000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -452,8 +301,7 @@ class WisataDummy {
       termasuk: 'Guide & Trekking Ringan',
       rating: 4.8,
       jumlahUlasan: 1300,
-      harga: 40000,
-      hargaAsli: 50000,
+      harga: 50000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -498,8 +346,7 @@ class WisataDummy {
       termasuk: 'Tiket Masuk Termasuk',
       rating: 4.7,
       jumlahUlasan: 1800,
-      harga: 25000,
-      hargaAsli: 30000,
+      harga: 30000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -547,8 +394,7 @@ class WisataDummy {
       termasuk: 'Buka Hari Ini',
       rating: 4.7,
       jumlahUlasan: 6100,
-      harga: 98000,
-      hargaAsli: 140000,
+      harga: 140000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -563,8 +409,7 @@ class WisataDummy {
       termasuk: 'Tiket Fleksibel',
       rating: 4.8,
       jumlahUlasan: 9900,
-      harga: 125000,
-      hargaAsli: 150000,
+      harga: 150000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -609,8 +454,7 @@ class WisataDummy {
       termasuk: 'Tiket Fleksibel',
       rating: 4.5,
       jumlahUlasan: 3100,
-      harga: 75000,
-      hargaAsli: 90000,
+      harga: 90000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -640,8 +484,7 @@ class WisataDummy {
       termasuk: 'Buka Hari Ini',
       rating: 4.5,
       jumlahUlasan: 4700,
-      harga: 60000,
-      hargaAsli: 75000,
+      harga: 75000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -672,8 +515,7 @@ class WisataDummy {
       termasuk: 'Bebas Antre',
       rating: 4.5,
       jumlahUlasan: 5200,
-      harga: 90000,
-      hargaAsli: 110000,
+      harga: 110000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -708,8 +550,7 @@ class WisataDummy {
       termasuk: 'Favorit Keluarga',
       rating: 4.5,
       jumlahUlasan: 4200,
-      harga: 35000,
-      hargaAsli: 45000,
+      harga: 45000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -771,15 +612,14 @@ class WisataDummy {
       kota: 'Malang',
       kategori: 'Tur & Open Trip',
       jenis: 'Jeep & Offroad',
-      labelGambar: 'Hemat 22%',
+      labelGambar: 'Paket Favorit',
       tipe: 'Pasti Berangkat',
       subkategori: 'Open Trip',
       termasuk: 'Terlaris #1',
       fitur: ['Min. 1 Pax Pasti Jalan', 'Dokumentasi Foto/Video'],
       rating: 4.8,
       jumlahUlasan: 18200,
-      harga: 310000,
-      hargaAsli: 395000,
+      harga: 395000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -805,15 +645,13 @@ class WisataDummy {
       kota: 'Malang',
       kategori: 'Tur & Open Trip',
       jenis: 'Open Trip Alam',
-      labelGambar: 'Promo 25%',
       tipe: 'All-in',
       subkategori: 'Beach Trip',
       termasuk: 'Free Cancel 24 Jam',
       fitur: ['Termasuk Perahu & Lunch', 'Alat Snorkeling Lengkap'],
       rating: 4.9,
       jumlahUlasan: 16100,
-      harga: 275000,
-      hargaAsli: 360000,
+      harga: 360000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -863,8 +701,7 @@ class WisataDummy {
       fitur: ['Guide Lokal', 'Termasuk Minuman'],
       rating: 4.7,
       jumlahUlasan: 2900,
-      harga: 120000,
-      hargaAsli: 150000,
+      harga: 150000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -874,14 +711,13 @@ class WisataDummy {
       kota: 'Batu',
       kategori: 'Tur & Open Trip',
       jenis: 'City Tour',
-      labelGambar: 'Paket Hemat',
+      labelGambar: 'Paket Pilihan',
       subkategori: 'City Tour',
       termasuk: 'Tiket Masuk Termasuk',
       fitur: ['Termasuk Transport', 'Tiket 2 Destinasi'],
       rating: 4.7,
       jumlahUlasan: 5200,
-      harga: 295000,
-      hargaAsli: 350000,
+      harga: 350000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -916,8 +752,7 @@ class WisataDummy {
           'Area bermain indoor dengan ball pool, perosotan, dan zona balita yang aman.',
       rating: 4.7,
       jumlahUlasan: 3100,
-      harga: 85000,
-      hargaAsli: 100000,
+      harga: 100000,
       satuanHarga: '/anak',
     ),
     Wisata(
@@ -949,8 +784,7 @@ class WisataDummy {
           'Petik apel langsung dari pohon dan belajar proses kebun bersama pemandu.',
       rating: 4.5,
       jumlahUlasan: 2400,
-      harga: 60000,
-      hargaAsli: 75000,
+      harga: 75000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -995,13 +829,12 @@ class WisataDummy {
       kota: 'Malang',
       kategori: 'Spa & Pijat',
       jenis: 'Pijat Tradisional',
-      labelGambar: 'HEMAT 30%',
+      labelGambar: 'Perawatan Favorit',
       subkategori: 'Traditional Heritage',
       fitur: ['Ramuan Tradisional Jawa', 'Teh Herbal Hangat'],
       rating: 4.9,
       jumlahUlasan: 4500,
-      harga: 175000,
-      hargaAsli: 250000,
+      harga: 250000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -1053,13 +886,12 @@ class WisataDummy {
       kota: 'Malang',
       kategori: 'Spa & Pijat',
       jenis: 'Refleksi',
-      labelGambar: 'HEMAT 20%',
+      labelGambar: 'Perawatan Pilihan',
       subkategori: 'Wellness Harian',
       fitur: ['Ruang Privat', 'Teh Herbal Hangat'],
       rating: 4.6,
       jumlahUlasan: 1100,
-      harga: 100000,
-      hargaAsli: 125000,
+      harga: 125000,
       satuanHarga: '/orang',
     ),
   ];
@@ -1087,13 +919,12 @@ class WisataDummy {
       kota: 'Malang',
       kategori: 'Alam & Outbound',
       jenis: 'Air Terjun',
-      labelGambar: 'Hemat 20%',
+      labelGambar: 'Wisata Alam',
       subkategori: 'Waterfall Trek',
       fitur: ['Local Guide', 'Jalur Trekking Ringan'],
       rating: 4.7,
       jumlahUlasan: 3900,
-      harga: 20000,
-      hargaAsli: 25000,
+      harga: 25000,
       satuanHarga: '/orang',
     ),
     Wisata(
@@ -1163,13 +994,12 @@ class WisataDummy {
       kota: 'Malang',
       kategori: 'Alam & Outbound',
       jenis: 'Pantai & Pesisir',
-      labelGambar: 'Hemat 15%',
+      labelGambar: 'Destinasi Pantai',
       subkategori: 'Beach Escape',
       fitur: ['Tiket Masuk Termasuk', 'Area Berfoto'],
       rating: 4.5,
       jumlahUlasan: 1900,
-      harga: 25500,
-      hargaAsli: 30000,
+      harga: 30000,
       satuanHarga: '/orang',
     ),
   ];

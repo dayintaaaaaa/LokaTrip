@@ -119,23 +119,13 @@ class KartuTur extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (w.hargaAsli != null)
-                              Text(
-                                formatRupiah(w.hargaAsli!),
-                                style: GoogleFonts.manrope(
-                                  fontSize: 10,
-                                  color: AppColor.abu,
-                                  decoration: TextDecoration.lineThrough,
-                                ),
-                              )
-                            else
-                              Text(
-                                'Mulai dari',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 10,
-                                  color: AppColor.abu,
-                                ),
+                            Text(
+                              'Mulai dari',
+                              style: GoogleFonts.manrope(
+                                fontSize: 10,
+                                color: AppColor.abu,
                               ),
+                            ),
                             Text.rich(
                               TextSpan(
                                 children: [

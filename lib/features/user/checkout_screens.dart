@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../../core/app_color.dart';
 import '../../core/format_rupiah.dart';
 import '../../models/data_checkout.dart';
@@ -15,10 +16,10 @@ import 'checkout_widgets/ringkasan_pesanan.dart';
 import 'checkout_widgets/stepper_checkout.dart';
 import 'metode_pembayaran_screens.dart';
 
-// Langkah 1 checkout: isi data pemesan. Pesanan di database baru dibuat
-// di langkah berikutnya (tombol "Bayar Sekarang" di Metode Pembayaran).
+// Langkah 1 checkout: isi data pemesan.
+// Pesanan di database baru dibuat di langkah berikutnya.
 class CheckoutScreens extends StatefulWidget {
-  final DataPemesanan pesanan; // hasil dari Atur Jadwal & Pengunjung
+  final DataPemesanan pesanan;
 
   const CheckoutScreens({super.key, required this.pesanan});
 
@@ -28,12 +29,13 @@ class CheckoutScreens extends StatefulWidget {
 
 class _CheckoutScreensState extends State<CheckoutScreens> {
   static const _latar = Color(0xFFF5F6FA);
-  static const _batasDetik = 15 * 60; // waktu menyelesaikan pesanan: 15 menit
+  static const _batasDetik = 15 * 60;
 
   final _formKey = GlobalKey<FormState>();
   final _namaC = TextEditingController();
   final _emailC = TextEditingController();
   final _teleponC = TextEditingController();
+
   final _namaF = FocusNode();
   final _emailF = FocusNode();
   final _teleponF = FocusNode();
@@ -42,14 +44,16 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
   Timer? _timer;
 
   bool _pakaiProfil = false;
-  Map<String, dynamic>? _profil; // baris tabel users milik akun yang login
+  Map<String, dynamic>? _profil;
 
-  RincianHarga get _rincian => RincianHarga(pesanan: widget.pesanan);
+  RincianHarga get _rincian =>
+      RincianHarga(pesanan: widget.pesanan);
 
   @override
   void initState() {
     super.initState();
     _muatProfil();
+
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_sisaDetik.value <= 1) {
         t.cancel();
@@ -76,6 +80,7 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
 
   Future<void> _waktuHabis() async {
     if (!mounted) return;
+
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -93,10 +98,11 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
         ],
       ),
     );
+
     if (mounted) Navigator.pop(context);
   }
 
-  // ambil data akun yang sedang login (nama, email, telepon)
+  // Ambil data akun yang sedang login (nama, email, telepon).
   Future<void> _muatProfil() async {
     try {
       final p = await ProfileService().getProfile();
@@ -107,9 +113,10 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
     }
   }
 
-  // switch "Gunakan profil akun": isi otomatis, atau kosongkan lagi
+  // Switch "Gunakan profil akun": isi otomatis, atau kosongkan lagi.
   void _gantiProfil(bool nyala) {
     final profil = _profil;
+
     if (nyala && profil == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -121,13 +128,18 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
       );
       return;
     }
+
     setState(() {
       _pakaiProfil = nyala;
+
       if (nyala) {
         _namaC.text = (profil!['nama_lengkap_user'] ?? '') as String;
-        // email ada di akun login (auth), bukan di tabel users
-        _emailC.text = Supabase.instance.client.auth.currentUser?.email ?? '';
-        // di database +62812..., di form ditampilkan 0812...
+
+        // Email ada di akun login (auth), bukan di tabel users.
+        _emailC.text =
+            Supabase.instance.client.auth.currentUser?.email ?? '';
+
+        // Di database +62812..., di form ditampilkan 0812...
         _teleponC.text = ProfileService.keFormatLokal(
           (profil['no_telephone'] ?? '') as String,
         );
@@ -143,7 +155,7 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
     FocusScope.of(context).unfocus();
 
     if (!_formKey.currentState!.validate()) {
-      // fokus ke field pertama yang bermasalah (otomatis ter-scroll ke layar)
+      // Fokus ke field pertama yang bermasalah.
       if (validasiNama(_namaC.text) != null) {
         _namaF.requestFocus();
       } else if (validasiEmail(_emailC.text) != null) {
@@ -164,7 +176,9 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
 
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => MetodePembayaranScreens(data: data)),
+      MaterialPageRoute(
+        builder: (_) => MetodePembayaranScreens(data: data),
+      ),
     );
   }
 
@@ -214,14 +228,16 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
     );
   }
 
-  // header "Checkout Flow" + penanda langkah
+  // Header "Checkout Flow" + penanda langkah.
   Widget _header() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: AppColor.putih,
         border: Border(
-          bottom: BorderSide(color: AppColor.abu.withValues(alpha: 0.15)),
+          bottom: BorderSide(
+            color: AppColor.abu.withValues(alpha: 0.15),
+          ),
         ),
       ),
       child: SafeArea(
@@ -234,7 +250,10 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
                 children: [
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back, color: AppColor.hitam),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: AppColor.hitam,
+                    ),
                   ),
                   Expanded(
                     child: Text(

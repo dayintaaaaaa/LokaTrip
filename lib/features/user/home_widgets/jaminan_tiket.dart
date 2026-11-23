@@ -53,16 +53,16 @@ class JaminanTiket extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // dua poin keunggulan
+            // dua keunggulan
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _poin(
+                _benefit(
                   Icons.sentiment_satisfied_alt_outlined,
                   '5 Juta+',
                   'Traveler Puas',
                 ),
-                _poin(
+                _benefit(
                   Icons.lock_outline,
                   'Aman',
                   'Pembayaran Instan',
@@ -75,7 +75,7 @@ class JaminanTiket extends StatelessWidget {
     );
   }
 
-  Widget _poin(IconData ikon, String judul, String keterangan) {
+  Widget _benefit(IconData ikon, String judul, String keterangan) {
     return Column(
       children: [
         Container(

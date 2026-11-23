@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/app_color.dart';
 import '../../models/wisata.dart';
-import '../../models/wisata_dummy.dart';
 import '../../widgets/bottom_navigator.dart';
 import '../../widgets/top_navigator.dart';
 import 'home_widgets/kategori_wisata.dart';
-import 'wisata_widgets/banner_promo.dart';
-import 'wisata_widgets/flash_sale_kilat.dart';
 import 'wisata_widgets/katalog_wisata.dart';
 import 'wisata_widgets/pilih_kota.dart';
 import 'wisata_widgets/sub_top_bar.dart';
@@ -140,25 +137,6 @@ class _WisataScreensState extends State<WisataScreens> {
                               child: const KategoriWisata(
                                 tampilJudul: false,
                                 maxBaris: 2,
-                              ),
-                            ),
-
-                            // banner promo
-                            _panel(
-                              child: BannerPromo(
-                                label: 'LIBUR SEKOLAH SERU',
-                                judul: 'Diskon Wisata s.d Rp 150.000',
-                                kupon: 'LOKALIBUR',
-                                berakhirPada: WisataDummy.bannerBerakhir,
-                                onSnkTap: () {},
-                              ),
-                            ),
-
-                            // flash sale kilat (masih dummy)
-                            _panel(
-                              child: FlashSaleKilat(
-                                daftar: _saring(WisataDummy.flashKilat),
-                                berakhirPada: WisataDummy.kilatBerakhir,
                               ),
                             ),
 
