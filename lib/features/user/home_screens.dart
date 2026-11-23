@@ -23,7 +23,9 @@ class HomeScreens extends StatefulWidget {
 class _HomeScreensState extends State<HomeScreens> {
   final _service = WisataService();
   List<Wisata> _populer = [];
-  bool _loading = true;
+  List<Wisata> _tripAkhirPekan = [];
+  bool _loadingPopuler = true;
+  bool _loadingTrip = true;
 
   @override
   void initState() {
@@ -32,17 +34,39 @@ class _HomeScreensState extends State<HomeScreens> {
   }
 
   Future<void> _muat() async {
+    await Future.wait([
+      _muatPopuler(),
+      _muatTripAkhirPekan(),
+    ]);
+  }
+
+  Future<void> _muatPopuler() async {
     try {
       final data = await _service.getTerpopuler(limit: 10);
       if (!mounted) return;
       setState(() {
         _populer = data;
-        _loading = false;
+        _loadingPopuler = false;
       });
     } catch (e) {
       debugPrint('Gagal memuat destinasi populer: $e');
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() => _loadingPopuler = false);
+    }
+  }
+
+  Future<void> _muatTripAkhirPekan() async {
+    try {
+      final data = await _service.getTripAkhirPekan();
+      if (!mounted) return;
+      setState(() {
+        _tripAkhirPekan = data;
+        _loadingTrip = false;
+      });
+    } catch (e) {
+      debugPrint('Gagal memuat trip akhir pekan: $e');
+      if (!mounted) return;
+      setState(() => _loadingTrip = false);
     }
   }
 
@@ -74,7 +98,7 @@ class _HomeScreensState extends State<HomeScreens> {
                     SizedBox(height: 24),
 
                     // destinasi terpopuler (data asli)
-                    if (_loading)
+                    if (_loadingPopuler)
                       SizedBox(
                         height: 300,
                         child: Center(child: CircularProgressIndicator()),
@@ -83,7 +107,20 @@ class _HomeScreensState extends State<HomeScreens> {
                       DestinasiPopuler(daftar: _populer),
 
                     SizedBox(height: 24),
-                    TripAkhirPekan(daftar: WisataDummy.tripAkhirPekan),
+
+                    // trip spesial akhir pekan (data asli dari database)
+                    if (_loadingTrip)
+                      SizedBox(
+                        height: 200,
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else
+                      TripAkhirPekan(
+                        daftar: _tripAkhirPekan.isNotEmpty
+                            ? _tripAkhirPekan
+                            : WisataDummy.tripAkhirPekan,
+                      ),
+
                     SizedBox(height: 12),
                     JaminanTiket(),
                     SizedBox(height: 24),

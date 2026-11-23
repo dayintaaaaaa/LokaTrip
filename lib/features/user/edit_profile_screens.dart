@@ -111,22 +111,25 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
   }
 
   Future<void> _gantiFoto() async {
-    final file = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1024,
-      imageQuality: 85,
-    );
-    if (file == null) return;
-
-    setState(() => _uploadFoto = true);
+    if (_uploadFoto) return;
     try {
+      final file = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        imageQuality: 85,
+      );
+      if (file == null) return;
+
+      setState(() => _uploadFoto = true);
       final url = await ProfileService().uploadFoto(file);
       if (!mounted) return;
       setState(() => _fotoUrl = url);
-      ProfilStore.instance.muat(paksa: true);
-      _pesan('Foto profil diperbarui');
+      await ProfilStore.instance.muat(paksa: true);
+      _pesan('Foto profil berhasil diperbarui');
     } on AuthFailure catch (e) {
       _pesan(e.message);
+    } catch (e) {
+      _pesan('Gagal memproses foto: $e');
     } finally {
       if (mounted) setState(() => _uploadFoto = false);
     }
@@ -318,17 +321,20 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
         children: [
           Stack(
             children: [
-              CircleAvatar(
-                radius: 42,
-                backgroundColor: AppColor.biru,
-                backgroundImage:
-                    _fotoUrl != null ? NetworkImage(_fotoUrl!) : null,
-                child: _uploadFoto
-                    ? const CircularProgressIndicator(color: AppColor.putih)
-                    : (_fotoUrl == null
-                        ? const Icon(Icons.person,
-                            size: 44, color: AppColor.putih)
-                        : null),
+              GestureDetector(
+                onTap: _uploadFoto ? null : _gantiFoto,
+                child: CircleAvatar(
+                  radius: 42,
+                  backgroundColor: AppColor.biru,
+                  backgroundImage:
+                      _fotoUrl != null ? NetworkImage(_fotoUrl!) : null,
+                  child: _uploadFoto
+                      ? const CircularProgressIndicator(color: AppColor.putih)
+                      : (_fotoUrl == null
+                          ? const Icon(Icons.person,
+                              size: 44, color: AppColor.putih)
+                          : null),
+                ),
               ),
               Positioned(
                 right: 0,
@@ -343,7 +349,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                       border: Border.all(color: AppColor.putih, width: 2),
                     ),
                     child: const Icon(Icons.camera_alt,
-                        size: 12, color: AppColor.putih),
+                        size: 14, color: AppColor.putih),
                   ),
                 ),
               ),

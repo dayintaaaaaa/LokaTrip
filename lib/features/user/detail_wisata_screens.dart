@@ -433,7 +433,7 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
     );
   }
 
-  // grid 2 kolom: Konfirmasi Instan, Bebas Reschedule, dst.
+  // grid 2 kolom: Konfirmasi Instan, Berlaku di Tanggal Pilihan, dst.
   Widget _keunggulan() {
     final k = _d.keunggulan;
 
@@ -442,16 +442,19 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
         for (var i = 0; i < k.length; i += 2)
           Padding(
             padding: EdgeInsets.only(bottom: i + 2 < k.length ? 8 : 0),
-            child: Row(
-              children: [
-                Expanded(child: _tileKeunggulan(k[i])),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: i + 1 < k.length
-                      ? _tileKeunggulan(k[i + 1])
-                      : const SizedBox(),
-                ),
-              ],
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: _tileKeunggulan(k[i])),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: i + 1 < k.length
+                        ? _tileKeunggulan(k[i + 1])
+                        : const SizedBox(),
+                  ),
+                ],
+              ),
             ),
           ),
       ],
@@ -463,6 +466,7 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
       padding: const EdgeInsets.all(10),
       decoration: _kotak(radius: 12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 28,
@@ -490,9 +494,13 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
                 ),
                 Text(
                   k.$3,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(fontSize: 9, color: AppColor.abu),
+                  style: GoogleFonts.manrope(
+                    fontSize: 9,
+                    color: AppColor.abu,
+                    height: 1.25,
+                  ),
                 ),
               ],
             ),

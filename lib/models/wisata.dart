@@ -88,6 +88,61 @@ class Wisata {
     final ulasan = (m['jml_ulasan'] ?? 0) as int;
     final rating = (m['rata_rating'] ?? 0).toDouble();
 
+    final idKategori = m['id_kategori'] as int?;
+    String? tipeOtomatis = m['tipe'] ?? m['subkategori'] ?? m['jenis'];
+    if (tipeOtomatis == null || tipeOtomatis.isEmpty) {
+      if (idKategori == 4) {
+        tipeOtomatis = 'Open Trip';
+      } else if (idKategori == 7) {
+        tipeOtomatis = 'Wisata Alam';
+      } else if (idKategori == 3) {
+        tipeOtomatis = 'Waterpark';
+      } else if (idKategori == 1) {
+        tipeOtomatis = 'Atraksi';
+      } else if (idKategori == 6) {
+        tipeOtomatis = 'Wellness & Relax';
+      } else {
+        tipeOtomatis = m['kategori']?['nama_kategori'];
+      }
+    }
+
+    String? labelGambarOtomatis = m['label_gambar'];
+    if (labelGambarOtomatis == null || labelGambarOtomatis.isEmpty) {
+      if (idKategori == 4) {
+        labelGambarOtomatis = 'Day Trip';
+      } else if (idKategori == 7) {
+        final namaLower = (m['nama_wisata'] ?? '').toString().toLowerCase();
+        labelGambarOtomatis =
+            namaLower.contains('glamping') ? 'Staycation' : 'Outdoor';
+      } else if (idKategori == 3) {
+        labelGambarOtomatis = 'Tiket Masuk';
+      }
+    }
+
+    String? termasukOtomatis = m['termasuk'];
+    if (termasukOtomatis == null || termasukOtomatis.isEmpty) {
+      if (paket.isNotEmpty &&
+          paket.first.deskripsi != null &&
+          paket.first.deskripsi!.isNotEmpty) {
+        termasukOtomatis = paket.first.deskripsi;
+      } else if (idKategori == 4) {
+        termasukOtomatis = 'Termasuk Pemandu & Tiket Wisata';
+      } else {
+        termasukOtomatis = 'Termasuk Tiket Masuk Resmi';
+      }
+    }
+
+    final namaLower = (m['nama_wisata'] ?? '').toString().toLowerCase();
+    final satuanHargaOtomatis = m['satuan_harga'] ??
+        (idKategori == 7 && namaLower.contains('glamping')
+            ? '/malam'
+            : (idKategori == 3 ? '/tiket' : '/orang'));
+
+    final ulasanKutipan = m['ulasan'] ??
+        (m['deskripsi'] != null && (m['deskripsi'] as String).isNotEmpty
+            ? m['deskripsi']
+            : null);
+
     return Wisata(
       id: m['id_wisata'],
       nama: m['nama_wisata'] ?? '',
@@ -104,7 +159,11 @@ class Wisata {
       gambar: fotos.isNotEmpty ? fotos.first : null,
       fotoList: fotos,
       paket: paket,
-      satuanHarga: '/orang',
+      tipe: tipeOtomatis,
+      labelGambar: labelGambarOtomatis,
+      termasuk: termasukOtomatis,
+      satuanHarga: satuanHargaOtomatis,
+      ulasan: ulasanKutipan,
     );
   }
 }

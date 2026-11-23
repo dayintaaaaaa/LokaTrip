@@ -110,12 +110,17 @@ class ProfileService {
       }
 
       final path = '$_uid/avatar';
+      final mime = file.mimeType ??
+          (file.path.toLowerCase().endsWith('.png')
+              ? 'image/png'
+              : 'image/jpeg');
+
       await _db.storage.from('avatars').uploadBinary(
             path,
             bytes,
             fileOptions: FileOptions(
               upsert: true,
-              contentType: file.mimeType ?? 'image/jpeg',
+              contentType: mime,
             ),
           );
 
@@ -129,6 +134,24 @@ class ProfileService {
       return url;
     } on AuthFailure {
       rethrow;
+    } on StorageException catch (e) {
+      debugPrint('StorageException: ${e.message} (code: ${e.statusCode})');
+      if (e.statusCode == '404' ||
+          e.message.toLowerCase().contains('bucket not found')) {
+        throw AuthFailure(
+          'Bucket "avatars" belum dibuat di Supabase Storage.\n'
+          'Buka Supabase Dashboard > Storage > New bucket: "avatars" (Public: ON).',
+        );
+      }
+      if (e.statusCode == '403' ||
+          e.message.toLowerCase().contains('row-level security') ||
+          e.message.toLowerCase().contains('policy')) {
+        throw AuthFailure(
+          'Izin upload ditolak oleh RLS Policy Supabase.\n'
+          'Pastikan policy INSERT/UPDATE untuk bucket "avatars" sudah diaktifkan.',
+        );
+      }
+      throw AuthFailure('Gagal mengunggah foto: ${e.message}');
     } catch (e) {
       debugPrint('Upload foto gagal: $e');
       throw AuthFailure('Gagal mengunggah foto: $e');
@@ -138,13 +161,53 @@ class ProfileService {
   /// Hapus foto di Storage dan kosongkan kolom foto_profil.
   Future<void> hapusFoto() async {
     try {
-      await _db.storage.from('avatars').remove(['$_uid/avatar']);
+      try {
+        await _db.storage.from('avatars').remove(['$_uid/avatar']);
+      } on StorageException catch (e) {
+        debugPrint('Abaikan StorageException saat hapus: $e');
+      }
       await _db
           .from('users')
           .update({'foto_profil': null}).eq(_kolomKunci, _uid);
     } catch (e) {
       debugPrint('Hapus foto gagal: $e');
       throw AuthFailure('Gagal menghapus foto: $e');
+    }
+  }
+
+  /// Cek apakah user sudah mengatur PIN transaksi.
+  Future<bool> hasPin() async {
+    try {
+      final res = await _db
+          .from('users')
+          .select('pin_transaksi')
+          .eq(_kolomKunci, _uid)
+          .maybeSingle();
+      if (res == null) return false;
+      final pin = res['pin_transaksi'];
+      return pin != null && pin.toString().trim().isNotEmpty;
+    } catch (e) {
+      debugPrint('Cek PIN gagal: $e');
+      return false;
+    }
+  }
+
+  /// Simpan atau ganti PIN transaksi (6 digit angka).
+  Future<void> simpanPin(String pin) async {
+    try {
+      final hasil = await _db
+          .from('users')
+          .update({'pin_transaksi': pin.trim()})
+          .eq(_kolomKunci, _uid)
+          .select('auth_id');
+      if (hasil.isEmpty) {
+        throw AuthFailure('Gagal menyimpan PIN transaksi');
+      }
+    } on AuthFailure {
+      rethrow;
+    } catch (e) {
+      debugPrint('Simpan PIN gagal: $e');
+      throw AuthFailure('Gagal menyimpan PIN: $e');
     }
   }
 }

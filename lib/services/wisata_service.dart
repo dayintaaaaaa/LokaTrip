@@ -48,6 +48,30 @@ class WisataService {
         .limit(limit));
   }
 
+  // kurasi trip spesial akhir pekan (rekomendasi: Tur & Open Trip, Alam & Outbound, Waterpark)
+  Future<List<Wisata>> getTripAkhirPekan({
+    List<int> kategoriIds = const [
+      KategoriId.tur,
+      KategoriId.alam,
+      KategoriId.waterpark,
+    ],
+    int limit = 6,
+    List<String>? kotaIn,
+  }) async {
+    var q = _db
+        .from('wisata')
+        .select(_select)
+        .eq('status_approve', 'Y')
+        .inFilter('id_kategori', kategoriIds);
+    if (kotaIn != null) q = q.inFilter('kota', kotaIn);
+    final data = await q
+        .order('rata_rating', ascending: false)
+        .order('jml_ulasan', ascending: false)
+        .order('id_wisata')
+        .limit(limit);
+    return _parse(data);
+  }
+
   // wisata per kategori, kotaIn opsional (mis. ['Malang', 'Batu'])
   Future<List<Wisata>> getByKategori(int idKategori, {List<String>? kotaIn}) async {
     var q = _db
