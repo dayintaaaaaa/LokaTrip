@@ -40,17 +40,6 @@ class NotifikasiScreens extends StatelessWidget {
       baru: true,
     ),
     _Notif(
-      icon: Icons.local_fire_department_outlined,
-      warna: AppColor.kuning,
-      label: 'KUPON TERBATAS',
-      waktu: '2 jam lalu',
-      judul: 'Flash Sale 50% Borobudur Sunrise',
-      isi:
-          'Tersisa 4 kuota tiket spesial pagi ini! Gunakan kupon FLASH50 sebelum jam...',
-      sorot: 'FLASH50',
-      baru: true,
-    ),
-    _Notif(
       icon: Icons.event_available_outlined,
       warna: AppColor.ungu,
       label: 'PENGINGAT WISATA',
@@ -63,15 +52,6 @@ class NotifikasiScreens extends StatelessWidget {
   ];
 
   static const _terdahulu = [
-    _Notif(
-      icon: Icons.sell_outlined,
-      warna: AppColor.hitam,
-      label: 'VOUCHER MINGGUAN',
-      waktu: 'Kemarin, 14:20',
-      judul: 'Kupon Diskon Rp 50.000 Menunggumu',
-      isi:
-          'Kupon diskon hemat berlaku untuk pemesanan tiket candi, outbound, dan...',
-    ),
     _Notif(
       icon: Icons.shield_outlined,
       warna: AppColor.hitam,
@@ -142,7 +122,7 @@ class NotifikasiScreens extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                '3 BELUM DIBACA',
+                '2 BELUM DIBACA',
                 style: GoogleFonts.manrope(
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
@@ -300,7 +280,7 @@ class _NotifCard extends StatelessWidget {
     );
   }
 
-  // isi singkat, kata sorotan (mis. kode kupon) diberi warna ungu
+  // isi singkat dengan kata yang disorot
   Widget _isi() {
     final dasar = GoogleFonts.manrope(
       fontSize: 12.5,

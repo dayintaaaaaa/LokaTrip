@@ -3,14 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
 import '../../models/kategori.dart';
-import '../../models/promo_kategori.dart';
 import '../../models/wisata_dummy.dart';
 import '../../widgets/bottom_navigator.dart';
 import '../../widgets/gambar_wisata.dart';
 import 'home_widgets/section_title.dart';
 import 'kategori_screens.dart';
-import 'kategori_widgets/banner_kategori.dart';
-import 'promo_screens.dart';
 
 class SemuaKategoriScreens extends StatefulWidget {
   const SemuaKategoriScreens({super.key});
@@ -22,7 +19,7 @@ class SemuaKategoriScreens extends StatefulWidget {
 class _SemuaKategoriScreensState extends State<SemuaKategoriScreens> {
   static const _latar = Color(0xFFF5F6FA);
   static const _gelap = Color(0xFF1A1A2E);
-  static const _filter = ['Populer', 'Ramah Anak', 'Promo Hari Ini'];
+  static const _filter = ['Populer', 'Ramah Anak'];
 
   int _filterAktif = 0;
   String _kata = '';
@@ -40,10 +37,6 @@ class _SemuaKategoriScreensState extends State<SemuaKategoriScreens> {
     switch (_filterAktif) {
       case 1:
         return Kategori.daftar.where((k) => k.ramahAnak).toList();
-      case 2:
-        return Kategori.daftar
-            .where((k) => WisataDummy.promoKategori.containsKey(k.nama))
-            .toList();
       default:
         return Kategori.daftar.where((k) => k.label != null).toList();
     }
@@ -166,31 +159,6 @@ class _SemuaKategoriScreensState extends State<SemuaKategoriScreens> {
                         ),
                       ),
                     const SizedBox(height: 16),
-
-                    // banner promo
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: BannerKategori(
-                        promo: const PromoKategori(
-                          label: 'SPECIAL LIBURAN SERU',
-                          judul: 'Pesta Wisata Nusantara',
-                          deskripsi:
-                              'Diskon s.d 10% & kuota tiket spesial minggu ini',
-                          tombol: 'Cek Promo',
-                        ),
-                        onTombol: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const PromoScreens(),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-
                   // direktori
                   SectionTitle(
                     judul: 'Direktori Kategori',
@@ -255,6 +223,7 @@ class _SemuaKategoriScreensState extends State<SemuaKategoriScreens> {
                         ),
                       ),
                     ),
+                  ],
                 ],
               ),
             ),

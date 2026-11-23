@@ -380,7 +380,7 @@ class _PembayaranLainScreensState extends State<PembayaranLainScreens> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => BuktiTransaksiScreens(
-                          data: widget.data,
+                          data: widget.data,      
                           orderId: widget.orderId,
                           metode: widget.metode,
                         ),

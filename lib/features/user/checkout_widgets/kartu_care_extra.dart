@@ -83,9 +83,9 @@ class KartuCareExtra extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  _poin('Kompensasi pembatalan akibat cuaca ekstrem atau sakit mendadak'),
+                  _benefit('Kompensasi pembatalan akibat cuaca ekstrem atau sakit mendadak'),
                   const SizedBox(height: 8),
-                  _poin('Santunan medis darurat selama kunjungan berlangsung'),
+                  _benefit('Santunan medis darurat selama kunjungan berlangsung'),
                 ],
               ),
             ),
@@ -114,7 +114,7 @@ class KartuCareExtra extends StatelessWidget {
     );
   }
 
-  Widget _poin(String teks) {
+  Widget _benefit(String teks) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -11,7 +11,6 @@ class PaketTiket {
   final String deskripsi;
   final List<String> fitur; // chip centang di dalam kartu
   final int harga;
-  final int? hargaAsli; // harga coret (null = tidak ada diskon)
   final String? hargaUsd; // contoh: '(~USD $32.50)', untuk tiket WNA
   final String satuan; // contoh: '/orang'
 
@@ -24,7 +23,6 @@ class PaketTiket {
     this.populer = false,
     this.durasi,
     this.fitur = const [],
-    this.hargaAsli,
     this.hargaUsd,
     this.satuan = '/orang',
   });
@@ -136,8 +134,6 @@ class DetailWisata {
     final hargaWniReguler = bulat(hargaWni * 0.6);
     final hargaWna = bulat(hargaWni * 1.5);
     final hargaWnaReguler = bulat(hargaWna * 0.6);
-    final hargaAsliWna =
-        w.hargaAsli == null ? null : bulat(w.hargaAsli! * 1.5);
 
     return DetailWisata(
       wisataId: w.id,
@@ -164,7 +160,6 @@ class DetailWisata {
               deskripsi: deskripsi,
               fitur: fiturUtama,
               harga: hargaWni,
-              hargaAsli: w.hargaAsli,
               satuan: satuan,
             ),
             PaketTiket(
@@ -206,7 +201,6 @@ class DetailWisata {
                   'kode QR saat verifikasi di pintu masuk.',
               fitur: [...fiturUtama, 'Jalur Prioritas WNA'],
               harga: hargaWna,
-              hargaAsli: hargaAsliWna,
               hargaUsd: usd(hargaWna),
               satuan: satuan,
             ),

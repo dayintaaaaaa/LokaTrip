@@ -47,16 +47,7 @@ class RincianPembayaran extends StatelessWidget {
             _baris('Tiket Anak (${p.anak}x)', formatRupiah(r.tiketAnak)),
           if (p.bayi > 0) _baris('Tiket Bayi (${p.bayi}x)', 'GRATIS'),
           if (r.careExtra)
-            _baris(
-              'Lokatrip Care Extra (${p.tiket}x)',
-              formatRupiah(r.biayaCare),
-            ),
-          if (r.kupon != null)
-            _baris(
-              'Diskon Promo (${r.kupon!.kode})',
-              '-${formatRupiah(r.diskon)}',
-              warna: AppColor.ungu,
-            ),
+            _baris('Care Extra', formatRupiah(r.biayaCare)),
           _baris('Biaya Layanan & Pajak', 'GRATIS', gratis: true),
           const SizedBox(height: 6),
           Divider(color: AppColor.ungu.withValues(alpha: 0.12)),

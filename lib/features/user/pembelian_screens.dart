@@ -1,13 +1,14 @@
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
-import '../../core/promo_data.dart';
+import '../../core/format.dart';
 import '../../widgets/sub_app_bar.dart';
 import '../../widgets/gambar_placeholder.dart';
 import 'pesanan_screens.dart';
 
 class PembelianScreens extends StatefulWidget {
-  final PromoItem item;
+  final dynamic item;
 
   const PembelianScreens({super.key, required this.item});
 
@@ -16,6 +17,8 @@ class PembelianScreens extends StatefulWidget {
 }
 
 class _PembelianScreensState extends State<PembelianScreens> {
+  dynamic get _p => widget.item;
+
   late DateTime _tanggal;
   int _jumlah = 1;
   int _metode = 0;
@@ -33,12 +36,8 @@ class _PembelianScreensState extends State<PembelianScreens> {
     ('Kartu Kredit / Debit', 'Visa, Mastercard', Icons.credit_card),
   ];
 
-  PromoItem get _p => widget.item;
-
-  // flash sale dibatasi sesuai sisa tiket
-  int get _maks => _p.tipe == PromoTipe.flash ? _p.sisaTiket : 10;
+  int get _maks => 10;
   int get _total => _p.harga * _jumlah;
-  int get _hemat => (_p.hargaCoret - _p.harga) * _jumlah;
 
   @override
   void initState() {
@@ -56,7 +55,10 @@ class _PembelianScreensState extends State<PembelianScreens> {
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    if (hasil != null) setState(() => _tanggal = hasil);
+
+    if (hasil != null) {
+      setState(() => _tanggal = hasil);
+    }
   }
 
   Future<void> _bayar() async {
@@ -76,7 +78,9 @@ class _PembelianScreensState extends State<PembelianScreens> {
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColor.putih,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -87,8 +91,11 @@ class _PembelianScreensState extends State<PembelianScreens> {
                 color: AppColor.biru.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check_rounded,
-                  size: 32, color: AppColor.ungu),
+              child: const Icon(
+                Icons.check_rounded,
+                size: 32,
+                color: AppColor.ungu,
+              ),
             ),
             const SizedBox(height: 14),
             Text(
@@ -103,7 +110,10 @@ class _PembelianScreensState extends State<PembelianScreens> {
             Text(
               '$_jumlah ${_p.satuanJumlah} • ${_p.judul}',
               textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(fontSize: 11, color: AppColor.abu),
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                color: AppColor.abu,
+              ),
             ),
             const SizedBox(height: 10),
             Text(
@@ -121,11 +131,11 @@ class _PembelianScreensState extends State<PembelianScreens> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(ctx); // tutup dialog
-              Navigator.pop(context); // kembali ke Promo
+              Navigator.pop(ctx);
+              Navigator.pop(context);
             },
             child: Text(
-              'Kembali ke Promo',
+              'Kembali',
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
@@ -137,7 +147,9 @@ class _PembelianScreensState extends State<PembelianScreens> {
             onPressed: () {
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (_) => const PesananScreens()),
+                MaterialPageRoute(
+                  builder: (_) => const PesananScreens(),
+                ),
                 (route) => false,
               );
             },
@@ -187,8 +199,11 @@ class _PembelianScreensState extends State<PembelianScreens> {
                       decoration: _kartu(),
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_today_outlined,
-                              size: 18, color: AppColor.ungu),
+                          const Icon(
+                            Icons.calendar_today_outlined,
+                            size: 18,
+                            color: AppColor.ungu,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -200,8 +215,11 @@ class _PembelianScreensState extends State<PembelianScreens> {
                               ),
                             ),
                           ),
-                          const Icon(Icons.edit_calendar_outlined,
-                              size: 18, color: AppColor.abu),
+                          const Icon(
+                            Icons.edit_calendar_outlined,
+                            size: 18,
+                            color: AppColor.abu,
+                          ),
                         ],
                       ),
                     ),
@@ -219,27 +237,21 @@ class _PembelianScreensState extends State<PembelianScreens> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${rp(_p.harga)} ${_p.satuan}',
+                                'Rp ${formatAngka(_p.harga)} ${_p.satuan}',
                                 style: GoogleFonts.manrope(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                   color: AppColor.hitam,
                                 ),
                               ),
-                              if (_p.tipe == PromoTipe.flash)
-                                Text(
-                                  'Maks. $_maks (sisa tiket flash sale)',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 9,
-                                    color: AppColor.kuning,
-                                  ),
-                                ),
                             ],
                           ),
                         ),
                         _tombolJumlah(
                           Icons.remove,
-                          _jumlah > 1 ? () => setState(() => _jumlah--) : null,
+                          _jumlah > 1
+                              ? () => setState(() => _jumlah--)
+                              : null,
                         ),
                         SizedBox(
                           width: 36,
@@ -255,7 +267,9 @@ class _PembelianScreensState extends State<PembelianScreens> {
                         ),
                         _tombolJumlah(
                           Icons.add,
-                          _jumlah < _maks ? () => setState(() => _jumlah++) : null,
+                          _jumlah < _maks
+                              ? () => setState(() => _jumlah++)
+                              : null,
                         ),
                       ],
                     ),
@@ -269,6 +283,7 @@ class _PembelianScreensState extends State<PembelianScreens> {
                       children: List.generate(_daftarMetode.length, (i) {
                         final (nama, sub, icon) = _daftarMetode[i];
                         final aktif = _metode == i;
+
                         return Column(
                           children: [
                             InkWell(
@@ -281,12 +296,16 @@ class _PembelianScreensState extends State<PembelianScreens> {
                                     Container(
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
-                                        color:
-                                            AppColor.ungu.withValues(alpha: 0.1),
+                                        color: AppColor.ungu.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
-                                      child: Icon(icon,
-                                          size: 16, color: AppColor.ungu),
+                                      child: Icon(
+                                        icon,
+                                        size: 16,
+                                        color: AppColor.ungu,
+                                      ),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -317,8 +336,9 @@ class _PembelianScreensState extends State<PembelianScreens> {
                                           ? Icons.radio_button_checked
                                           : Icons.radio_button_unchecked,
                                       size: 18,
-                                      color:
-                                          aktif ? AppColor.ungu : AppColor.abu,
+                                      color: aktif
+                                          ? AppColor.ungu
+                                          : AppColor.abu,
                                     ),
                                   ],
                                 ),
@@ -344,24 +364,15 @@ class _PembelianScreensState extends State<PembelianScreens> {
                     decoration: _kartu(),
                     child: Column(
                       children: [
-                        _barisRincian(
-                          '${rp(_p.hargaCoret)} x $_jumlah',
-                          rp(_p.hargaCoret * _jumlah),
-                        ),
                         const SizedBox(height: 8),
-                        _barisRincian(
-                          'Diskon promo',
-                          '- ${rp(_hemat)}',
-                          warna: AppColor.ungu,
-                        ),
-                        const SizedBox(height: 10),
                         Divider(
-                            height: 1,
-                            color: AppColor.abu.withValues(alpha: 0.25)),
+                          height: 1,
+                          color: AppColor.abu.withValues(alpha: 0.25),
+                        ),
                         const SizedBox(height: 10),
                         _barisRincian(
                           'Total Pembayaran',
-                          rp(_total),
+                          'Rp ${formatAngka(_total)}',
                           tebal: true,
                         ),
                       ],
@@ -372,7 +383,7 @@ class _PembelianScreensState extends State<PembelianScreens> {
             ),
           ),
 
-          // ===== bar bawah =====
+          // Bar bawah
           Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             decoration: BoxDecoration(
@@ -396,10 +407,12 @@ class _PembelianScreensState extends State<PembelianScreens> {
                         Text(
                           'Total',
                           style: GoogleFonts.manrope(
-                              fontSize: 10, color: AppColor.abu),
+                            fontSize: 10,
+                            color: AppColor.abu,
+                          ),
                         ),
                         Text(
-                          rp(_total),
+                          'Rp ${formatAngka(_total)}',
                           style: GoogleFonts.manrope(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
@@ -418,7 +431,9 @@ class _PembelianScreensState extends State<PembelianScreens> {
                           AppColor.ungu.withValues(alpha: 0.5),
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 28, vertical: 14),
+                        horizontal: 28,
+                        vertical: 14,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -449,7 +464,6 @@ class _PembelianScreensState extends State<PembelianScreens> {
     );
   }
 
-  // ================== KOMPONEN ==================
   Widget _ringkasan() {
     return Container(
       padding: const EdgeInsets.all(10),
@@ -487,8 +501,11 @@ class _PembelianScreensState extends State<PembelianScreens> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.location_on_outlined,
-                        size: 12, color: AppColor.ungu),
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 12,
+                      color: AppColor.ungu,
+                    ),
                     const SizedBox(width: 3),
                     Expanded(
                       child: Text(
@@ -496,7 +513,9 @@ class _PembelianScreensState extends State<PembelianScreens> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.manrope(
-                            fontSize: 10, color: AppColor.abu),
+                          fontSize: 10,
+                          color: AppColor.abu,
+                        ),
                       ),
                     ),
                   ],
@@ -511,6 +530,7 @@ class _PembelianScreensState extends State<PembelianScreens> {
 
   Widget _tombolJumlah(IconData icon, VoidCallback? onTap) {
     final aktif = onTap != null;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
@@ -523,14 +543,21 @@ class _PembelianScreensState extends State<PembelianScreens> {
               : AppColor.abu.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon,
-            size: 16, color: aktif ? AppColor.ungu : AppColor.abu),
+        child: Icon(
+          icon,
+          size: 16,
+          color: aktif ? AppColor.ungu : AppColor.abu,
+        ),
       ),
     );
   }
 
-  Widget _barisRincian(String kiri, String kanan,
-      {Color? warna, bool tebal = false}) {
+  Widget _barisRincian(
+    String kiri,
+    String kanan, {
+    Color? warna,
+    bool tebal = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

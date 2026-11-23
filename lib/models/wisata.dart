@@ -6,7 +6,6 @@ class Wisata {
   final String lokasi;
   final String? kota; // dipakai untuk filter lokasi, contoh: 'Bali'
   final int harga;
-  final int? hargaAsli; // harga sebelum diskon (null = tidak ada diskon)
   final double? rating;
   final int? jumlahUlasan;
   final String? tipe; // contoh: 'Instant Pass', 'Konfirmasi Instan'
@@ -16,8 +15,6 @@ class Wisata {
   final String? subkategori; // contoh: 'Petualangan Offroad & Pantai'
   final String? deskripsi; // kalimat singkat di bawah judul kartu
   final int? sisaTiket;
-  final int? terjualPersen; // untuk progress bar flash sale (0-100)
-  final int? poin; // contoh: 450 -> "+450 Poin"
   final bool bisaRefund;
   final String? gambar; // URL foto utama (atau path asset untuk dummy), null = placeholder
   final String? ulasan; // cuplikan ulasan pendek
@@ -25,7 +22,6 @@ class Wisata {
   final String? termasuk; // contoh: 'Termasuk Tiket Masuk & Sarapan'
   final String? satuanHarga; // contoh: '/orang', '/malam'
   final List<String> fitur; // chip kecil, contoh: ['Bisa Reschedule']
-  final String? bonus; // contoh: 'Bonus Cashback 10% Poin Loka'
   // field baru di dalam class Wisata
   final int? idKategori;
   final List<String> fotoList;
@@ -37,7 +33,6 @@ class Wisata {
     required this.lokasi,
     required this.harga,
     this.kota,
-    this.hargaAsli,
     this.rating,
     this.jumlahUlasan,
     this.tipe,
@@ -47,8 +42,6 @@ class Wisata {
     this.subkategori,
     this.deskripsi,
     this.sisaTiket,
-    this.terjualPersen,
-    this.poin,
     this.bisaRefund = false,
     this.gambar,
     this.ulasan,
@@ -56,19 +49,12 @@ class Wisata {
     this.termasuk,
     this.satuanHarga,
     this.fitur = const [],
-    this.bonus,
     // di constructor, tambahkan:
     this.idKategori,
     this.fotoList = const [],
     this.paket = const [],
   });
 
-  // persen diskon dihitung otomatis dari dua harga
-  int get diskonPersen {
-    final asli = hargaAsli;
-    if (asli == null || asli <= harga) return 0;
-    return (((asli - harga) / asli) * 100).round();
-  }
 
   // factory baru di dalam class Wisata
   factory Wisata.fromMap(Map<String, dynamic> m) {

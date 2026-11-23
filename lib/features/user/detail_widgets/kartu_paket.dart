@@ -205,15 +205,6 @@ class KartuPaket extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (p.hargaAsli != null)
-          Text(
-            formatRupiah(p.hargaAsli!),
-            style: GoogleFonts.manrope(
-              fontSize: 10,
-              color: AppColor.abu,
-              decoration: TextDecoration.lineThrough,
-            ),
-          ),
         Text.rich(
           TextSpan(
             children: [

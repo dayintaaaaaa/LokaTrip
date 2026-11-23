@@ -68,7 +68,7 @@ class SnkScreens extends StatelessWidget {
       [
         '3.1. Setiap pemesanan bersifat final. Pembatalan karena kendala pribadi, perubahan rencana, atau cuaca biasa tidak dapat dikembalikan dananya.',
         '3.2. Pengembalian dana hanya diberikan jika destinasi atau penyelenggara membatalkan layanan, atau terjadi keadaan kahar resmi seperti penutupan destinasi oleh pemerintah, bencana alam, atau larangan perjalanan.',
-        '3.3. Dana yang disetujui dikembalikan ke metode pembayaran awal atau dalam bentuk Loka-Poin, paling lambat 14 hari kerja setelah pengajuan diverifikasi.',
+        '3.3. Dana yang disetujui dikembalikan ke metode pembayaran awal, paling lambat 14 hari kerja setelah pengajuan diverifikasi.',
       ],
     ),
     _Pasal(
@@ -123,7 +123,7 @@ class SnkScreens extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '3 Poin Pokok',
+                        'Ketentuan Utama',
                         style: GoogleFonts.manrope(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,

@@ -242,7 +242,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                             ),
                           ),
                           info:
-                              'Diperlukan untuk klaim asuransi perjalanan Lokatrip Care dan diskon usia traveler.',
+                              'Diperlukan untuk klaim asuransi perjalanan Lokatrip Care.',
                           infoIcon: Icons.shield_outlined,
                         ),
                         _kartu(

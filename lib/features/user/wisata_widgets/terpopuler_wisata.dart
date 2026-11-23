@@ -15,8 +15,6 @@ class TerpopulerWisata extends StatelessWidget {
 
   const TerpopulerWisata({super.key, required this.daftar});
 
-  static const _amber = AppColor.kuning;
-
   @override
   Widget build(BuildContext context) {
     final lebarKartu = (MediaQuery.of(context).size.width * 0.62)
@@ -149,20 +147,11 @@ class TerpopulerWisata extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
 
-                  // chip tipe + poin
-                  if (w.tipe != null || w.poin != null)
+                  // tipe tiket
+                  if (w.tipe != null)
                     Row(
                       children: [
-                        if (w.tipe != null)
-                          _chip(Icons.check_circle, w.tipe!, AppColor.biru),
-                        if (w.tipe != null && w.poin != null)
-                          const SizedBox(width: 4),
-                        if (w.poin != null)
-                          _chip(
-                            Icons.monetization_on_outlined,
-                            '+${w.poin} Poin',
-                            _amber,
-                          ),
+                        _chip(Icons.check_circle, w.tipe!, AppColor.biru),
                       ],
                     ),
 
@@ -177,15 +166,6 @@ class TerpopulerWisata extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (w.hargaAsli != null)
-                              Text(
-                                formatRupiah(w.hargaAsli!),
-                                style: GoogleFonts.manrope(
-                                  fontSize: 9,
-                                  color: AppColor.abu,
-                                  decoration: TextDecoration.lineThrough,
-                                ),
-                              ),
                             Text(
                               formatRupiah(w.harga),
                               style: GoogleFonts.outfit(

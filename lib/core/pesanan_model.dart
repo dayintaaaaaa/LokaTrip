@@ -65,10 +65,9 @@ class DataPesanan {
       labelJadwal: 'Jadwal Kunjungan',
       jadwal: 'Besok, 25 Okt 2024',
       jam: '09:00 - 18:00 WITA',
-      labelTotal: 'Total Bayar (Flash Sale)',
+      labelTotal: 'Total Bayar',
       total: 'Rp 137.500',
-      catatanTotal: 'Hemat 45%',
-      metode: 'QRIS',
+            metode: 'QRIS',
     ),
     Pesanan(
       id: 'LKT-78391024',

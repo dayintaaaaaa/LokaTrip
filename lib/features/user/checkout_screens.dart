@@ -6,19 +6,16 @@ import '../../core/app_color.dart';
 import '../../core/format_rupiah.dart';
 import '../../models/data_checkout.dart';
 import '../../models/data_pemesanan.dart';
-import '../../models/kupon_dummy.dart';
 import '../../models/profil_dummy.dart';
 import 'checkout_widgets/banner_waktu.dart';
 import 'checkout_widgets/form_pemesanan.dart';
 import 'checkout_widgets/kartu_care_extra.dart';
-import 'checkout_widgets/kartu_kupon.dart';
 import 'checkout_widgets/rincian_pembayaran.dart';
 import 'checkout_widgets/ringkasan_pesanan.dart';
 import 'checkout_widgets/stepper_checkout.dart';
-import 'pilih_kupon_screens.dart';
 import 'metode_pembayaran_screens.dart';
 
-// Langkah 1 checkout: isi data pemesan, pilih Care Extra, pasang kupon.
+// Langkah 1 checkout: isi data pemesan dan pilih Care Extra.
 class CheckoutScreens extends StatefulWidget {
   final DataPemesanan pesanan; // hasil dari Atur Jadwal & Pengunjung
 
@@ -39,29 +36,21 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
   final _namaF = FocusNode();
   final _emailF = FocusNode();
   final _teleponF = FocusNode();
-  final _kodeC = TextEditingController();
 
   final _sisaDetik = ValueNotifier<int>(_batasDetik);
   Timer? _timer;
 
   bool _pakaiProfil = false;
   bool _careExtra = false;
-  Kupon? _kupon; 
-  String? _errorKupon;
 
   RincianHarga get _rincian => RincianHarga(
     pesanan: widget.pesanan,
     careExtra: _careExtra,
-    kupon: _kupon,
   );
 
   @override
   void initState() {
     super.initState();
-        // kupon bawaan dari desain, dipasang hanya kalau memenuhi syarat minimal
-    if (KuponDummy.bawaan.layak(widget.pesanan.total)) {
-      _kupon = KuponDummy.bawaan;
-    }
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_sisaDetik.value <= 1) {
         t.cancel();
@@ -83,7 +72,6 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
     _namaF.dispose();
     _emailF.dispose();
     _teleponF.dispose();
-    _kodeC.dispose();
     super.dispose();
   }
 
@@ -122,51 +110,6 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
         _emailC.clear();
         _teleponC.clear();
       }
-    });
-  }
-
-    void _pakaiKupon() {
-    final kode = _kodeC.text.trim();
-    if (kode.isEmpty) {
-      setState(() => _errorKupon = 'Masukkan kode kupon dulu');
-      return;
-    }
-    final k = KuponDummy.cari(kode);
-    setState(() {
-      if (k == null) {
-        _errorKupon = 'Kode kupon tidak ditemukan';
-      } else if (!k.layak(_rincian.subtotalTiket)) {
-        _errorKupon = 'Minimal transaksi ${formatRupiah(k.minTransaksi)}';
-      } else {
-        _kupon = k;
-        _errorKupon = null;
-        _kodeC.clear();
-      }
-    });
-  }
-
-  Future<void> _pilihDariDaftar() async {
-    final hasil = await Navigator.push<KuponHasil>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PilihKuponScreens(
-          subtotal: _rincian.subtotalTiket,
-          terpilih: _kupon,
-        ),
-      ),
-    );
-    if (hasil != null) {
-      setState(() {
-        _kupon = hasil.kupon;
-        _errorKupon = null;
-      });
-    }
-  }
-
-  void _hapusKupon() {
-    setState(() {
-      _kupon = null;
-      _errorKupon = null;
     });
   }
 
@@ -238,16 +181,6 @@ class _CheckoutScreensState extends State<CheckoutScreens> {
                   KartuCareExtra(
                     aktif: _careExtra,
                     onUbah: (v) => setState(() => _careExtra = v),
-                  ),
-                  const SizedBox(height: 14),
-                  KartuKupon(
-                    kupon: _kupon,
-                    diskon: r.diskon,
-                    kodeC: _kodeC,
-                    error: _errorKupon,
-                    onPakai: _pakaiKupon,
-                    onHapus: _hapusKupon,
-                    onPilih: _pilihDariDaftar,
                   ),
                   const SizedBox(height: 14),
                   RincianPembayaran(rincian: r),
