@@ -27,7 +27,8 @@ const _bulan = [
 ];
 
 class PesananScreens extends StatefulWidget {
-  const PesananScreens({super.key});
+  final bool mulaiDiRiwayat; // true = buka tab Riwayat Selesai
+  const PesananScreens({super.key, this.mulaiDiRiwayat = false});
 
   @override
   State<PesananScreens> createState() => _PesananScreensState();

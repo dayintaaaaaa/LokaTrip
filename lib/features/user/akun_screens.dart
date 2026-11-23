@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/app_color.dart';
 import '../../core/session_manager.dart';
+import '../../models/pesanan_saya.dart';
+import '../../services/pesanan_service.dart';
+import '../../services/profile_service.dart';
+import '../../services/profile_store.dart';
 import '../../widgets/top_navigator.dart';
 import '../../widgets/bottom_navigator.dart';
 import '../login_screens.dart';
 import 'edit_profile_screens.dart';
+import 'pesanan_screens.dart';
 import 'wishlist_screens.dart';
 import 'keamanan_akun_screens.dart';
 import 'snk_screens.dart';
@@ -18,13 +24,35 @@ class AkunScreens extends StatefulWidget {
 }
 
 class _AkunScreensState extends State<AkunScreens> {
-  // TODO: ganti dengan data dari Supabase (tabel profiles)
-  final String _nama = 'Sarah Anindita';
-  final String _email = 'sarah.anindita@email.com';
-  final String _telepon = '+62 812-3456-7890';
-  final int _jumlahUlasan = 24;
-  final int _jumlahWishlist = 12;
-  final int _eTiketAktif = 2;
+  // TODO: hubungkan ke tabel ulasan dan wishlist/favorit di Supabase.
+  // Sementara 0, karena datanya memang belum ada.
+  final int _jumlahUlasan = 0;
+  final int _jumlahWishlist = 0;
+
+  // jumlah e-tiket pada pesanan yang masih aktif (dari tabel e_tiket)
+  int _eTiketAktif = 0;
+
+  // email ada di akun login (Supabase Auth), bukan di tabel users
+  String get _email => Supabase.instance.client.auth.currentUser?.email ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    _muatETiket();
+  }
+
+  Future<void> _muatETiket() async {
+    try {
+      final daftar = await PesananService().daftarSaya();
+      final n = daftar
+          .where((p) => p.status == StatusPesananSaya.aktif)
+          .fold<int>(0, (a, p) => a + p.kodeTiket.length);
+      if (!mounted) return;
+      setState(() => _eTiketAktif = n);
+    } catch (e) {
+      debugPrint('Gagal menghitung e-tiket aktif: $e');
+    }
+  }
 
   Future<void> _logout() async {
     await SessionManager.logout();
@@ -33,6 +61,18 @@ class _AkunScreensState extends State<AkunScreens> {
       context,
       MaterialPageRoute(builder: (_) => const LoginScreens()),
       (route) => false,
+    );
+  }
+
+  // pindah ke tab Pesanan (sama seperti mengetuk tab Pesanan di bawah)
+  void _keTabPesanan({bool riwayat = false}) {
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, _, _) => PesananScreens(mulaiDiRiwayat: riwayat),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
     );
   }
 
@@ -60,9 +100,8 @@ class _AkunScreensState extends State<AkunScreens> {
                             warna: AppColor.ungu,
                             angka: '$_jumlahUlasan',
                             label: 'Ulasan Wisata',
-                            onTap: () {
-                              // TODO: arahkan ke halaman Ulasan Wisata
-                            },
+                            // ulasan diberikan dari pesanan yang sudah selesai
+                            onTap: () => _keTabPesanan(riwayat: true),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -103,12 +142,14 @@ class _AkunScreensState extends State<AkunScreens> {
                       _MenuTile(
                         icon: Icons.confirmation_number_outlined,
                         judul: 'Riwayat Pesanan & E-Tiket',
-                        subjudul: '$_eTiketAktif E-Tiket aktif siap pakai',
-                        trailing: const Icon(Icons.circle,
-                            size: 8, color: AppColor.kuning),
-                        onTap: () {
-                          // TODO: arahkan ke riwayat pesanan
-                        },
+                        subjudul: _eTiketAktif > 0
+                            ? '$_eTiketAktif E-Tiket aktif siap pakai'
+                            : 'Belum ada E-Tiket aktif',
+                        trailing: _eTiketAktif > 0
+                            ? const Icon(Icons.circle,
+                                size: 8, color: AppColor.kuning)
+                            : null,
+                        onTap: _keTabPesanan,
                       ),
                     ]),
 
@@ -180,46 +221,74 @@ class _AkunScreensState extends State<AkunScreens> {
     );
   }
 
+  // nama, telepon, dan foto dari tabel users lewat ProfilStore
   Widget _header() {
-    return Row(
-      children: [
-        const CircleAvatar(
-          radius: 30,
-          backgroundColor: AppColor.biru,
-          // TODO: foto dari Supabase Storage (backgroundImage: NetworkImage(...))
-          child: Icon(Icons.person, size: 32, color: AppColor.putih),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _nama,
-                style: GoogleFonts.manrope(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: AppColor.hitam,
-                ),
+    return ValueListenableBuilder<Map<String, dynamic>?>(
+      valueListenable: ProfilStore.instance.profil,
+      builder: (_, profil, _) {
+        final nama = (profil?['nama_lengkap_user'] ?? '') as String;
+        final telepon = ProfileService.keFormatLokal(
+          (profil?['no_telephone'] ?? '') as String,
+        );
+        final foto = ProfilStore.instance.fotoUrl;
+        final email = _email;
+
+        return Row(
+          children: [
+            CircleAvatar(
+              radius: 30,
+              backgroundColor: AppColor.biru,
+              backgroundImage: foto != null ? NetworkImage(foto) : null,
+              child: foto == null
+                  ? const Icon(Icons.person, size: 32, color: AppColor.putih)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    profil == null
+                        ? 'Memuat...'
+                        : (nama.isEmpty ? 'Pengguna LokaTrip' : nama),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.manrope(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColor.hitam,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  if (email.isNotEmpty)
+                    Text(
+                      email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.manrope(
+                          fontSize: 11, color: AppColor.hitam),
+                    ),
+                  if (telepon.isNotEmpty)
+                    Text(
+                      telepon,
+                      style: GoogleFonts.manrope(
+                          fontSize: 11, color: AppColor.hitam),
+                    ),
+                ],
               ),
-              const SizedBox(height: 2),
-              Text(_email,
-                  style: GoogleFonts.manrope(
-                      fontSize: 11, color: AppColor.hitam)),
-              Text(_telepon,
-                  style: GoogleFonts.manrope(
-                      fontSize: 11, color: AppColor.hitam)),
-            ],
-          ),
-        ),
-        IconButton(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const EditProfileScreens()),
-          ),
-          icon: const Icon(Icons.edit_outlined, size: 18, color: AppColor.ungu),
-        ),
-      ],
+            ),
+            IconButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EditProfileScreens()),
+              ),
+              icon: const Icon(Icons.edit_outlined,
+                  size: 18, color: AppColor.ungu),
+            ),
+          ],
+        );
+      },
     );
   }
 
