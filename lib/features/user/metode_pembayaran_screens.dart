@@ -1,15 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/app_color.dart';
 import '../../core/format_rupiah.dart';
+import '../../core/format_waktu.dart';
 import '../../models/data_checkout.dart';
-<<<<<<< HEAD
-=======
 import '../../services/pemesanan_service.dart';
 import '../../widgets/gambar_wisata.dart';
 import 'checkout_widgets/stepper_checkout.dart';
->>>>>>> 2cc143eaec4226f7464f6bfe3044a0c8686df5b1
 import 'pembayaran_screens.dart';
 
 class MetodePembayaranScreens extends StatefulWidget {
@@ -23,57 +22,18 @@ class MetodePembayaranScreens extends StatefulWidget {
 }
 
 class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
-  static const _metode = [
-    (
-      nama: 'Virtual Account',
-      detail: 'BCA, Mandiri, BNI, BRI',
-      ikon: Icons.account_balance_outlined,
-      jenis: 1,
-    ),
-    (
-      nama: 'E-Wallet',
-      detail: 'GoPay, OVO, DANA, ShopeePay',
-      ikon: Icons.account_balance_wallet_outlined,
-      jenis: 2,
-    ),
-    (
-      nama: 'QRIS',
-      detail: 'Bayar dengan scan kode QR',
-      ikon: Icons.qr_code_2,
-      jenis: 0,
-    ),
-    (
-      nama: 'Kartu Kredit / Debit',
-      detail: 'Visa, Mastercard',
-      ikon: Icons.credit_card_outlined,
-      jenis: 3,
-    ),
-  ];
+  // 0 QRIS, 1 VA, 2 Dompet Digital, 3 Kartu, 4 PayLater
+  int _metode = 0;
+  final Map<int, String> _pilihan = {1: 'BCA', 2: 'GoPay'};
 
-  int _terpilih = 0;
+  Duration _sisa = const Duration(minutes: 15);
+  Timer? _timer;
 
-<<<<<<< HEAD
-  void _lanjut() {
-    final metode = _metode[_terpilih];
-    final orderId = 'LKT-${DateTime.now().millisecondsSinceEpoch}';
-
-    final halaman = metode.jenis == 0
-        ? QrisScreens(data: widget.data, orderId: orderId)
-        : PembayaranLainScreens(
-            data: widget.data,
-            orderId: orderId,
-            metode: metode.nama,
-            jenis: metode.jenis,
-=======
   final _service = PemesananService();
 
-  // Pesanan dari database. Dibuat sekali saja, saat pertama kali menekan
-  // "Bayar Sekarang". Kalau user kembali dari halaman bayar lalu menekan
-  // lagi, pesanan yang sama dipakai (tidak membuat pesanan baru).
   HasilPemesanan? _hasil;
   bool _memproses = false;
 
-  // kode lokal untuk wisata dummy (belum punya paket di database)
   late final String _kodeDummy =
       'LKT-${DateTime.now().millisecondsSinceEpoch % 10000000}';
 
@@ -113,12 +73,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
     );
   }
 
-  // Buat pesanan di Supabase (sekali saja). Mengembalikan kode pesanan,
-  // atau null kalau gagal (pesan error sudah ditampilkan).
   Future<String?> _siapkanPesanan() async {
     final p = _d.pesanan;
 
-    // wisata dummy: belum ada paket di database
     if (p.paket.idPaket == null) return _kodeDummy;
 
     setState(() => _memproses = true);
@@ -139,7 +96,6 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
       if (mounted) setState(() => _memproses = false);
     }
 
-    // jaga-jaga: total di layar harus sama dengan total di server
     if (_hasil!.totalBayar != _d.rincian.total) {
       _pesan('Harga tiket berubah, silakan ulangi pemesanan');
       return null;
@@ -165,30 +121,15 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
             orderId: kode,
             metode: _labelMetode,
             jenis: _metode,
->>>>>>> 2cc143eaec4226f7464f6bfe3044a0c8686df5b1
           );
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => halaman),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => tujuan));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColor.latar,
-<<<<<<< HEAD
-      appBar: AppBar(
-        backgroundColor: AppColor.putih,
-        foregroundColor: AppColor.hitam,
-        elevation: 0,
-        title: Text(
-          'Metode Pembayaran',
-          style: GoogleFonts.manrope(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-=======
       body: Column(
         children: [
           _header(),
@@ -200,27 +141,13 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                 children: [
                   _ringkasan(),
                   const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Pilih Metode Pembayaran',
-                          style: GoogleFonts.manrope(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: AppColor.hitam,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        'BEBAS BIAYA ADMIN',
-                        style: GoogleFonts.manrope(
-                          fontSize: 8,
-                          fontWeight: FontWeight.w800,
-                          color: AppColor.ungu,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Pilih Metode Pembayaran',
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColor.hitam,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   _metodeKartu(
@@ -228,7 +155,6 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                     icon: Icons.qr_code_2,
                     judul: 'QRIS Instan',
                     sub: 'Scan otomatis lewat GoPay, OVO, BCA, DANA, ShopeePay',
-                    badge: 'Rekomendasi',
                     info: const ['GOPAY', 'OVO', 'BCA', 'DANA'],
                   ),
                   _metodeKartu(
@@ -248,115 +174,215 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                   Row(
                     children: [
                       Expanded(
-                        child: _metodeKecil(3, Icons.credit_card,
-                            'Kartu Kredit', 'Visa/Master', AppColor.abu),
+                        child: _metodeKecil(
+                          3,
+                          Icons.credit_card,
+                          'Kartu Kredit',
+                          'Visa/Master',
+                          AppColor.abu,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: _metodeKecil(4, Icons.access_time, 'PayLater',
-                            'Cicilan 0%', AppColor.kuning),
+                        child: _metodeKecil(
+                          4,
+                          Icons.access_time,
+                          'PayLater',
+                          'Cicilan 0%',
+                          AppColor.kuning,
+                        ),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
->>>>>>> 2cc143eaec4226f7464f6bfe3044a0c8686df5b1
           ),
+          _bawah(),
+        ],
+      ),
+    );
+  }
+
+  // ================== HEADER + STEPPER ==================
+  Widget _header() {
+    final habis = _sisa.inSeconds <= 0;
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColor.putih,
+        border: Border(
+          bottom: BorderSide(color: AppColor.abu.withValues(alpha: 0.15)),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColor.putih,
-              borderRadius: BorderRadius.circular(14),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            SizedBox(
+              height: 52,
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: AppColor.hitam,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Metode Pembayaran',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColor.hitam,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    margin: const EdgeInsets.only(right: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: habis
+                          ? AppColor.abu.withValues(alpha: 0.3)
+                          : AppColor.kuning.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.timer_outlined,
+                          size: 13,
+                          color: AppColor.kuning,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          formatWaktu(_sisa),
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: AppColor.kuning,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: StepperCheckout(aktif: 2),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ================== RINGKASAN ==================
+  Widget _ringkasan() {
+    final p = _d.pesanan;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: _dekor(),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              width: 56,
+              height: 56,
+              child: GambarWisata(path: p.detail.gambar),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColor.biru.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'TIKET WISATA',
+                        style: GoogleFonts.manrope(
+                          fontSize: 7,
+                          fontWeight: FontWeight.w800,
+                          color: AppColor.ungu,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      tglPendek(p.tanggal),
+                      style: GoogleFonts.manrope(
+                        fontSize: 9,
+                        color: AppColor.abu,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
                 Text(
-                  'Total Pembayaran',
-                  style: GoogleFonts.manrope(
-                    fontSize: 11,
-                    color: AppColor.abu,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  formatRupiah(widget.data.rincian.total),
-                  style: GoogleFonts.outfit(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: AppColor.ungu,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'Pilih metode pembayaran',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: AppColor.hitam,
-            ),
-          ),
-          const SizedBox(height: 10),
-          for (var i = 0; i < _metode.length; i++)
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                color: AppColor.putih,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: _terpilih == i
-                      ? AppColor.ungu
-                      : AppColor.abu.withValues(alpha: 0.2),
-                ),
-              ),
-              child: RadioListTile<int>(
-                value: i,
-                groupValue: _terpilih,
-                activeColor: AppColor.ungu,
-                onChanged: (v) {
-                  if (v != null) setState(() => _terpilih = v);
-                },
-                title: Text(
-                  _metode[i].nama,
+                  p.detail.judul,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     color: AppColor.hitam,
                   ),
                 ),
-                subtitle: Text(
-                  _metode[i].detail,
+                Text(
+                  '${p.teksTamu} • ${p.paket.namaPendek}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
-                    fontSize: 10,
+                    fontSize: 9,
                     color: AppColor.abu,
                   ),
                 ),
-                secondary: Icon(
-                  _metode[i].ikon,
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'TOTAL TAGIHAN',
+                style: GoogleFonts.manrope(
+                  fontSize: 7,
+                  fontWeight: FontWeight.w800,
+                  color: AppColor.abu,
+                ),
+              ),
+              Text(
+                formatRupiah(_d.rincian.total),
+                style: GoogleFonts.outfit(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
                   color: AppColor.ungu,
                 ),
               ),
-            ),
+            ],
+          ),
         ],
       ),
-<<<<<<< HEAD
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _lanjut,
-=======
     );
   }
 
@@ -366,7 +392,6 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
     required IconData icon,
     required String judul,
     required String sub,
-    String? badge,
     List<String> info = const [],
     List<String> dropdown = const [],
   }) {
@@ -384,7 +409,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
             color: AppColor.putih,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: aktif ? AppColor.ungu : AppColor.abu.withValues(alpha: 0.2),
+              color: aktif
+                  ? AppColor.ungu
+                  : AppColor.abu.withValues(alpha: 0.2),
               width: aktif ? 2 : 1,
             ),
           ),
@@ -406,44 +433,21 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                judul,
-                                style: GoogleFonts.manrope(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColor.hitam,
-                                ),
-                              ),
-                            ),
-                            if (badge != null) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColor.kuning.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  badge,
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColor.kuning,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
+                        Text(
+                          judul,
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppColor.hitam,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           sub,
                           style: GoogleFonts.manrope(
-                              fontSize: 10, color: AppColor.abu),
+                            fontSize: 10,
+                            color: AppColor.abu,
+                          ),
                         ),
                       ],
                     ),
@@ -470,24 +474,29 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                 Wrap(
                   spacing: 6,
                   children: info
-                      .map((t) => Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppColor.latar,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                  color: AppColor.abu.withValues(alpha: 0.2)),
+                      .map(
+                        (t) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColor.latar,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: AppColor.abu.withValues(alpha: 0.2),
                             ),
-                            child: Text(
-                              t,
-                              style: GoogleFonts.manrope(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                color: AppColor.hitam.withValues(alpha: 0.7),
-                              ),
+                          ),
+                          child: Text(
+                            t,
+                            style: GoogleFonts.manrope(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: AppColor.hitam.withValues(alpha: 0.7),
                             ),
-                          ))
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
               ],
@@ -503,7 +512,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: dipilih ? AppColor.ungu : AppColor.latar,
                           borderRadius: BorderRadius.circular(20),
@@ -513,7 +524,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                           style: GoogleFonts.manrope(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: dipilih ? AppColor.putih : AppColor.hitam,
+                            color: dipilih
+                                ? AppColor.putih
+                                : AppColor.hitam,
                           ),
                         ),
                       ),
@@ -529,7 +542,12 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
   }
 
   Widget _metodeKecil(
-      int index, IconData icon, String judul, String sub, Color warnaSub) {
+    int index,
+    IconData icon,
+    String judul,
+    String sub,
+    Color warnaSub,
+  ) {
     final aktif = _metode == index;
     return InkWell(
       onTap: () => setState(() => _metode = index),
@@ -540,7 +558,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
           color: AppColor.putih,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: aktif ? AppColor.ungu : AppColor.abu.withValues(alpha: 0.2),
+            color: aktif
+                ? AppColor.ungu
+                : AppColor.abu.withValues(alpha: 0.2),
             width: aktif ? 2 : 1,
           ),
         ),
@@ -574,7 +594,9 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
               ),
             ),
             Icon(
-              aktif ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              aktif
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
               size: 18,
               color: aktif ? AppColor.ungu : AppColor.abu,
             ),
@@ -644,26 +666,31 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
->>>>>>> 2cc143eaec4226f7464f6bfe3044a0c8686df5b1
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColor.ungu,
                 foregroundColor: AppColor.putih,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 16,
                 ),
-              ),
-              child: Text(
-                'Lanjutkan Pembayaran',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),
-          ),
+          ],
         ),
+      ),
+    );
+  }
+
+  BoxDecoration _dekor() {
+    return BoxDecoration(
+      color: AppColor.putih,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(
+        color: AppColor.abu.withValues(alpha: 0.15),
       ),
     );
   }

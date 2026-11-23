@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -467,23 +468,8 @@ class _PembayaranLainScreensState extends State<PembayaranLainScreens> {
           _tombolBawah(
             icon: Icons.shield_outlined,
             teks: 'Simulasi Bayar Berhasil',
-<<<<<<< HEAD
-            onTap: habis
-                ? null
-                : () => Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BuktiTransaksiScreens(
-                          data: widget.data,      
-                          orderId: widget.orderId,
-                          metode: widget.metode,
-                        ),
-                      ),
-                    ),
-=======
             onTap: habis ? null : _simulasiBerhasil,
             memproses: _memproses,
->>>>>>> 2cc143eaec4226f7464f6bfe3044a0c8686df5b1
           ),
         ],
       ),
