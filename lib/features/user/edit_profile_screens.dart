@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../core/api_client.dart';
 import '../../core/app_color.dart';
+import '../../core/session_manager.dart';
 import '../../services/auth_service.dart';
 import '../../services/profile_store.dart';
 import '../../services/profile_service.dart';
@@ -23,13 +26,24 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
   DateTime? _tanggalLahir;
   String? _gender;
   String? _fotoUrl;
+
   bool _memuat = true;
   bool _menyimpan = false;
   bool _uploadFoto = false;
 
   static const _bulan = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
   ];
 
   @override
@@ -48,26 +62,51 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
 
   void _pesan(String teks) {
     if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(teks)));
   }
 
+  // Memuat profil melalui API.
   Future<void> _muat() async {
     try {
-      final p = await ProfileService().getProfile();
+      final token = await SessionManager.currentUserToken();
+
+      if (token == null) {
+        throw Exception(
+          'Sesi pengguna tidak ditemukan. Silakan login kembali.',
+        );
+      }
+
+      final hasil = await UserApi.profile(token);
+      final p = Map<String, dynamic>.from(hasil['user'] as Map);
+
       if (!mounted) return;
+
       setState(() {
-        _namaC.text = p['nama_lengkap_user'] ?? '';
-        _emailC.text = Supabase.instance.client.auth.currentUser?.email ?? '';
-        _teleponC.text = ProfileService.keFormatLokal(p['no_telephone'] ?? '');
-        final tgl = p['tgl_lahir'] as String?;
-        _tanggalLahir = tgl == null ? null : DateTime.parse(tgl);
-        _gender = ProfileService.genderKeLabel(p['jenis_kelamin'] as String?);
-        _fotoUrl = p['foto_profil'] as String?;
+        _namaC.text = p['nama_lengkap_user']?.toString() ?? '';
+
+        _emailC.text =
+            p['email']?.toString() ??
+            Supabase.instance.client.auth.currentUser?.email ??
+            '';
+
+        _teleponC.text = ProfileService.keFormatLokal(
+          p['no_telephone']?.toString() ?? '',
+        );
+
+        final tgl = p['tgl_lahir']?.toString();
+        _tanggalLahir = tgl == null ? null : DateTime.tryParse(tgl);
+
+        _gender = ProfileService.genderKeLabel(p['jenis_kelamin']?.toString());
+
+        _fotoUrl = p['foto_profil']?.toString();
       });
-    } on AuthFailure catch (e) {
-      _pesan(e.message);
+    } catch (e) {
+      _pesan('Gagal memuat profil: $e');
     } finally {
-      if (mounted) setState(() => _memuat = false);
+      if (mounted) {
+        setState(() => _memuat = false);
+      }
     }
   }
 
@@ -78,73 +117,119 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
       firstDate: DateTime(1940),
       lastDate: DateTime.now(),
     );
-    if (hasil != null) setState(() => _tanggalLahir = hasil);
+
+    if (hasil != null && mounted) {
+      setState(() => _tanggalLahir = hasil);
+    }
   }
 
+  // Menyimpan perubahan profil melalui UserApi.
   Future<void> _simpan() async {
     if (_namaC.text.trim().isEmpty) {
       _pesan('Nama lengkap wajib diisi');
       return;
     }
+
     if (_teleponC.text.trim().length < 9) {
       _pesan('Nomor telepon tidak valid');
       return;
     }
 
     setState(() => _menyimpan = true);
+
     try {
-      await ProfileService().updateProfile(
-        namaLengkap: _namaC.text,
-        noTelepon: _teleponC.text,
-        tanggalLahir: _tanggalLahir,
-        jenisKelamin: _gender,
-      );
+      final token = await SessionManager.currentUserToken();
+
+      if (token == null) {
+        throw Exception(
+          'Sesi pengguna tidak ditemukan. Silakan login kembali.',
+        );
+      }
+
+      await UserApi.updateProfile(token, {
+        'nama_lengkap_user': _namaC.text.trim(),
+        'no_telephone': AuthService.normalizePhone(_teleponC.text),
+        'tgl_lahir': _tanggalLahir?.toIso8601String().split('T').first,
+        'jenis_kelamin': _gender == null
+            ? null
+            : (_gender == 'Perempuan' ? 'P' : 'L'),
+      });
+
+      // Memperbarui sumber data profil yang digunakan halaman User.
       await ProfilStore.instance.muat(paksa: true);
+
       if (!mounted) return;
+
       _pesan('Perubahan berhasil disimpan');
-      Navigator.pop(context, true); // true = data berubah
-    } on AuthFailure catch (e) {
-      _pesan(e.message);
+      Navigator.pop(context, true);
+    } catch (e) {
+      _pesan('Gagal menyimpan profil: $e');
     } finally {
-      if (mounted) setState(() => _menyimpan = false);
+      if (mounted) {
+        setState(() => _menyimpan = false);
+      }
     }
   }
 
+  // Mengganti foto tetap menggunakan ProfileService.
   Future<void> _gantiFoto() async {
-    final file = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1024,
-      imageQuality: 85,
-    );
-    if (file == null) return;
+    if (_uploadFoto) return;
 
-    setState(() => _uploadFoto = true);
     try {
+      final file = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        imageQuality: 85,
+      );
+
+      if (file == null || !mounted) return;
+
+      setState(() => _uploadFoto = true);
+
       final url = await ProfileService().uploadFoto(file);
+
       if (!mounted) return;
+
       setState(() => _fotoUrl = url);
-      ProfilStore.instance.muat(paksa: true);
-      _pesan('Foto profil diperbarui');
+
+      await ProfilStore.instance.muat(paksa: true);
+
+      _pesan('Foto profil berhasil diperbarui');
     } on AuthFailure catch (e) {
       _pesan(e.message);
+    } catch (e) {
+      _pesan('Gagal memproses foto: $e');
     } finally {
-      if (mounted) setState(() => _uploadFoto = false);
+      if (mounted) {
+        setState(() => _uploadFoto = false);
+      }
     }
   }
 
+  // Menghapus foto profil dari Supabase Storage.
   Future<void> _hapusFoto() async {
-    if (_fotoUrl == null) return;
+    if (_fotoUrl == null || _uploadFoto) return;
+
     setState(() => _uploadFoto = true);
+
     try {
       await ProfileService().hapusFoto();
+
       if (!mounted) return;
+
       setState(() => _fotoUrl = null);
-      ProfilStore.instance.muat(paksa: true);
+
+      await ProfilStore.instance.muat(paksa: true);
+
       _pesan('Foto profil dihapus');
     } on AuthFailure catch (e) {
       _pesan(e.message);
+    } catch (e) {
+      _pesan('Gagal menghapus foto: $e');
     } finally {
-      if (mounted) setState(() => _uploadFoto = false);
+      if (mounted) {
+        setState(() => _uploadFoto = false);
+      }
     }
   }
 
@@ -186,7 +271,6 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                           ),
                         ),
                         const SizedBox(height: 12),
-
                         _kartu(
                           label: 'Nama Lengkap',
                           child: _field(_namaC, Icons.badge_outlined),
@@ -208,8 +292,11 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                         ),
                         _kartu(
                           label: 'Nomor Telepon / WhatsApp',
-                          child: _field(_teleponC, null,
-                              tipe: TextInputType.phone),
+                          child: _field(
+                            _teleponC,
+                            null,
+                            tipe: TextInputType.phone,
+                          ),
                           info:
                               'Nomor aktif untuk pengiriman notifikasi jadwal tur dan titik kumpul darurat.',
                           infoIcon: Icons.chat_bubble_outline,
@@ -223,8 +310,11 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                             child: _kotakIsi(
                               child: Row(
                                 children: [
-                                  const Icon(Icons.calendar_today_outlined,
-                                      size: 16, color: AppColor.abu),
+                                  const Icon(
+                                    Icons.calendar_today_outlined,
+                                    size: 16,
+                                    color: AppColor.abu,
+                                  ),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
@@ -235,8 +325,11 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                                       ),
                                     ),
                                   ),
-                                  const Icon(Icons.edit_calendar_outlined,
-                                      size: 16, color: AppColor.abu),
+                                  const Icon(
+                                    Icons.edit_calendar_outlined,
+                                    size: 16,
+                                    color: AppColor.abu,
+                                  ),
                                 ],
                               ),
                             ),
@@ -250,12 +343,12 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                           child: Row(
                             children: [
                               Expanded(
-                                  child:
-                                      _pilihGender('Laki-laki', Icons.male)),
+                                child: _pilihGender('Laki-laki', Icons.male),
+                              ),
                               const SizedBox(width: 10),
                               Expanded(
-                                  child:
-                                      _pilihGender('Perempuan', Icons.female)),
+                                child: _pilihGender('Perempuan', Icons.female),
+                              ),
                             ],
                           ),
                           info:
@@ -267,7 +360,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                   ),
           ),
 
-          // tombol simpan
+          // Tombol simpan.
           Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             color: AppColor.latar,
@@ -318,17 +411,24 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
         children: [
           Stack(
             children: [
-              CircleAvatar(
-                radius: 42,
-                backgroundColor: AppColor.biru,
-                backgroundImage:
-                    _fotoUrl != null ? NetworkImage(_fotoUrl!) : null,
-                child: _uploadFoto
-                    ? const CircularProgressIndicator(color: AppColor.putih)
-                    : (_fotoUrl == null
-                        ? const Icon(Icons.person,
-                            size: 44, color: AppColor.putih)
-                        : null),
+              GestureDetector(
+                onTap: _uploadFoto ? null : _gantiFoto,
+                child: CircleAvatar(
+                  radius: 42,
+                  backgroundColor: AppColor.biru,
+                  backgroundImage: _fotoUrl != null
+                      ? NetworkImage(_fotoUrl!)
+                      : null,
+                  child: _uploadFoto
+                      ? const CircularProgressIndicator(color: AppColor.putih)
+                      : (_fotoUrl == null
+                            ? const Icon(
+                                Icons.person,
+                                size: 44,
+                                color: AppColor.putih,
+                              )
+                            : null),
+                ),
               ),
               Positioned(
                 right: 0,
@@ -342,8 +442,11 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColor.putih, width: 2),
                     ),
-                    child: const Icon(Icons.camera_alt,
-                        size: 12, color: AppColor.putih),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      size: 14,
+                      color: AppColor.putih,
+                    ),
                   ),
                 ),
               ),
@@ -360,8 +463,11 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.delete_outline,
-                    size: 12, color: AppColor.ungu),
+                const Icon(
+                  Icons.delete_outline,
+                  size: 12,
+                  color: AppColor.ungu,
+                ),
                 const SizedBox(width: 3),
                 Text(
                   'Hapus Foto',
@@ -506,6 +612,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
 
   Widget _pilihGender(String nilai, IconData icon) {
     final aktif = _gender == nilai;
+
     return InkWell(
       onTap: () => setState(() => _gender = nilai),
       borderRadius: BorderRadius.circular(10),
@@ -514,9 +621,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
         decoration: BoxDecoration(
           color: aktif ? AppColor.ungu.withValues(alpha: 0.08) : AppColor.latar,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: aktif ? AppColor.ungu : Colors.transparent,
-          ),
+          border: Border.all(color: aktif ? AppColor.ungu : Colors.transparent),
         ),
         child: Row(
           children: [
@@ -528,8 +633,11 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                     : AppColor.abu.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon,
-                  size: 12, color: aktif ? AppColor.putih : AppColor.abu),
+              child: Icon(
+                icon,
+                size: 12,
+                color: aktif ? AppColor.putih : AppColor.abu,
+              ),
             ),
             const SizedBox(width: 8),
             Expanded(

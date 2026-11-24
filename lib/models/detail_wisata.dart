@@ -16,6 +16,9 @@ class PaketTiket {
   final String? hargaUsd; // contoh: '(~USD $32.50)', untuk tiket WNA
   final String satuan; // contoh: '/orang'
   final int? idPaket; // id paket_wisata di database (untuk pemesanan)
+  final int? idDetailDewasa;
+  final int? idDetailAnak;
+  final int? idDetailBalita;
   final int? hargaAnak; // tarif anak-anak (3-12 th), null = tidak ada
   final int? hargaBalita; // tarif balita (<3 th), 0 = gratis
 
@@ -31,11 +34,13 @@ class PaketTiket {
     this.hargaUsd,
     this.satuan = '/orang',
     this.idPaket,
+    this.idDetailDewasa,
+    this.idDetailAnak,
+    this.idDetailBalita,
     this.hargaAnak,
     this.hargaBalita,
   });
 }
-
 // Kelompok pengunjung (WNI / WNA) beserta paket dan fasilitasnya.
 // Kalau hanya ada 1 kelompok, tombol WNI/WNA tidak ditampilkan.
 class GrupTiket {
@@ -111,8 +116,8 @@ class DetailWisata {
 
   static const List<(IconData, String, String)> keunggulanUmum = [
     (Icons.bolt, 'Konfirmasi Instan', 'Langsung dapat e-tiket'),
-    (Icons.update, 'Bebas Reschedule', 'Maksimal H-1'),
-    (Icons.event_available_outlined, 'Gratis Batal', 'Pengembalian 100%'),
+    (Icons.calendar_today_outlined, 'Berlaku di Tanggal Pilihan', 'Tiket hanya berlaku pada tanggal kunjungan'),
+    (Icons.cancel_outlined, 'Tanpa Pengembalian Dana', 'Pesanan tidak dapat dibatalkan'),
     (Icons.confirmation_number_outlined, 'Tiket Resmi', 'Langsung masuk via scan'),
   ];
 
@@ -191,6 +196,45 @@ class DetailWisata {
   // DUMMY: harga WNA & paket reguler diturunkan dari harga wisata,
   // ganti dengan data asli dari backend kalau API sudah ada.
   factory DetailWisata.dariWisata(Wisata w) {
+    if (w.paketTiket.isNotEmpty) {
+      final tiket = w.paketTiket.map((paket) {
+        HargaPengunjung? harga(String tipe) {
+          for (final item in paket.hargaPengunjung) {
+            if (item.tipe == tipe) return item;
+          }
+          return null;
+        }
+
+        final dewasa = harga('dewasa');
+        final anak = harga('anak_anak');
+        final balita = harga('balita');
+        return PaketTiket(
+          nama: paket.nama,
+          namaPendek: paket.nama,
+          deskripsi: w.deskripsi ?? 'Paket tiket resmi untuk ${w.nama}.',
+          harga: dewasa?.harga ?? anak?.harga ?? balita?.harga ?? w.harga,
+          fitur: w.fitur,
+          satuan: w.satuanHarga ?? '/orang',
+          idPaket: paket.id,
+          idDetailDewasa: dewasa?.idDetailPaket,
+          idDetailAnak: anak?.idDetailPaket,
+          idDetailBalita: balita?.idDetailPaket,
+          hargaAnak: anak?.harga,
+          hargaBalita: balita?.harga,
+        );
+      }).toList(growable: false);
+      return DetailWisata(
+        wisataId: w.id,
+        judul: w.nama,
+        gambar: w.gambar,
+        rating: w.rating,
+        jumlahUlasan: w.jumlahUlasan,
+        lokasi: w.lokasi,
+        wilayah: w.kota == null ? 'Indonesia' : '${w.kota}, Indonesia',
+        grup: [GrupTiket(nama: 'WNI (Domestik)', paket: tiket)],
+      );
+    }
+
     const kurs = 15400; // perkiraan rupiah per USD
     int bulat(num x) => (x / 1000).round() * 1000;
     String usd(int rp) => '(~USD \$${(rp / kurs).toStringAsFixed(2)})';

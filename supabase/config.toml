@@ -1,0 +1,4 @@
+project_id = "eokrqohaofdiaabpcnyg"
+
+[functions.smart-endpoint]
+verify_jwt = false

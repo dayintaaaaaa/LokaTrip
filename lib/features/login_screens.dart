@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:lokatrip/services/auth_service.dart';
+import '../core/api_client.dart';
 import '../core/app_color.dart';
+import '../core/session_manager.dart';
 import '../features/register_screens.dart';
 import '../features/user/home_screens.dart';
+import 'admin/dashboard_admin_screens.dart';
+import 'admin_mitra/wisata_saya_mitra_screen.dart';
 
 class LoginScreens extends StatefulWidget {
   const LoginScreens({super.key});
@@ -13,8 +19,9 @@ class LoginScreens extends StatefulWidget {
 }
 
 class _LoginScreensState extends State<LoginScreens> {
-  final _emailController = TextEditingController(); // email atau nomor telepon
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
   bool _hiddenPass = true;
   bool _loading = false;
 
@@ -27,91 +34,278 @@ class _LoginScreensState extends State<LoginScreens> {
 
   void _pesan(String teks) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(teks)));
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(teks)));
   }
 
   Future<void> _login() async {
-    final id = _emailController.text.trim();
-    final pass = _passwordController.text;
+    if (_loading) return;
 
-    if (id.isEmpty || pass.isEmpty) {
-      _pesan('Email/nomor telepon dan password wajib diisi');
+    final identifier = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (identifier.isEmpty || password.isEmpty) {
+      _pesan('Email/username/nomor telepon dan password wajib diisi.');
       return;
     }
 
     setState(() => _loading = true);
-    try {
-      await AuthService().login(identifier: id, password: pass);
 
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreens()),
+    try {
+      final client = Supabase.instance.client;
+
+      if (!identifier.contains('@')) {
+        // Username atau nomor telepon diproses melalui Edge Function.
+        final response = await client.functions.invoke(
+          'smart-endpoint',
+          body: {
+            'identifier': identifier,
+            'phone': identifier,
+            'password': password,
+          },
+        );
+
+        final payload = response.data;
+        if (payload is! Map) {
+          throw const ApiException('Respons login tidak valid.');
+        }
+
+        final loginSession = payload['session'];
+        if (loginSession is! Map) {
+          throw ApiException(payload['error'] as String? ?? 'Login gagal.');
+        }
+
+        final accessToken = loginSession['access_token'] as String?;
+        final refreshToken = loginSession['refresh_token'] as String?;
+        var resolvedRole = payload['role'] as String?;
+
+        if (accessToken == null || refreshToken == null) {
+          throw const ApiException('Sesi login tidak valid.');
+        }
+
+        final restored = await client.auth.setSession(refreshToken);
+        final activeSession = restored.session;
+
+        if (activeSession == null) {
+          throw const ApiException('Sesi login tidak dapat diaktifkan.');
+        }
+
+        // Deteksi role dari profil jika Edge Function belum mengembalikannya.
+        if (resolvedRole == null) {
+          final authUser = restored.user;
+
+          if (authUser == null) {
+            throw const ApiException('Profil login tidak dapat dibaca.');
+          }
+
+          final admin = await client
+              .from('admin_lokatrip')
+              .select('id_admin')
+              .eq('auth_id', authUser.id)
+              .maybeSingle();
+
+          if (admin != null) {
+            resolvedRole = 'admin';
+          } else {
+            final email = authUser.email;
+            if (email != null) {
+              final mitra = await client
+                  .from('admin_wisata')
+                  .select('id_mitra')
+                  .eq('email', email)
+                  .maybeSingle();
+
+              if (mitra != null) {
+                resolvedRole = 'mitra';
+              }
+            }
+
+            if (resolvedRole == null) {
+              final profile = await client
+                  .from('users')
+                  .select('id_user')
+                  .eq('auth_id', authUser.id)
+                  .maybeSingle();
+
+              if (profile != null) resolvedRole = 'wisatawan';
+            }
+          }
+        }
+
+        final destination = switch (resolvedRole) {
+          'admin' => const DashboardAdminScreens(),
+          'mitra' => const WisataSayaMitraScreen(),
+          'wisatawan' => const HomeScreens(),
+          _ => throw const ApiException('Jenis akun belum terdaftar.'),
+        };
+
+        if (resolvedRole == 'admin') {
+          await SessionManager.setAdminSession(
+            accessToken: activeSession.accessToken,
+            refreshToken: activeSession.refreshToken,
+          );
+        } else if (resolvedRole == 'mitra') {
+          await SessionManager.setMitraSession(
+            accessToken: activeSession.accessToken,
+            refreshToken: activeSession.refreshToken,
+          );
+        } else {
+          await SessionManager.setUserSession(
+            accessToken: activeSession.accessToken,
+            refreshToken: activeSession.refreshToken,
+          );
+        }
+
+        if (mounted) _openHome(destination);
+        return;
+      }
+
+      // Login menggunakan email.
+      final response = await client.auth.signInWithPassword(
+        email: identifier,
+        password: password,
       );
-    } on AuthFailure catch (e) {
-      _pesan(e.message);
+
+      final user = response.user;
+      final session = response.session;
+
+      if (user == null || session == null) {
+        throw const ApiException('Email atau password salah.');
+      }
+
+      final admin = await client
+          .from('admin_lokatrip')
+          .select('id_admin')
+          .eq('auth_id', user.id)
+          .maybeSingle();
+
+      if (admin != null) {
+        await SessionManager.setAdminSession(
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+        );
+        if (mounted) _openHome(const DashboardAdminScreens());
+        return;
+      }
+
+      final email = user.email;
+      if (email != null) {
+        final mitra = await client
+            .from('admin_wisata')
+            .select('id_mitra')
+            .eq('email', email)
+            .maybeSingle();
+
+        if (mitra != null) {
+          await SessionManager.setMitraSession(
+            accessToken: session.accessToken,
+            refreshToken: session.refreshToken,
+          );
+          if (mounted) _openHome(const WisataSayaMitraScreen());
+          return;
+        }
+      }
+
+      final profile = await client
+          .from('users')
+          .select('id_user')
+          .eq('auth_id', user.id)
+          .maybeSingle();
+
+      if (profile != null) {
+        await SessionManager.setUserSession(
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+        );
+        if (mounted) _openHome(const HomeScreens());
+        return;
+      }
+
+      await client.auth.signOut();
+      throw const ApiException('Akun belum terhubung ke profil LokaTrip.');
+    } on ApiException catch (error) {
+      _pesan(error.message);
+    } on AuthException catch (error) {
+      _pesan(error.message);
+    } on PostgrestException catch (error) {
+      await Supabase.instance.client.auth.signOut();
+      _pesan(error.message);
+    } catch (error) {
+      _pesan('Login gagal: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
+  void _openHome(Widget page) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute<void>(builder: (_) => page),
+      (_) => false,
+    );
+  }
+
   Future<void> _lupaPassword() async {
-    final emailCtrl = TextEditingController(
+    final emailController = TextEditingController(
       text: _emailController.text.contains('@')
           ? _emailController.text.trim()
           : '',
     );
 
-    final kirim = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          'Lupa Password',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Masukkan email akunmu. Kami akan mengirim link untuk mengatur ulang password.',
-              style: GoogleFonts.manrope(fontSize: 12),
+    try {
+      final kirim = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(
+            'Lupa Password',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Masukkan email akunmu. Kami akan mengirim link untuk mengatur ulang password.',
+                style: GoogleFonts.manrope(fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                style: GoogleFonts.manrope(fontSize: 12),
+                decoration: _inputDecoration('masukkan email'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
             ),
-            SizedBox(height: 12),
-            TextField(
-              controller: emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              style: GoogleFonts.manrope(fontSize: 12),
-              decoration: _inputDecoration('masukkan email'),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Kirim'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Kirim'),
-          ),
-        ],
-      ),
-    );
+      );
 
-    if (kirim != true) return;
+      if (kirim != true) return;
 
-    final email = emailCtrl.text.trim();
-    if (!email.contains('@')) {
-      _pesan('Email tidak valid');
-      return;
-    }
+      final email = emailController.text.trim();
+      if (!email.contains('@')) {
+        _pesan('Email tidak valid.');
+        return;
+      }
 
-    try {
       await AuthService().forgotPassword(email);
-      _pesan('Jika email terdaftar, link reset password sudah dikirim');
-    } on AuthFailure catch (e) {
-      _pesan(e.message);
+      _pesan('Jika email terdaftar, link reset password sudah dikirim.');
+    } on AuthFailure catch (error) {
+      _pesan(error.message);
+    } finally {
+      emailController.dispose();
     }
   }
 
@@ -128,7 +322,7 @@ class _LoginScreensState extends State<LoginScreens> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -138,12 +332,10 @@ class _LoginScreensState extends State<LoginScreens> {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                SizedBox(height: 60),
-
-                // title
+                const SizedBox(height: 60),
                 Text(
                   'Login',
                   style: GoogleFonts.outfit(
@@ -152,10 +344,7 @@ class _LoginScreensState extends State<LoginScreens> {
                     color: AppColor.putih,
                   ),
                 ),
-
-                SizedBox(height: 10),
-
-                // sub title
+                const SizedBox(height: 10),
                 Text(
                   'Jelajahi destinasi impianmu dengan kami.',
                   textAlign: TextAlign.center,
@@ -164,13 +353,10 @@ class _LoginScreensState extends State<LoginScreens> {
                     color: AppColor.putih,
                   ),
                 ),
-
-                SizedBox(height: 100),
-
-                // card form
+                const SizedBox(height: 100),
                 Container(
                   width: double.infinity,
-                  padding: EdgeInsets.fromLTRB(20, 24, 24, 28),
+                  padding: const EdgeInsets.fromLTRB(20, 24, 24, 28),
                   decoration: BoxDecoration(
                     color: AppColor.putih,
                     borderRadius: BorderRadius.circular(24),
@@ -178,35 +364,32 @@ class _LoginScreensState extends State<LoginScreens> {
                       BoxShadow(
                         color: AppColor.hitam.withValues(alpha: 0.15),
                         blurRadius: 16,
-                        offset: Offset(0, 8),
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Email/telephone
+                      const SizedBox(height: 4),
                       Text(
-                        'Email atau Nomor Telepon',
+                        'Email, username, atau nomor telepon',
                         style: GoogleFonts.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: AppColor.hitam,
                         ),
                       ),
-                      SizedBox(height: 6),
+                      const SizedBox(height: 6),
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         style: GoogleFonts.manrope(fontSize: 12),
                         decoration: _inputDecoration(
-                          'admin@gmail.com atau 0812345678',
+                          'email@contoh.com atau nama pengguna',
                         ),
                       ),
-
-                      SizedBox(height: 15),
-
-                      // password
+                      const SizedBox(height: 15),
                       Text(
                         'Password',
                         style: GoogleFonts.manrope(
@@ -215,38 +398,33 @@ class _LoginScreensState extends State<LoginScreens> {
                           color: AppColor.hitam,
                         ),
                       ),
-                      SizedBox(height: 6),
+                      const SizedBox(height: 6),
                       TextField(
                         controller: _passwordController,
                         obscureText: _hiddenPass,
                         style: GoogleFonts.manrope(fontSize: 12),
                         decoration: _inputDecoration('masukkan password')
                             .copyWith(
-                              suffixIcon: IconButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _hiddenPass = !_hiddenPass;
-                                  });
-                                },
-                                icon: Icon(
-                                  _hiddenPass
-                                      ? Icons.visibility_outlined
-                                      : Icons.visibility_off_outlined,
-                                  size: 18,
-                                  color: AppColor.abu,
-                                ),
-                              ),
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setState(() => _hiddenPass = !_hiddenPass);
+                            },
+                            icon: Icon(
+                              _hiddenPass
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              size: 18,
+                              color: AppColor.abu,
                             ),
+                          ),
+                        ),
                       ),
-
-                      // forgot password
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: _lupaPassword,
                           child: Text(
                             'Lupa Password?',
-
                             style: GoogleFonts.manrope(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -255,10 +433,7 @@ class _LoginScreensState extends State<LoginScreens> {
                           ),
                         ),
                       ),
-
-                      SizedBox(height: 20),
-
-                      // button
+                      const SizedBox(height: 20),
                       Center(
                         child: _yellowButton(
                           'Log in',
@@ -266,21 +441,17 @@ class _LoginScreensState extends State<LoginScreens> {
                           loading: _loading,
                         ),
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       Center(child: _yellowButton('Sign in', _signIn)),
                     ],
                   ),
                 ),
-
-                SizedBox(height: 150),
-
-                // logo
+                const SizedBox(height: 150),
                 Image.asset(
                   'assets/images/LokaTrip-logo-no-van.png',
                   width: 90,
                 ),
-
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -289,24 +460,33 @@ class _LoginScreensState extends State<LoginScreens> {
     );
   }
 
-  // Gaya field input (dipakai email & password)
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.manrope(fontSize: 12, color: AppColor.abu),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      hintStyle: GoogleFonts.manrope(
+        fontSize: 12,
+        color: AppColor.abu,
+      ),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 14,
+      ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: AppColor.ungu.withValues(alpha: 0.4)),
+        borderSide: BorderSide(
+          color: AppColor.ungu.withValues(alpha: 0.4),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColor.ungu, width: 1.5),
+        borderSide: const BorderSide(
+          color: AppColor.ungu,
+          width: 1.5,
+        ),
       ),
     );
   }
 
-  // Tombol kuning bulat (dipakai Log in & Sign in)
   Widget _yellowButton(
     String teks,
     VoidCallback? onPressed, {
@@ -326,7 +506,7 @@ class _LoginScreensState extends State<LoginScreens> {
           ),
         ),
         child: loading
-            ? SizedBox(
+            ? const SizedBox(
                 height: 20,
                 width: 20,
                 child: CircularProgressIndicator(

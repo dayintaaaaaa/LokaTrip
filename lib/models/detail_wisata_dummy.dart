@@ -28,8 +28,8 @@ class DetailDummy {
       wilayah: 'Jawa Tengah, Indonesia',
       keunggulan: const [
         (Icons.bolt, 'Konfirmasi Instan', 'Langsung dapat e-tiket'),
-        (Icons.update, 'Bebas Reschedule', 'Maksimal H-1'),
-        (Icons.event_available_outlined, 'Gratis Batal', 'Pengembalian 100%'),
+        (Icons.calendar_today_outlined, 'Berlaku di Tanggal Pilihan', 'Tiket hanya berlaku pada tanggal kunjungan'),
+        (Icons.cancel_outlined, 'Tanpa Pengembalian Dana', 'Pesanan tidak dapat dibatalkan'),
         (Icons.badge_outlined, 'Pemandu Resmi', 'Edukator Berlisensi'),
       ],
       grup: const [

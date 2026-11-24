@@ -1,0 +1,8 @@
+.git
+.dart_tool
+.flutter-plugins-dependencies
+.pub
+build
+backend-admin/node_modules
+backend-admin/.env
+*.rar

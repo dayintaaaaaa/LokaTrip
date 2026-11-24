@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/app_color.dart';
 import '../../../core/format_rupiah.dart';
+import '../../../core/navigasi_wisata.dart';
 import '../../../models/wisata.dart';
 import '../../../widgets/gambar_wisata.dart';
 import '../../../widgets/tombol_favorit.dart';
@@ -64,7 +65,9 @@ class _KartuPopuler extends StatelessWidget {
   Widget build(BuildContext context) {
     final w = wisata;
 
-    return Container(
+    return GestureDetector(
+      onTap: () => bukaDetailWisata(context, w),
+      child: Container(
       width: lebar,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -271,6 +274,7 @@ class _KartuPopuler extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -42,7 +42,7 @@ class GambarPlaceholder extends StatelessWidget {
             child: Icon(icon,
                 size: iconSize, color: AppColor.putih.withValues(alpha: 0.5)),
           ),
-          if (child != null) child!,
+          ?child,
         ],
       ),
     );

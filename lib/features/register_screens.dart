@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:lokatrip/services/auth_service.dart';
 import '../core/app_color.dart';
-import '../features/user/home_screens.dart';
+import '../core/session_manager.dart';
 import '../features/login_screens.dart';
+import '../features/user/home_screens.dart';
 
 class RegisterScreens extends StatefulWidget {
   const RegisterScreens({super.key});
@@ -18,6 +21,7 @@ class _RegisterScreensState extends State<RegisterScreens> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _teleponController = TextEditingController();
+
   bool _hiddenPass = true;
   bool _loading = false;
 
@@ -33,30 +37,34 @@ class _RegisterScreensState extends State<RegisterScreens> {
 
   void _pesan(String teks) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(teks)));
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(teks)));
   }
 
-  // Pengecekan sederhana sebelum dikirim ke server
   String? _validasi() {
     if (_namaController.text.trim().isEmpty) {
-      return 'Nama lengkap wajib diisi';
+      return 'Nama lengkap wajib diisi.';
     }
     if (_usernameController.text.trim().isEmpty) {
-      return 'Username wajib diisi';
+      return 'Username wajib diisi.';
     }
-    if (!_emailController.text.contains('@')) {
-      return 'Email tidak valid';
+    if (!_emailController.text.trim().contains('@')) {
+      return 'Email tidak valid.';
     }
     if (_passwordController.text.length < 6) {
-      return 'Password minimal 6 karakter';
+      return 'Password minimal 6 karakter.';
     }
     if (_teleponController.text.trim().length < 9) {
-      return 'Nomor telepon tidak valid';
+      return 'Nomor telepon tidak valid.';
     }
     return null;
   }
 
   Future<void> _register() async {
+    if (_loading) return;
+
     final error = _validasi();
     if (error != null) {
       _pesan(error);
@@ -64,27 +72,45 @@ class _RegisterScreensState extends State<RegisterScreens> {
     }
 
     setState(() => _loading = true);
+
     try {
       final langsungLogin = await AuthService().register(
-        namaLengkap: _namaController.text,
-        username: _usernameController.text,
-        email: _emailController.text,
+        namaLengkap: _namaController.text.trim(),
+        username: _usernameController.text.trim(),
+        email: _emailController.text.trim(),
         password: _passwordController.text,
-        noTelepon: _teleponController.text,
+        noTelepon: _teleponController.text.trim(),
       );
 
       if (!mounted) return;
-      if (langsungLogin) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreens()),
-        );
-      } else {
+
+      if (!langsungLogin) {
         _pesan('Berhasil daftar. Cek emailmu untuk konfirmasi.');
         _keLogin();
+        return;
       }
-    } on AuthFailure catch (e) {
-      _pesan(e.message);
+
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session == null) {
+        _pesan('Pendaftaran berhasil. Silakan login.');
+        _keLogin();
+        return;
+      }
+
+      await SessionManager.setUserSession(
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+      );
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreens()),
+      );
+    } on AuthFailure catch (error) {
+      _pesan(error.message);
+    } catch (error) {
+      _pesan('Pendaftaran gagal: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -103,7 +129,7 @@ class _RegisterScreensState extends State<RegisterScreens> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -113,12 +139,10 @@ class _RegisterScreensState extends State<RegisterScreens> {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                SizedBox(height: 60),
-
-                // title
+                const SizedBox(height: 60),
                 Text(
                   'Register',
                   style: GoogleFonts.outfit(
@@ -127,9 +151,7 @@ class _RegisterScreensState extends State<RegisterScreens> {
                     color: AppColor.putih,
                   ),
                 ),
-
-                SizedBox(height: 10),
-
+                const SizedBox(height: 10),
                 Text(
                   'Buat akun untuk jelajahi destinasi.',
                   textAlign: TextAlign.center,
@@ -138,13 +160,10 @@ class _RegisterScreensState extends State<RegisterScreens> {
                     color: AppColor.putih,
                   ),
                 ),
-
-                SizedBox(height: 60),
-
-                // card form
+                const SizedBox(height: 60),
                 Container(
                   width: double.infinity,
-                  padding: EdgeInsets.fromLTRB(20, 24, 20, 24),
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
                   decoration: BoxDecoration(
                     color: AppColor.putih,
                     borderRadius: BorderRadius.circular(24),
@@ -152,14 +171,13 @@ class _RegisterScreensState extends State<RegisterScreens> {
                       BoxShadow(
                         color: AppColor.hitam.withValues(alpha: 0.15),
                         blurRadius: 16,
-                        offset: Offset(0, 8),
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // nama lengkap
                       _label('Nama Lengkap'),
                       TextField(
                         controller: _namaController,
@@ -167,20 +185,14 @@ class _RegisterScreensState extends State<RegisterScreens> {
                         style: GoogleFonts.manrope(fontSize: 12),
                         decoration: _inputDecoration('masukkan nama lengkap'),
                       ),
-
-                      SizedBox(height: 15),
-
-                      // username
+                      const SizedBox(height: 15),
                       _label('Username'),
                       TextField(
                         controller: _usernameController,
                         style: GoogleFonts.manrope(fontSize: 12),
                         decoration: _inputDecoration('masukkan username'),
                       ),
-
-                      SizedBox(height: 15),
-
-                      // email
+                      const SizedBox(height: 15),
                       _label('Email'),
                       TextField(
                         controller: _emailController,
@@ -188,10 +200,7 @@ class _RegisterScreensState extends State<RegisterScreens> {
                         style: GoogleFonts.manrope(fontSize: 12),
                         decoration: _inputDecoration('masukkan email'),
                       ),
-
-                      SizedBox(height: 15),
-
-                      // password
+                      const SizedBox(height: 15),
                       _label('Password'),
                       TextField(
                         controller: _passwordController,
@@ -199,26 +208,21 @@ class _RegisterScreensState extends State<RegisterScreens> {
                         style: GoogleFonts.manrope(fontSize: 12),
                         decoration: _inputDecoration('masukkan password')
                             .copyWith(
-                              suffixIcon: IconButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _hiddenPass = !_hiddenPass;
-                                  });
-                                },
-                                icon: Icon(
-                                  _hiddenPass
-                                      ? Icons.visibility_outlined
-                                      : Icons.visibility_off_outlined,
-                                  size: 18,
-                                  color: AppColor.abu,
-                                ),
-                              ),
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setState(() => _hiddenPass = !_hiddenPass);
+                            },
+                            icon: Icon(
+                              _hiddenPass
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              size: 18,
+                              color: AppColor.abu,
                             ),
+                          ),
+                        ),
                       ),
-
-                      SizedBox(height: 16),
-
-                      // telepon
+                      const SizedBox(height: 16),
                       _label('Nomor Telepon'),
                       TextField(
                         controller: _teleponController,
@@ -226,10 +230,7 @@ class _RegisterScreensState extends State<RegisterScreens> {
                         style: GoogleFonts.manrope(fontSize: 12),
                         decoration: _inputDecoration('masukkan nomor telepon'),
                       ),
-
-                      SizedBox(height: 20),
-
-                      // button register
+                      const SizedBox(height: 20),
                       Center(
                         child: SizedBox(
                           width: 200,
@@ -245,7 +246,7 @@ class _RegisterScreensState extends State<RegisterScreens> {
                               ),
                             ),
                             child: _loading
-                                ? SizedBox(
+                                ? const SizedBox(
                                     height: 20,
                                     width: 20,
                                     child: CircularProgressIndicator(
@@ -263,10 +264,7 @@ class _RegisterScreensState extends State<RegisterScreens> {
                           ),
                         ),
                       ),
-
-                      SizedBox(height: 10),
-
-                      // sudah punya akun
+                      const SizedBox(height: 10),
                       Center(
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -295,16 +293,12 @@ class _RegisterScreensState extends State<RegisterScreens> {
                     ],
                   ),
                 ),
-
-                SizedBox(height: 150),
-
-                // logo
+                const SizedBox(height: 150),
                 Image.asset(
                   'assets/images/LokaTrip-logo-no-van.png',
                   width: 90,
                 ),
-
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -313,10 +307,9 @@ class _RegisterScreensState extends State<RegisterScreens> {
     );
   }
 
-  // Label diatas field
   Widget _label(String teks) {
     return Padding(
-      padding: EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         teks,
         style: GoogleFonts.manrope(
@@ -328,19 +321,29 @@ class _RegisterScreensState extends State<RegisterScreens> {
     );
   }
 
-  // Gaya field input
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.manrope(fontSize: 12, color: AppColor.abu),
-      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      hintStyle: GoogleFonts.manrope(
+        fontSize: 12,
+        color: AppColor.abu,
+      ),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 14,
+      ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: AppColor.ungu.withValues(alpha: 0.4)),
+        borderSide: BorderSide(
+          color: AppColor.ungu.withValues(alpha: 0.4),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: AppColor.ungu, width: 1.5),
+        borderSide: const BorderSide(
+          color: AppColor.ungu,
+          width: 1.5,
+        ),
       ),
     );
   }
