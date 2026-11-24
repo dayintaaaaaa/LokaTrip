@@ -4,6 +4,7 @@ import '../../core/app_color.dart';
 import '../../core/pesanan_model.dart';
 import '../../widgets/bottom_navigator.dart';
 import 'ulasan_wisata_screens.dart';
+import '../../services/pesanan_service.dart';
 import 'home_screens.dart';
 
 TextStyle _gaya(
@@ -37,17 +38,51 @@ class _PesananScreensState extends State<PesananScreens> {
   bool _tabAktif = true;
   KategoriPesanan? _filter; // null = semua
 
-  int _hitung(bool aktif, KategoriPesanan? k) => DataPesanan.semua
+  final _service = PesananService();
+  List<Pesanan> _semua = [];
+  bool _memuat = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _muat();
+  }
+
+  Future<void> _muat({bool tampilLoading = true}) async {
+    if (tampilLoading) setState(() => _memuat = true);
+    try {
+      final hasil = await _service.ambilSemua();
+      if (!mounted) return;
+      setState(() {
+        _semua = hasil;
+        _error = null;
+        _memuat = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _memuat = false;
+      });
+    }
+  }
+
+  int _hitung(bool aktif, KategoriPesanan? k) => _semua
       .where((p) => p.aktif == aktif && (k == null || p.kategori == k))
       .length;
 
-  List<Pesanan> get _tampil => DataPesanan.semua
+  List<Pesanan> get _tampil => _semua
       .where((p) =>
           p.aktif == _tabAktif && (_filter == null || p.kategori == _filter))
       .toList();
 
-  Pesanan? get _pesananBaru => DataPesanan.semua
-      .where((p) => p.status == StatusPesanan.siapDigunakan)
+  // banner hanya untuk pesanan siap pakai yang baru dibuat (< 10 menit)
+  Pesanan? get _pesananBaru => _semua
+      .where((p) =>
+          p.status == StatusPesanan.siapDigunakan &&
+          p.dibuat != null &&
+          DateTime.now().difference(p.dibuat!).inMinutes < 10)
       .firstOrNull;
 
   // ---------------- aksi ----------------
@@ -233,7 +268,7 @@ class _PesananScreensState extends State<PesananScreens> {
       context,
       MaterialPageRoute(builder: (_) => UlasanWisataScreens(orderId: p.id)),
     );
-    if (mounted) setState(() {}); // refresh status ulasan
+    if (mounted) _muat(tampilLoading: false); // refresh status ulasan
   }
 
   // ---------------- build ----------------
@@ -253,17 +288,30 @@ class _PesananScreensState extends State<PesananScreens> {
             const SizedBox(height: 12),
             _chipFilter(),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-                children: [
-                  if (tampilBanner) _banner(baru),
-                  if (daftar.isEmpty)
-                    _kosong()
-                  else
-                    ...daftar.map(
-                      (p) => p.aktif ? _kartuAktif(p) : _kartuSelesai(p),
-                    ),
-                ],
+              child: RefreshIndicator(
+                onRefresh: () => _muat(tampilLoading: false),
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                  children: [
+                    if (_memuat)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 60),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_error != null)
+                      _gagal()
+                    else ...[
+                      if (tampilBanner) _banner(baru),
+                      if (daftar.isEmpty)
+                        _kosong()
+                      else
+                        ...daftar.map(
+                          (p) => p.aktif ? _kartuAktif(p) : _kartuSelesai(p),
+                        ),
+                    ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -803,7 +851,6 @@ class _PesananScreensState extends State<PesananScreens> {
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(
-                            // contoh aturan dummy: tiket yang belum diulas masih punya E-Tiket
                             bisaBeriUlasan
                                 ? 'Lihat Invoice / E-Tiket'
                                 : 'Lihat Invoice',
@@ -1028,6 +1075,30 @@ class _PesananScreensState extends State<PesananScreens> {
           const SizedBox(height: 2),
           Text('Pesanan di kategori ini akan muncul di sini',
               style: _gaya(11, c: AppColor.abu)),
+        ],
+      ),
+    );
+  }
+
+  Widget _gagal() {
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.all(24),
+      decoration: _kartu(),
+      child: Column(
+        children: [
+          Icon(Icons.cloud_off_outlined,
+              size: 36, color: AppColor.abu.withValues(alpha: 0.7)),
+          const SizedBox(height: 10),
+          Text('Gagal memuat pesanan', style: _gaya(13, w: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text(
+            _error ?? '',
+            textAlign: TextAlign.center,
+            style: _gaya(11, c: AppColor.abu),
+          ),
+          const SizedBox(height: 14),
+          _btnIsi('Coba Lagi', Icons.refresh, _muat),
         ],
       ),
     );

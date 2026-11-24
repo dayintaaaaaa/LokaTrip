@@ -98,7 +98,6 @@ class PemesananService {
   /// HANYA UNTUK PENGEMBANGAN: memanggil fungsi simulasi_bayar di Supabase.
   /// Ganti dengan status lunas dari webhook payment gateway sebelum dipakai
   /// sungguhan.
-  ///
   /// metode: 'qris' | 'virtual_account' | 'dompet_digital' | 'kartu_kredit'
   Future<HasilBayar> bayarSimulasi({
     required String kodePesan,
