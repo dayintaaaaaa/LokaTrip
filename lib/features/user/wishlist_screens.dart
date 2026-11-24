@@ -1,12 +1,13 @@
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../../core/api_client.dart';
 import '../../core/app_color.dart';
 import '../../core/favorite_store.dart';
 import '../../core/format.dart';
-import '../../core/format_rupiah.dart' show ringkasAngka;
+import '../../core/format_rupiah.dart';
+import '../../core/session_manager.dart';
 import '../../models/wisata.dart';
-import '../../models/wisata_dummy.dart';
 import '../../widgets/gambar_wisata.dart';
 import '../../widgets/sub_app_bar.dart';
 import '../../widgets/tombol_favorit.dart';
@@ -19,13 +20,34 @@ class WishlistScreens extends StatefulWidget {
 }
 
 class _WishlistScreensState extends State<WishlistScreens> {
-  late final List<Wisata> _daftar;
+  // Data wishlist dimuat sekali saat halaman dibuka.
+  late final Future<List<Wisata>> _daftar;
 
   @override
   void initState() {
     super.initState();
-    final ids = Set<int>.from(FavoritStore.ids.value);
-    _daftar = WisataDummy.semuaWisata.where((w) => ids.contains(w.id)).toList();
+    _daftar = _ambilWishlist();
+  }
+
+  Future<List<Wisata>> _ambilWishlist() async {
+    final token = await SessionManager.currentUserToken();
+    if (token == null || token.isEmpty) return const [];
+
+    final rows = await UserApi.wishlist(token);
+    final ids = <int>{};
+    final wisata = <Wisata>[];
+
+    for (final row in rows) {
+      final item = row['wisata'];
+      if (item is Map<String, dynamic>) {
+        final parsed = Wisata.fromApiJson(item);
+        wisata.add(parsed);
+        ids.add(parsed.id);
+      }
+    }
+
+    FavoritStore.ids.value = ids;
+    return wisata;
   }
 
   @override
@@ -36,42 +58,70 @@ class _WishlistScreensState extends State<WishlistScreens> {
         children: [
           const SubAppBar(title: 'Wishlist Saya'),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'Koleksi Pilihan',
-                      style: GoogleFonts.manrope(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppColor.hitam,
+            child: FutureBuilder<List<Wisata>>(
+              future: _daftar,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        snapshot.error.toString(),
+                        textAlign: TextAlign.center,
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.auto_awesome,
-                        size: 12, color: AppColor.kuning),
+                  );
+                }
+
+                final daftar = snapshot.data ?? const <Wisata>[];
+
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Koleksi Pilihan',
+                          style: GoogleFonts.manrope(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: AppColor.hitam,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.auto_awesome,
+                          size: 12,
+                          color: AppColor.kuning,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    ValueListenableBuilder<Set<int>>(
+                      valueListenable: FavoritStore.ids,
+                      builder: (context, ids, _) {
+                        final tersimpan = daftar
+                            .where((w) => ids.contains(w.id))
+                            .length;
+
+                        return Text(
+                          '$tersimpan Wisata Tersimpan',
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            color: AppColor.abu,
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    if (daftar.isEmpty) _kosong() else ...daftar.map(_kartu),
                   ],
-                ),
-                const SizedBox(height: 2),
-                ValueListenableBuilder<Set<int>>(
-                  valueListenable: FavoritStore.ids,
-                  builder: (context, ids, _) {
-                    final tersimpan =
-                        _daftar.where((w) => ids.contains(w.id)).length;
-                    return Text(
-                      '$tersimpan Wisata Tersimpan',
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        color: AppColor.abu,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-                if (_daftar.isEmpty) _kosong() else ..._daftar.map(_kartu),
-              ],
+                );
+              },
             ),
           ),
         ],
@@ -142,8 +192,11 @@ class _WishlistScreensState extends State<WishlistScreens> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.location_on_outlined,
-                        size: 12, color: AppColor.ungu),
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 12,
+                      color: AppColor.ungu,
+                    ),
                     const SizedBox(width: 3),
                     Expanded(
                       child: Text(
@@ -166,6 +219,15 @@ class _WishlistScreensState extends State<WishlistScreens> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (w.hargaAsli != null)
+                            Text(
+                              'Rp ${formatAngka(w.hargaAsli!)}',
+                              style: GoogleFonts.manrope(
+                                fontSize: 10,
+                                color: AppColor.abu,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.baseline,
                             textBaseline: TextBaseline.alphabetic,
@@ -200,14 +262,16 @@ class _WishlistScreensState extends State<WishlistScreens> {
                     ),
                     ElevatedButton(
                       onPressed: () {
-                        // TODO: arahkan ke detail wisata
+                        // TODO: arahkan ke detail wisata.
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColor.biru.withValues(alpha: 0.18),
                         foregroundColor: AppColor.ungu,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -246,11 +310,15 @@ class _WishlistScreensState extends State<WishlistScreens> {
 
   Widget _gambar(Wisata w) {
     String? teksBadge;
-    Color warnaBadge = AppColor.ungu;
-    Color warnaTeksBadge = AppColor.putih;
+    Color warnaBadge = AppColor.kuning;
+    Color warnaTeksBadge = AppColor.ungu;
 
-    if ((w.rating ?? 0) >= 4.9) {
+    if (w.diskonPersen > 0) {
+      teksBadge = 'Diskon ${w.diskonPersen}%';
+    } else if ((w.rating ?? 0) >= 4.9) {
       teksBadge = 'Popular Choice';
+      warnaBadge = AppColor.ungu;
+      warnaTeksBadge = AppColor.putih;
     }
 
     final labelKategori = w.kategori ?? w.subkategori;
@@ -287,8 +355,10 @@ class _WishlistScreensState extends State<WishlistScreens> {
               children: [
                 if (teksBadge != null)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: warnaBadge,
                       borderRadius: BorderRadius.circular(8),
@@ -306,8 +376,10 @@ class _WishlistScreensState extends State<WishlistScreens> {
                   const SizedBox(width: 6),
                 if (w.tipe != null)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColor.putih.withValues(alpha: 0.92),
                       borderRadius: BorderRadius.circular(8),
@@ -315,8 +387,11 @@ class _WishlistScreensState extends State<WishlistScreens> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(_ikonTipe(w.tipe!),
-                            size: 11, color: AppColor.ungu),
+                        Icon(
+                          _ikonTipe(w.tipe!),
+                          size: 11,
+                          color: AppColor.ungu,
+                        ),
                         const SizedBox(width: 3),
                         Text(
                           w.tipe!,
@@ -332,11 +407,7 @@ class _WishlistScreensState extends State<WishlistScreens> {
               ],
             ),
           ),
-          Positioned(
-            top: 4,
-            right: 6,
-            child: TombolFavorit(wisataId: w.id),
-          ),
+          Positioned(top: 4, right: 6, child: TombolFavorit(wisataId: w.id)),
           Positioned(
             left: 10,
             right: 10,
@@ -344,8 +415,11 @@ class _WishlistScreensState extends State<WishlistScreens> {
             child: Row(
               children: [
                 if (w.rating != null) ...[
-                  const Icon(Icons.star_rounded,
-                      size: 14, color: AppColor.kuning),
+                  const Icon(
+                    Icons.star_rounded,
+                    size: 14,
+                    color: AppColor.kuning,
+                  ),
                   const SizedBox(width: 3),
                   Text(
                     '${w.rating}',
@@ -369,8 +443,10 @@ class _WishlistScreensState extends State<WishlistScreens> {
                 const Spacer(),
                 if (labelKategori != null)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColor.hitam.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(8),

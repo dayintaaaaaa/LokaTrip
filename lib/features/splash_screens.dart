@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lokatrip/services/auth_service.dart';
+
 import '../core/app_color.dart';
+import '../core/session_manager.dart';
 import '../features/login_screens.dart';
+import '../features/admin/dashboard_admin_screens.dart';
+import '../features/admin_mitra/wisata_saya_mitra_screen.dart';
 import '../features/user/home_screens.dart';
 import '../features/reset_password_screens.dart';
 
@@ -21,35 +25,58 @@ class _SplashScreensState extends State<SplashScreens>
   @override
   void initState() {
     super.initState();
+
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
     );
 
-    // setelah loading, lanjut ke home, login, atau layar reset password
-    _controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
+    _controller.addStatusListener((status) async {
+      if (status != AnimationStatus.completed) return;
+
+      // Link reset password menuju layar khusus reset password.
+      if (AuthService.sedangPulihkanPassword) {
         if (!mounted) return;
-
-        // user datang dari link reset password di email
-        if (AuthService.sedangPulihkanPassword) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const ResetPasswordScreens()),
-          );
-          return;
-        }
-
-        final loggedIn = AuthService().isLoggedIn;
 
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                loggedIn ? const HomeScreens() : const LoginScreens(),
+            builder: (_) => const ResetPasswordScreens(),
           ),
         );
+        return;
       }
+
+      final loggedIn = await SessionManager.isLoggedIn();
+      final role = await SessionManager.accountRole();
+
+      final mitraToken = role == 'mitra'
+          ? await SessionManager.currentMitraToken()
+          : null;
+      final adminToken = role == 'admin'
+          ? await SessionManager.currentAdminToken()
+          : null;
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) {
+            if (!loggedIn) return const LoginScreens();
+
+            return switch (role) {
+              'admin' => adminToken != null
+                  ? const DashboardAdminScreens()
+                  : const LoginScreens(),
+              'mitra' => mitraToken != null
+                  ? const WisataSayaMitraScreen()
+                  : const LoginScreens(),
+              _ => const HomeScreens(),
+            };
+          },
+        ),
+      );
     });
 
     _controller.forward();
@@ -76,7 +103,7 @@ class _SplashScreensState extends State<SplashScreens>
         ),
         child: Stack(
           children: [
-            // road
+            // Jalan di bagian bawah.
             Positioned(
               left: 0,
               right: 0,
@@ -87,7 +114,7 @@ class _SplashScreensState extends State<SplashScreens>
               ),
             ),
 
-            // left top cloud
+            // Awan kiri atas.
             Positioned(
               top: 80,
               left: 24,
@@ -97,7 +124,7 @@ class _SplashScreensState extends State<SplashScreens>
               ),
             ),
 
-            // right top cloud
+            // Awan kanan atas.
             Positioned(
               top: 100,
               right: 15,
@@ -107,7 +134,6 @@ class _SplashScreensState extends State<SplashScreens>
               ),
             ),
 
-            // main content
             SafeArea(
               child: Column(
                 children: [
@@ -119,12 +145,12 @@ class _SplashScreensState extends State<SplashScreens>
                           'assets/images/Campervan.svg',
                           width: 300,
                         ),
-                        SizedBox(height: 12),
+                        const SizedBox(height: 12),
                         Image.asset(
                           'assets/images/LokaTrip-logo-no-van.png',
                           width: 200,
                         ),
-                        SizedBox(height: 9),
+                        const SizedBox(height: 9),
                         Text(
                           'Jelajahi Wisata Nusantara',
                           style: GoogleFonts.rubik(
@@ -137,7 +163,7 @@ class _SplashScreensState extends State<SplashScreens>
                     ),
                   ),
 
-                  // loading bawah
+                  // Indikator loading di bagian bawah.
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 40),
                     child: Column(
@@ -151,14 +177,13 @@ class _SplashScreensState extends State<SplashScreens>
                                 value: _controller.value,
                                 minHeight: 4,
                                 color: AppColor.ungu,
-                                backgroundColor: AppColor.ungu.withValues(
-                                  alpha: 0.15,
-                                ),
+                                backgroundColor:
+                                    AppColor.ungu.withValues(alpha: 0.15),
                               ),
                             );
                           },
                         ),
-                        SizedBox(height: 12),
+                        const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -170,7 +195,7 @@ class _SplashScreensState extends State<SplashScreens>
                                 color: AppColor.biru,
                               ),
                             ),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                             Text(
                               'Menyiapkan petualanganmu...',
                               style: GoogleFonts.manrope(
@@ -180,7 +205,7 @@ class _SplashScreensState extends State<SplashScreens>
                             ),
                           ],
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         Text(
                           'v1.0.0 Prototype',
                           style: GoogleFonts.manrope(
@@ -188,7 +213,7 @@ class _SplashScreensState extends State<SplashScreens>
                             color: AppColor.abu,
                           ),
                         ),
-                        SizedBox(height: 24),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/app_color.dart';
+import '../core/session_manager.dart';
 import '../core/favorite_store.dart';
 
 class TombolFavorit extends StatelessWidget {
@@ -16,7 +17,24 @@ class TombolFavorit extends StatelessWidget {
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => FavoritStore.toggle(wisataId),
+          onTap: () async {
+            final token = await SessionManager.currentUserToken();
+            if (token == null || token.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Silakan login untuk menyimpan wishlist.')),
+              );
+              return;
+            }
+            try {
+              await FavoritStore.toggle(wisataId, token);
+            } catch (error) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(error.toString())),
+                );
+              }
+            }
+          },
           child: SizedBox(
             width: 36,
             height: 36,

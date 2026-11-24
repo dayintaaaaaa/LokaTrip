@@ -1,30 +1,50 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lokatrip/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('app opens with the current login screen', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+
+    tester.view.physicalSize = const Size(1024, 900);
+    tester.view.devicePixelRatio = 1;
+
     await tester.pumpWidget(const MyApp());
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Memastikan halaman login tampil.
+    expect(find.text('Login'), findsOneWidget);
+    expect(
+      find.text('Email, username, atau nomor telepon'),
+      findsOneWidget,
+    );
+    expect(find.text('Password'), findsOneWidget);
+    expect(find.text('Log in'), findsOneWidget);
+    expect(find.text('Sign in'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Memastikan pilihan jenis akun lama tidak muncul.
+    expect(find.text('Jenis akun'), findsNothing);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Menguji validasi ketika login tanpa mengisi data.
+    await tester.ensureVisible(find.text('Log in'));
+    await tester.tap(find.text('Log in'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Email/username/nomor telepon dan password wajib diisi.',
+      ),
+      findsOneWidget,
+    );
+
+    expect(tester.takeException(), isNull);
+
+    tester.view.resetPhysicalSize();
   });
 }
