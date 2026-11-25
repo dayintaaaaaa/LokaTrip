@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../core/api_client.dart';
 import '../../core/app_color.dart';
 import '../../core/pesanan_model.dart';
-import '../../core/session_manager.dart';
 import '../../widgets/bottom_navigator.dart';
 import 'ulasan_wisata_screens.dart';
 import '../../services/pesanan_service.dart';
+import '../../services/maps_service.dart';
+import '../../widgets/qr_palsu.dart';
 import 'home_screens.dart';
 
 TextStyle _gaya(
@@ -15,18 +16,27 @@ TextStyle _gaya(
   Color c = AppColor.hitam,
   double? h,
   double? ls,
-}) =>
-    GoogleFonts.manrope(
-      fontSize: size,
-      fontWeight: w,
-      color: c,
-      height: h,
-      letterSpacing: ls,
-    );
+}) => GoogleFonts.manrope(
+  fontSize: size,
+  fontWeight: w,
+  color: c,
+  height: h,
+  letterSpacing: ls,
+);
 
 const _bulan = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mei',
+  'Jun',
+  'Jul',
+  'Agu',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des',
 ];
 
 class PesananScreens extends StatefulWidget {
@@ -39,20 +49,17 @@ class PesananScreens extends StatefulWidget {
 
 class _PesananScreensState extends State<PesananScreens> {
   bool _tabAktif = true;
-  KategoriPesanan? _filter; // null = semua
-  List<Pesanan> _pesanan = const [];
-  bool _loading = true;
-  String? _error;
-
-<<<<<<< HEAD
+  String? _filter; // null = semua kategori
   final _service = PesananService();
   List<Pesanan> _semua = [];
+  List<String> _semuaKategori = [];
   bool _memuat = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _tabAktif = !widget.mulaiDiRiwayat;
     _muat();
   }
 
@@ -60,9 +67,11 @@ class _PesananScreensState extends State<PesananScreens> {
     if (tampilLoading) setState(() => _memuat = true);
     try {
       final hasil = await _service.ambilSemua();
+      final kategori = await _service.ambilKategoriWisata();
       if (!mounted) return;
       setState(() {
         _semua = hasil;
+        _semuaKategori = kategori;
         _error = null;
         _memuat = false;
       });
@@ -75,52 +84,34 @@ class _PesananScreensState extends State<PesananScreens> {
     }
   }
 
-  int _hitung(bool aktif, KategoriPesanan? k) => _semua
-      .where((p) => p.aktif == aktif && (k == null || p.kategori == k))
+  int _hitung(bool aktif, [String? kategori]) => _semua
+      .where(
+        (p) =>
+            p.aktif == aktif &&
+            (kategori == null || p.kategoriWisata == kategori),
+      )
       .length;
+
+  List<String> get _kategoriTersedia =>
+      {..._semuaKategori, ..._semua.map((p) => p.kategoriWisata)}.toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
   List<Pesanan> get _tampil => _semua
-=======
-  @override
-  void initState() {
-    super.initState();
-    _muatPesanan();
-  }
-
-  Future<void> _muatPesanan() async {
-    try {
-      final token = await SessionManager.currentUserToken();
-      if (token == null || token.isEmpty) throw const ApiException('Silakan login kembali.');
-      final rows = await UserApi.orders(token);
-      if (mounted) setState(() => _pesanan = rows.map(Pesanan.fromApiJson).toList());
-    } catch (error) {
-      _error = error.toString();
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  int _hitung(bool aktif, KategoriPesanan? k) => _pesanan
-      .where((p) => p.aktif == aktif && (k == null || p.kategori == k))
-      .length;
-
-  List<Pesanan> get _tampil => _pesanan
->>>>>>> daa95c622d6c50a0444812146fd6c39ce86954ea
-      .where((p) =>
-          p.aktif == _tabAktif && (_filter == null || p.kategori == _filter))
+      .where(
+        (p) =>
+            p.aktif == _tabAktif &&
+            (_filter == null || p.kategoriWisata == _filter),
+      )
       .toList();
 
-<<<<<<< HEAD
   // banner hanya untuk pesanan siap pakai yang baru dibuat (< 10 menit)
   Pesanan? get _pesananBaru => _semua
-      .where((p) =>
-          p.status == StatusPesanan.siapDigunakan &&
-          p.dibuat != null &&
-          DateTime.now().difference(p.dibuat!).inMinutes < 10)
-=======
-  Pesanan? get _pesananBaru => _pesanan
-      .where((p) => p.status == StatusPesanan.siapDigunakan)
->>>>>>> daa95c622d6c50a0444812146fd6c39ce86954ea
+      .where(
+        (p) =>
+            p.status == StatusPesanan.siapDigunakan &&
+            p.dibuat != null &&
+            DateTime.now().difference(p.dibuat!).inMinutes < 10,
+      )
       .firstOrNull;
 
   // ---------------- aksi ----------------
@@ -147,84 +138,389 @@ class _PesananScreensState extends State<PesananScreens> {
   }
 
   Widget _handle() => Container(
-        width: 40,
-        height: 4,
-        margin: const EdgeInsets.only(bottom: 14),
-        decoration: BoxDecoration(
-          color: AppColor.abu.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(2),
-        ),
-      );
+    width: 40,
+    height: 4,
+    margin: const EdgeInsets.only(bottom: 14),
+    decoration: BoxDecoration(
+      color: AppColor.abu.withValues(alpha: 0.4),
+      borderRadius: BorderRadius.circular(2),
+    ),
+  );
 
   Widget _baris(String label, String nilai) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: _gaya(11.5, c: AppColor.abu)),
-            const SizedBox(width: 16),
-            Flexible(
-              child: Text(
-                nilai,
-                textAlign: TextAlign.right,
-                style: _gaya(11.5, w: FontWeight.w700),
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: _gaya(11.5, c: AppColor.abu)),
+        const SizedBox(width: 16),
+        Flexible(
+          child: Text(
+            nilai,
+            textAlign: TextAlign.right,
+            style: _gaya(11.5, w: FontWeight.w700),
+          ),
         ),
-      );
+      ],
+    ),
+  );
 
   void _eTiket(Pesanan p) {
     _sheet(
       (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             _handle(),
-            Text('E-Tiket', style: _gaya(16, w: FontWeight.w800)),
-            const SizedBox(height: 4),
+            Text('E-Tiket Wisata', style: _gaya(16, w: FontWeight.w800)),
+            const SizedBox(height: 3),
             Text(
-              p.judul,
+              'Tunjukkan tiket ini kepada petugas di pintu masuk',
               textAlign: TextAlign.center,
-              style: _gaya(12, c: AppColor.abu),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColor.putih,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColor.abu.withValues(alpha: 0.3)),
-              ),
-              // TODO: ganti dengan QR asli dari backend (mis. package qr_flutter)
-              child: const Icon(Icons.qr_code_2, size: 170, color: AppColor.hitam),
-            ),
-            const SizedBox(height: 10),
-            Text(p.id, style: _gaya(13, w: FontWeight.w800, ls: 1)),
-            const SizedBox(height: 14),
-            _baris(
-              'Jadwal',
-              p.jam == null ? p.jadwal : '${p.jadwal}, ${p.jam}',
-            ),
-            _baris('Peserta', p.chips.last),
-            _baris('Status', p.labelStatus),
-            const SizedBox(height: 10),
-            Text(
-              'Tunjukkan QR ini di pintu masuk',
               style: _gaya(10.5, c: AppColor.abu),
             ),
-            const SizedBox(height: 16),
-            SizedBox(
+            const SizedBox(height: 14),
+            Container(
               width: double.infinity,
-              child: _btnIsi('Tutup', Icons.close, () => Navigator.pop(ctx)),
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: AppColor.putih,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColor.hitam.withValues(alpha: 0.08),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColor.ungu, AppColor.biru],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            _chipETiket(
+                              p.status == StatusPesanan.selesai
+                                  ? 'TELAH DIKUNJUNGI'
+                                  : 'TIKET AKTIF',
+                              AppColor.kuning.withValues(alpha: 0.2),
+                              AppColor.kuning,
+                              titik: true,
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: _chipETiket(
+                                p.kategori == KategoriPesanan.tur
+                                    ? 'TUR & OPEN TRIP'
+                                    : 'TIKET WISATA',
+                                AppColor.biru.withValues(alpha: 0.2),
+                                AppColor.ungu,
+                              ),
+                            ),
+                            const Spacer(),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () {
+                                Clipboard.setData(ClipboardData(text: p.id));
+                                _info('Kode pesanan disalin');
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: Icon(
+                                  Icons.copy_rounded,
+                                  size: 15,
+                                  color: AppColor.ungu,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on_outlined,
+                              size: 13,
+                              color: AppColor.ungu,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                p.lokasi,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: _gaya(
+                                  10,
+                                  w: FontWeight.w700,
+                                  c: AppColor.ungu,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          p.judul,
+                          style: _gaya(15, w: FontWeight.w800, h: 1.25),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(p.chips.first, style: _gaya(10, c: AppColor.abu)),
+                        const SizedBox(height: 12),
+                        Divider(
+                          height: 1,
+                          color: AppColor.abu.withValues(alpha: 0.25),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _kolomETiket(
+                                'TANGGAL KUNJUNGAN',
+                                Icons.calendar_today_outlined,
+                                p.jadwal,
+                                p.jam ?? p.labelJadwal,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _kolomETiket(
+                                'JUMLAH PENGUNJUNG',
+                                Icons.people_outline,
+                                p.chips.last,
+                                p.labelStatus,
+                                subWarna: AppColor.ungu,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.meeting_room_outlined,
+                              size: 13,
+                              color: AppColor.abu,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'LOKASI',
+                              style: _gaya(
+                                8,
+                                w: FontWeight.w800,
+                                c: AppColor.abu,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                p.lokasi,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: _gaya(9, w: FontWeight.w800),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  _sobekanETiket(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColor.putih,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColor.hitam.withValues(alpha: 0.08),
+                                blurRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              QrPalsu(
+                                seed: p.id,
+                                ukuran: 150,
+                                warna: AppColor.ungu,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'KODE PESANAN: ${p.id}',
+                                textAlign: TextAlign.center,
+                                style: _gaya(
+                                  8,
+                                  w: FontWeight.w800,
+                                  c: AppColor.abu,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Tunjukkan QR code ini kepada petugas saat masuk',
+                          textAlign: TextAlign.center,
+                          style: _gaya(
+                            10,
+                            c: AppColor.hitam.withValues(alpha: 0.8),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColor.biru.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.wb_sunny_outlined,
+                                size: 12,
+                                color: AppColor.kuning,
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  'Atur kecerahan layar maksimal saat memindai',
+                                  style: _gaya(
+                                    9,
+                                    w: FontWeight.w600,
+                                    c: AppColor.ungu,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _chipETiket(String teks, Color bg, Color fg, {bool titik = false}) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (titik) ...[
+              Icon(Icons.circle, size: 6, color: fg),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              teks,
+              style: _gaya(8, w: FontWeight.w800, c: fg),
+            ),
+          ],
+        ),
+      );
+
+  Widget _kolomETiket(
+    String label,
+    IconData ikon,
+    String nilai,
+    String sub, {
+    Color subWarna = AppColor.abu,
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: _gaya(8, w: FontWeight.w800, c: AppColor.abu),
+      ),
+      const SizedBox(height: 4),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(ikon, size: 12, color: AppColor.ungu),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              nilai,
+              style: _gaya(10, w: FontWeight.w800),
+              maxLines: 2,
+            ),
+          ),
+        ],
+      ),
+      Padding(
+        padding: const EdgeInsets.only(left: 16, top: 2),
+        child: Text(sub, style: _gaya(9, c: subWarna)),
+      ),
+    ],
+  );
+
+  Widget _sobekanETiket() => Row(
+    children: [
+      Container(
+        width: 10,
+        height: 20,
+        decoration: const BoxDecoration(
+          color: AppColor.ungu,
+          borderRadius: BorderRadius.horizontal(right: Radius.circular(10)),
+        ),
+      ),
+      Expanded(
+        child: LayoutBuilder(
+          builder: (_, constraints) => Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(
+              (constraints.maxWidth / 8).floor(),
+              (_) => Container(
+                width: 4,
+                height: 1.5,
+                color: AppColor.abu.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+        ),
+      ),
+      Container(
+        width: 10,
+        height: 20,
+        decoration: const BoxDecoration(
+          color: AppColor.ungu,
+          borderRadius: BorderRadius.horizontal(left: Radius.circular(10)),
+        ),
+      ),
+    ],
+  );
 
   void _invoice(Pesanan p) {
     _sheet(
@@ -240,7 +536,10 @@ class _PesananScreensState extends State<PesananScreens> {
             _baris('No. Pesanan', '#${p.id}'),
             _baris('Tanggal Pembelian', p.tglBeli),
             _baris('Produk', p.judul),
-            _baris('Jadwal', p.jam == null ? p.jadwal : '${p.jadwal}, ${p.jam}'),
+            _baris(
+              'Jadwal',
+              p.jam == null ? p.jadwal : '${p.jadwal}, ${p.jam}',
+            ),
             _baris('Peserta', p.chips.last),
             _baris('Metode Pembayaran', p.metode),
             Divider(color: AppColor.abu.withValues(alpha: 0.3), height: 24),
@@ -291,9 +590,14 @@ class _PesananScreensState extends State<PesananScreens> {
     );
   }
 
-  void _petunjuk(Pesanan p) {
-    // TODO: buka Google Maps (package url_launcher)
-    _info('Membuka petunjuk arah ke ${p.lokasi}...');
+  Future<void> _petunjuk(Pesanan p) async {
+    final tujuan = [
+      p.judul,
+      p.lokasi,
+    ].where((bagian) => bagian.trim().isNotEmpty).join(', ');
+    final berhasil = await bukaGoogleMaps(tujuan, petunjukArah: true);
+    if (!mounted || berhasil) return;
+    _info('Petunjuk arah belum bisa dibuka. Coba lagi sebentar.');
   }
 
   void _pesanLagi(Pesanan p) {
@@ -304,7 +608,9 @@ class _PesananScreensState extends State<PesananScreens> {
   Future<void> _ulasan(Pesanan p) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => UlasanWisataScreens(orderId: p.orderId.toString())),
+      MaterialPageRoute(
+        builder: (_) => UlasanWisataScreens(orderId: p.orderId.toString()),
+      ),
     );
     if (mounted) _muat(tampilLoading: false); // refresh status ulasan
   }
@@ -326,7 +632,6 @@ class _PesananScreensState extends State<PesananScreens> {
             const SizedBox(height: 12),
             _chipFilter(),
             Expanded(
-<<<<<<< HEAD
               child: RefreshIndicator(
                 onRefresh: () => _muat(tampilLoading: false),
                 child: ListView(
@@ -351,23 +656,6 @@ class _PesananScreensState extends State<PesananScreens> {
                     ],
                   ],
                 ),
-=======
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                  ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center)))
-                  : ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-                children: [
-                  if (tampilBanner) _banner(baru),
-                  if (daftar.isEmpty)
-                    _kosong()
-                  else
-                    ...daftar.map(
-                      (p) => p.aktif ? _kartuAktif(p) : _kartuSelesai(p),
-                    ),
-                ],
->>>>>>> daa95c622d6c50a0444812146fd6c39ce86954ea
               ),
             ),
           ],
@@ -388,26 +676,17 @@ class _PesananScreensState extends State<PesananScreens> {
             onPressed: () {
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const HomeScreens(),
-                ),
+                MaterialPageRoute(builder: (_) => const HomeScreens()),
                 (route) => false,
               );
             },
-            icon: const Icon(
-              Icons.arrow_back,
-              size: 22,
-              color: AppColor.hitam,
-            ),
+            icon: const Icon(Icons.arrow_back, size: 22, color: AppColor.hitam),
           ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Pesanan Saya',
-                  style: _gaya(16, w: FontWeight.w800),
-                ),
+                Text('Pesanan Saya', style: _gaya(16, w: FontWeight.w800)),
                 if (!_tabAktif)
                   Text(
                     '${_hitung(false, null)} Tiket Selesai Dikunjungi',
@@ -499,11 +778,10 @@ class _PesananScreensState extends State<PesananScreens> {
   }
 
   Widget _chipFilter() {
-    final item = <(KategoriPesanan?, String, IconData)>[
+    final item = <(String?, String, IconData)>[
       (null, 'Semua', Icons.grid_view_rounded),
-      (KategoriPesanan.tiketWisata, 'Tiket Wisata',
-          Icons.confirmation_number_outlined),
-      (KategoriPesanan.tur, 'Tur & Open Trip', Icons.flag_outlined),
+      for (final kategori in _kategoriTersedia)
+        (kategori, kategori, _ikonKategori(kategori)),
     ];
 
     return SizedBox(
@@ -554,6 +832,28 @@ class _PesananScreensState extends State<PesananScreens> {
     );
   }
 
+  IconData _ikonKategori(String namaKategori) {
+    final nama = namaKategori.toLowerCase();
+    if (nama.contains('tur') || nama.contains('open trip')) {
+      return Icons.flag_outlined;
+    }
+    if (nama.contains('water') || nama.contains('kolam')) {
+      return Icons.pool_outlined;
+    }
+    if (nama.contains('candi') || nama.contains('budaya')) {
+      return Icons.account_balance_outlined;
+    }
+    if (nama.contains('playground')) return Icons.toys_outlined;
+    if (nama.contains('spa')) return Icons.spa_outlined;
+    if (nama.contains('alam') || nama.contains('outbound')) {
+      return Icons.landscape_outlined;
+    }
+    if (nama.contains('atraksi') || nama.contains('rekreasi')) {
+      return Icons.attractions_outlined;
+    }
+    return Icons.confirmation_number_outlined;
+  }
+
   // ---------------- banner pembayaran ----------------
   Widget _banner(Pesanan p) {
     return Container(
@@ -574,8 +874,11 @@ class _PesananScreensState extends State<PesananScreens> {
               color: AppColor.kuning.withValues(alpha: 0.4),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check_circle_outline,
-                size: 18, color: AppColor.hitam),
+            child: const Icon(
+              Icons.check_circle_outline,
+              size: 18,
+              color: AppColor.hitam,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -601,7 +904,11 @@ class _PesananScreensState extends State<PesananScreens> {
                       const TextSpan(text: 'Tiket '),
                       TextSpan(
                         text: p.judul.split(' - ').first,
-                        style: _gaya(11.5, w: FontWeight.w800, c: AppColor.ungu),
+                        style: _gaya(
+                          11.5,
+                          w: FontWeight.w800,
+                          c: AppColor.ungu,
+                        ),
                       ),
                       const TextSpan(
                         text:
@@ -751,8 +1058,12 @@ class _PesananScreensState extends State<PesananScreens> {
                     children: [
                       Text(
                         'ORDER ID',
-                        style: _gaya(8.5,
-                            w: FontWeight.w800, c: AppColor.abu, ls: 0.5),
+                        style: _gaya(
+                          8.5,
+                          w: FontWeight.w800,
+                          c: AppColor.abu,
+                          ls: 0.5,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Row(
@@ -765,13 +1076,17 @@ class _PesananScreensState extends State<PesananScreens> {
                             color: AppColor.ungu,
                           ),
                           const SizedBox(width: 5),
-                          Text('#${p.id}',
-                              style: _gaya(12, w: FontWeight.w800)),
+                          Text(
+                            '#${p.id}',
+                            style: _gaya(12, w: FontWeight.w800),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 2),
-                      Text('Dibeli ${p.tglBeli}',
-                          style: _gaya(10, c: AppColor.abu)),
+                      Text(
+                        'Dibeli ${p.tglBeli}',
+                        style: _gaya(10, c: AppColor.abu),
+                      ),
                     ],
                   ),
                 ),
@@ -831,16 +1146,21 @@ class _PesananScreensState extends State<PesananScreens> {
                           color: AppColor.kuning.withValues(alpha: 0.5),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.stars_rounded,
-                            size: 16, color: AppColor.hitam),
+                        child: const Icon(
+                          Icons.stars_rounded,
+                          size: 16,
+                          color: AppColor.hitam,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Bagikan pengalamanmu!',
-                                style: _gaya(11.5, w: FontWeight.w800)),
+                            Text(
+                              'Bagikan pengalamanmu!',
+                              style: _gaya(11.5, w: FontWeight.w800),
+                            ),
                             const SizedBox(height: 2),
                             Text(
                               'Bagikan pengalamanmu lewat rating dan ulasan.',
@@ -872,11 +1192,12 @@ class _PesananScreensState extends State<PesananScreens> {
                 children: [
                   _bintang(p.rating!),
                   const SizedBox(width: 6),
-                  Text(p.rating!.toStringAsFixed(1),
-                      style: _gaya(11.5, w: FontWeight.w800)),
+                  Text(
+                    p.rating!.toStringAsFixed(1),
+                    style: _gaya(11.5, w: FontWeight.w800),
+                  ),
                   const SizedBox(width: 4),
-                  Text('(Sudah Diulas)',
-                      style: _gaya(10, c: AppColor.abu)),
+                  Text('(Sudah Diulas)', style: _gaya(10, c: AppColor.abu)),
                   const Spacer(),
                   GestureDetector(
                     onTap: () => _ulasan(p),
@@ -901,18 +1222,22 @@ class _PesananScreensState extends State<PesananScreens> {
                     behavior: HitTestBehavior.opaque,
                     child: Row(
                       children: [
-                        Icon(Icons.receipt_long_outlined,
-                            size: 15,
-                            color: AppColor.hitam.withValues(alpha: 0.6)),
+                        Icon(
+                          Icons.receipt_long_outlined,
+                          size: 15,
+                          color: AppColor.hitam.withValues(alpha: 0.6),
+                        ),
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(
                             bisaBeriUlasan
                                 ? 'Lihat Invoice / E-Tiket'
                                 : 'Lihat Invoice',
-                            style: _gaya(11,
-                                w: FontWeight.w600,
-                                c: AppColor.hitam.withValues(alpha: 0.7)),
+                            style: _gaya(
+                              11,
+                              w: FontWeight.w600,
+                              c: AppColor.hitam.withValues(alpha: 0.7),
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -942,13 +1267,18 @@ class _PesananScreensState extends State<PesananScreens> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(t(p.labelJadwal),
-                  style: _gaya(9, c: AppColor.abu, w: FontWeight.w700)),
+              Text(
+                t(p.labelJadwal),
+                style: _gaya(9, c: AppColor.abu, w: FontWeight.w700),
+              ),
               const SizedBox(height: 3),
               Row(
                 children: [
-                  const Icon(Icons.calendar_today_outlined,
-                      size: 12, color: AppColor.ungu),
+                  const Icon(
+                    Icons.calendar_today_outlined,
+                    size: 12,
+                    color: AppColor.ungu,
+                  ),
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
@@ -969,14 +1299,20 @@ class _PesananScreensState extends State<PesananScreens> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(t(p.labelTotal),
-                style: _gaya(9, c: AppColor.abu, w: FontWeight.w700)),
+            Text(
+              t(p.labelTotal),
+              style: _gaya(9, c: AppColor.abu, w: FontWeight.w700),
+            ),
             const SizedBox(height: 2),
-            Text(p.total,
-                style: _gaya(17, w: FontWeight.w800, c: AppColor.ungu)),
+            Text(
+              p.total,
+              style: _gaya(17, w: FontWeight.w800, c: AppColor.ungu),
+            ),
             if (p.catatanTotal != null)
-              Text(p.catatanTotal!,
-                  style: _gaya(9.5, w: FontWeight.w700, c: AppColor.abu)),
+              Text(
+                p.catatanTotal!,
+                style: _gaya(9.5, w: FontWeight.w700, c: AppColor.abu),
+              ),
           ],
         ),
       ],
@@ -986,20 +1322,20 @@ class _PesananScreensState extends State<PesananScreens> {
   Widget _statusChip(Pesanan p) {
     final (bg, fg, ic) = switch (p.status) {
       StatusPesanan.siapDigunakan => (
-          AppColor.kuning.withValues(alpha: 0.3),
-          AppColor.hitam,
-          Icons.bolt,
-        ),
+        AppColor.kuning.withValues(alpha: 0.3),
+        AppColor.hitam,
+        Icons.bolt,
+      ),
       StatusPesanan.terkonfirmasi => (
-          AppColor.biru.withValues(alpha: 0.25),
-          AppColor.hitam,
-          Icons.check_circle_outline,
-        ),
+        AppColor.biru.withValues(alpha: 0.25),
+        AppColor.hitam,
+        Icons.check_circle_outline,
+      ),
       StatusPesanan.selesai => (
-          AppColor.ungu.withValues(alpha: 0.1),
-          AppColor.ungu,
-          Icons.verified_outlined,
-        ),
+        AppColor.ungu.withValues(alpha: 0.1),
+        AppColor.ungu,
+        Icons.verified_outlined,
+      ),
     };
 
     return Container(
@@ -1013,8 +1349,10 @@ class _PesananScreensState extends State<PesananScreens> {
         children: [
           Icon(ic, size: 11, color: fg),
           const SizedBox(width: 3),
-          Text(p.labelStatus,
-              style: _gaya(9, w: FontWeight.w800, c: fg)),
+          Text(
+            p.labelStatus,
+            style: _gaya(9, w: FontWeight.w800, c: fg),
+          ),
         ],
       ),
     );
@@ -1074,24 +1412,26 @@ class _PesananScreensState extends State<PesananScreens> {
       Divider(height: 1, color: AppColor.abu.withValues(alpha: 0.2));
 
   BoxDecoration _kartu() => BoxDecoration(
-        color: AppColor.putih,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColor.abu.withValues(alpha: 0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColor.hitam.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      );
+    color: AppColor.putih,
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(color: AppColor.abu.withValues(alpha: 0.2)),
+    boxShadow: [
+      BoxShadow(
+        color: AppColor.hitam.withValues(alpha: 0.04),
+        blurRadius: 8,
+        offset: const Offset(0, 2),
+      ),
+    ],
+  );
 
   Widget _btnOutline(String teks, IconData ic, VoidCallback onTap) {
     return OutlinedButton.icon(
       onPressed: onTap,
       icon: Icon(ic, size: 15),
-      label: Text(teks,
-          style: _gaya(11, w: FontWeight.w700, c: AppColor.ungu)),
+      label: Text(
+        teks,
+        style: _gaya(11, w: FontWeight.w700, c: AppColor.ungu),
+      ),
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColor.ungu,
         side: BorderSide(color: AppColor.ungu.withValues(alpha: 0.4)),
@@ -1105,8 +1445,10 @@ class _PesananScreensState extends State<PesananScreens> {
     return ElevatedButton.icon(
       onPressed: onTap,
       icon: Icon(ic, size: 15),
-      label: Text(teks,
-          style: _gaya(11, w: FontWeight.w700, c: AppColor.putih)),
+      label: Text(
+        teks,
+        style: _gaya(11, w: FontWeight.w700, c: AppColor.putih),
+      ),
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColor.ungu,
         foregroundColor: AppColor.putih,
@@ -1124,13 +1466,18 @@ class _PesananScreensState extends State<PesananScreens> {
       decoration: _kartu(),
       child: Column(
         children: [
-          Icon(Icons.receipt_long_outlined,
-              size: 36, color: AppColor.abu.withValues(alpha: 0.7)),
+          Icon(
+            Icons.receipt_long_outlined,
+            size: 36,
+            color: AppColor.abu.withValues(alpha: 0.7),
+          ),
           const SizedBox(height: 10),
           Text('Belum ada pesanan', style: _gaya(13, w: FontWeight.w800)),
           const SizedBox(height: 2),
-          Text('Pesanan di kategori ini akan muncul di sini',
-              style: _gaya(11, c: AppColor.abu)),
+          Text(
+            'Pesanan di kategori ini akan muncul di sini',
+            style: _gaya(11, c: AppColor.abu),
+          ),
         ],
       ),
     );
@@ -1143,8 +1490,11 @@ class _PesananScreensState extends State<PesananScreens> {
       decoration: _kartu(),
       child: Column(
         children: [
-          Icon(Icons.cloud_off_outlined,
-              size: 36, color: AppColor.abu.withValues(alpha: 0.7)),
+          Icon(
+            Icons.cloud_off_outlined,
+            size: 36,
+            color: AppColor.abu.withValues(alpha: 0.7),
+          ),
           const SizedBox(height: 10),
           Text('Gagal memuat pesanan', style: _gaya(13, w: FontWeight.w800)),
           const SizedBox(height: 4),
@@ -1185,7 +1535,10 @@ class _Foto extends StatelessWidget {
         color: AppColor.hitam.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(label, style: _gaya(8.5, w: FontWeight.w700, c: AppColor.putih)),
+      child: Text(
+        label,
+        style: _gaya(8.5, w: FontWeight.w700, c: AppColor.putih),
+      ),
     );
 
     return Container(
@@ -1211,7 +1564,12 @@ class _Foto extends StatelessWidget {
           if (labelKanan)
             Positioned(right: 8, bottom: 8, child: chip)
           else
-            Positioned(left: 0, right: 0, bottom: 5, child: Center(child: chip)),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 5,
+              child: Center(child: chip),
+            ),
         ],
       ),
     );

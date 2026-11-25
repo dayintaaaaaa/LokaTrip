@@ -40,7 +40,7 @@ class SnkScreens extends StatelessWidget {
     ),
   ];
 
-    static const List<_Pasal> _pasal = [
+  static const List<_Pasal> _pasal = [
     _Pasal(
       Icons.badge_outlined,
       '1. Ketentuan Akun & Syarat Usia',
@@ -89,7 +89,10 @@ class SnkScreens extends StatelessWidget {
       backgroundColor: AppColor.latar,
       body: Column(
         children: [
-          const SubAppBar(title: 'Syarat & Kebijakan Privasi'),
+          const SubAppBar(
+            title: 'Syarat & Kebijakan Privasi',
+            showAvatar: false,
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -188,8 +191,11 @@ class SnkScreens extends StatelessWidget {
                   color: AppColor.biru.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.shield_outlined,
-                    size: 22, color: AppColor.ungu),
+                child: const Icon(
+                  Icons.shield_outlined,
+                  size: 22,
+                  color: AppColor.ungu,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(

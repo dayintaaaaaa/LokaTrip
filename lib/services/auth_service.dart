@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Error yang pesannya aman ditampilkan langsung ke user.
@@ -38,10 +39,10 @@ class AuthService {
     final phone = normalizePhone(noTelepon);
     try {
       // Cek username dan nomor telepon belum dipakai
-      final cek = await _db.rpc('cek_ketersediaan', params: {
-        'p_username': username.trim(),
-        'p_no_telephone': phone,
-      });
+      final cek = await _db.rpc(
+        'cek_ketersediaan',
+        params: {'p_username': username.trim(), 'p_no_telephone': phone},
+      );
       final row = (cek as List).first as Map<String, dynamic>;
       if (row['username_tersedia'] != true) {
         throw AuthFailure('Username sudah dipakai');
@@ -83,10 +84,10 @@ class AuthService {
         await _db.auth.signInWithPassword(email: id, password: password);
       } else {
         // Login pakai nomor telepon lewat Edge Function
-        final res = await _db.functions.invoke('smart-endpoint', body: {
-          'phone': normalizePhone(id),
-          'password': password,
-        });
+        final res = await _db.functions.invoke(
+          'smart-endpoint',
+          body: {'phone': normalizePhone(id), 'password': password},
+        );
         final refresh = res.data['session']['refresh_token'] as String;
         await _db.auth.setSession(refresh);
       }
@@ -104,7 +105,7 @@ class AuthService {
     try {
       await _db.auth.resetPasswordForEmail(
         email.trim(),
-        redirectTo: 'lokatrip://reset-password',
+        redirectTo: kIsWeb ? Uri.base.origin : 'lokatrip://reset-password',
       );
     } on AuthException catch (e) {
       throw AuthFailure(e.message);

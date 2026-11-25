@@ -93,8 +93,9 @@ class _KeamananAkunScreensState extends State<KeamananAkunScreens> {
         final d = DateTime.parse(updatedStr).toLocal();
         final diff = DateTime.now().difference(d);
         if (diff.inDays < 30) {
-          _statusPassword =
-              diff.inDays == 0 ? 'Hari ini' : '${diff.inDays} hr lalu';
+          _statusPassword = diff.inDays == 0
+              ? 'Hari ini'
+              : '${diff.inDays} hr lalu';
         } else if (diff.inDays < 365) {
           final bln = (diff.inDays / 30).floor();
           _statusPassword = '$bln bln lalu';
@@ -128,9 +129,11 @@ class _KeamananAkunScreensState extends State<KeamananAkunScreens> {
     setState(() => _biometrik = v);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('masuk_biometrik', v);
-    _pesan(v
-        ? 'Login dengan biometrik diaktifkan'
-        : 'Login dengan biometrik dinonaktifkan');
+    _pesan(
+      v
+          ? 'Login dengan biometrik diaktifkan'
+          : 'Login dengan biometrik dinonaktifkan',
+    );
   }
 
   // Dialog / Bottom Sheet untuk atur atau ubah PIN Transaksi
@@ -484,8 +487,9 @@ class _KeamananAkunScreensState extends State<KeamananAkunScreens> {
             onPressed: () async {
               Navigator.pop(ctx);
               try {
-                await Supabase.instance.client.auth
-                    .signOut(scope: SignOutScope.others);
+                await Supabase.instance.client.auth.signOut(
+                  scope: SignOutScope.others,
+                );
                 _pesan('Berhasil keluar dari semua perangkat lain');
               } catch (e) {
                 _pesan('Berhasil me-refresh sesi keamanan');
@@ -570,7 +574,7 @@ class _KeamananAkunScreensState extends State<KeamananAkunScreens> {
       backgroundColor: AppColor.latar,
       body: Column(
         children: [
-          const SubAppBar(title: 'Keamanan Akun'),
+          const SubAppBar(title: 'Keamanan Akun', showAvatar: false),
           Expanded(
             child: _memuat
                 ? const Center(child: CircularProgressIndicator())
@@ -614,8 +618,9 @@ class _KeamananAkunScreensState extends State<KeamananAkunScreens> {
                               activeThumbColor: AppColor.putih,
                               activeTrackColor: AppColor.ungu,
                               inactiveThumbColor: AppColor.putih,
-                              inactiveTrackColor:
-                                  AppColor.abu.withValues(alpha: 0.4),
+                              inactiveTrackColor: AppColor.abu.withValues(
+                                alpha: 0.4,
+                              ),
                             ),
                           ),
                           _baris(
@@ -679,8 +684,9 @@ class _KeamananAkunScreensState extends State<KeamananAkunScreens> {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: (optimal ? AppColor.ungu : Colors.amber)
-                  .withValues(alpha: 0.12),
+              color: (optimal ? AppColor.ungu : Colors.amber).withValues(
+                alpha: 0.12,
+              ),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -909,12 +915,14 @@ class _KeamananAkunScreensState extends State<KeamananAkunScreens> {
     for (int i = 0; i < children.length; i++) {
       isi.add(children[i]);
       if (i != children.length - 1) {
-        isi.add(Divider(
-          height: 1,
-          indent: 14,
-          endIndent: 14,
-          color: AppColor.abu.withValues(alpha: 0.25),
-        ));
+        isi.add(
+          Divider(
+            height: 1,
+            indent: 14,
+            endIndent: 14,
+            color: AppColor.abu.withValues(alpha: 0.25),
+          ),
+        );
       }
     }
     return Container(

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/app_color.dart';
 import '../../core/format_rupiah.dart';
 import '../../models/detail_wisata.dart';
 import '../../models/detail_wisata_dummy.dart';
 import '../../models/wisata.dart';
+import '../../services/maps_service.dart';
 import '../../widgets/gambar_wisata.dart';
 import '../../widgets/tombol_favorit.dart';
 import 'detail_widgets/fasilitas_tur.dart';
@@ -110,16 +112,16 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
                         onPilih: () => setState(() => _paket = i),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    if (_g.termasuk.isNotEmpty || _g.tidakTermasuk.isNotEmpty)
-                      FasilitasTur(
-                        termasuk: _g.termasuk,
-                        tidakTermasuk: _g.tidakTermasuk,
-                      ),
-                    if (_d.ulasan.isNotEmpty) ...[
-                      const SizedBox(height: 22),
-                      UlasanPengunjung(daftar: _d.ulasan),
-                    ],
+                  const SizedBox(height: 4),
+                  if (_g.termasuk.isNotEmpty || _g.tidakTermasuk.isNotEmpty)
+                    FasilitasTur(
+                      termasuk: _g.termasuk,
+                      tidakTermasuk: _g.tidakTermasuk,
+                    ),
+                  if (_d.ulasan.isNotEmpty) ...[
+                    const SizedBox(height: 22),
+                    UlasanPengunjung(daftar: _d.ulasan),
+                  ],
                 ],
               ),
             ),
@@ -245,31 +247,81 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
   }
 
   Widget _tombolBagikan() {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        // nanti: bagikan link wisata
-      },
-      child: SizedBox(
-        width: 36,
-        height: 36,
-        child: Center(
-          child: Container(
-            width: 28,
-            height: 28,
-            decoration: const BoxDecoration(
-              color: AppColor.putih,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.share_outlined,
-              size: 15,
-              color: AppColor.abu,
+    return Builder(
+      builder: (shareContext) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _bagikanWisata(shareContext),
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Center(
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: const BoxDecoration(
+                color: AppColor.putih,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.share_outlined,
+                size: 15,
+                color: AppColor.abu,
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _bagikanWisata(BuildContext shareContext) async {
+    final lokasi = [
+      widget.wisata.lokasi,
+      widget.wisata.kota ?? '',
+    ].where((bagian) => bagian.trim().isNotEmpty).join(', ');
+    final tautanPeta = lokasi.isEmpty
+        ? null
+        : Uri.https('www.google.com', '/maps/search/', {
+            'api': '1',
+            'query': lokasi,
+          });
+    final teks = [
+      'Aku menemukan ${_d.judul} di LokaTrip.',
+      if (lokasi.isNotEmpty) 'Lokasi: $lokasi',
+      'Harga mulai ${formatRupiah(widget.wisata.harga)}${widget.wisata.satuanHarga ?? ''}.',
+      if (tautanPeta != null) 'Lihat lokasi: $tautanPeta',
+    ].join('\n');
+    final box = shareContext.findRenderObject() as RenderBox?;
+
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          title: _d.judul,
+          text: teks,
+          mailToFallbackEnabled: false,
+          sharePositionOrigin: box == null
+              ? null
+              : box.localToGlobal(Offset.zero) & box.size,
+        ),
+      );
+    } catch (_) {
+      try {
+        await Clipboard.setData(ClipboardData(text: teks));
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Teks wisata disalin. Tempelkan di aplikasi untuk membagikannya.',
+            ),
+          ),
+        );
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Wisata belum bisa dibagikan: $error')),
+        );
+      }
+    }
   }
 
   Widget _labelGambar(IconData ikon, String teks, {required bool gelap}) {
@@ -380,6 +432,19 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
     );
   }
 
+  Future<void> _bukaPetaWisata() async {
+    final tujuan = [
+      widget.wisata.nama,
+      _d.lokasi,
+      _d.wilayah,
+    ].where((bagian) => bagian.trim().isNotEmpty).join(', ');
+    final berhasil = await bukaGoogleMaps(tujuan);
+    if (!mounted || berhasil) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Google Maps belum bisa dibuka.')),
+    );
+  }
+
   Widget _kartuLokasi() {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -413,9 +478,7 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
             ),
           ),
           GestureDetector(
-            onTap: () {
-              // nanti: buka peta
-            },
+            onTap: _bukaPetaWisata,
             child: Row(
               children: [
                 Text(
@@ -692,7 +755,7 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
               ),
               const SizedBox(width: 12),
               ElevatedButton(
-                 onPressed: p.harga <= 0
+                onPressed: p.harga <= 0
                     ? null
                     : () {
                         Navigator.push(

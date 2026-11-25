@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/app_color.dart';
 import '../../core/format_waktu.dart';
 import '../../models/data_checkout.dart';
@@ -15,15 +16,17 @@ class ETiketScreens extends StatelessWidget {
 
   // TODO: kode scan sebaiknya dibuat backend
   String get _kodeScan {
-    final angka =
-        (kode.hashCode.abs() % 1000000000000).toString().padLeft(12, '0');
+    final angka = (kode.hashCode.abs() % 1000000000000).toString().padLeft(
+      12,
+      '0',
+    );
     return '${angka.substring(0, 4)}-${angka.substring(4, 8)}-${angka.substring(8)}';
   }
 
   void _info(BuildContext context, String teks) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(teks, style: GoogleFonts.manrope())),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(teks, style: GoogleFonts.manrope())));
   }
 
   @override
@@ -65,13 +68,15 @@ class ETiketScreens extends StatelessWidget {
                       ],
                     ),
                   ),
-                  InkWell(
-                    onTap: () => _info(context, 'Bagikan tiket: belum tersambung'),
-                    child: const Icon(Icons.share_outlined,
-                        size: 20, color: AppColor.hitam),
+                  IconButton(
+                    tooltip: 'Bagikan tiket',
+                    onPressed: () => _bagikanTiket(context),
+                    icon: const Icon(
+                      Icons.share_outlined,
+                      size: 20,
+                      color: AppColor.hitam,
+                    ),
                   ),
-                  const SizedBox(width: 14),
-                  const Icon(Icons.help_outline, size: 20, color: AppColor.abu),
                 ],
               ),
             ),
@@ -82,90 +87,52 @@ class ETiketScreens extends StatelessWidget {
               child: _kartu(context),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _info(
-                              context, 'Unduh PDF: perlu backend / package pdf'),
-                          icon: const Icon(Icons.download_outlined, size: 16),
-                          label: Text(
-                            'Unduh PDF',
-                            style: GoogleFonts.manrope(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColor.ungu,
-                            foregroundColor: AppColor.putih,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () =>
-                              _info(context, 'Tiket disimpan di aplikasi'),
-                          icon: const Icon(
-                              Icons.account_balance_wallet_outlined,
-                              size: 16),
-                          label: Text(
-                            'Simpan Tiket',
-                            style: GoogleFonts.manrope(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColor.ungu,
-                            side: BorderSide(
-                                color: AppColor.ungu.withValues(alpha: 0.4)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.verified_user_outlined,
-                          size: 12, color: AppColor.kuning),
-                      const SizedBox(width: 5),
-                      Text(
-                        'GARANSI RESMI LOKATRIP • VERIFIKASI INSTAN DI GERBANG',
-                        style: GoogleFonts.manrope(
-                          fontSize: 7,
-                          fontWeight: FontWeight.w800,
-                          color: AppColor.abu,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
+  }
+
+  Future<void> _bagikanTiket(BuildContext context) async {
+    final pesanan = data.pesanan;
+    final lokasi = pesanan.detail.lokasi.trim();
+    final tautanPeta = lokasi.isEmpty
+        ? null
+        : Uri.https('www.google.com', '/maps/search/', {
+            'api': '1',
+            'query': lokasi,
+          });
+    final teks = [
+      'E-Tiket LokaTrip: ${pesanan.detail.judul}',
+      'Tanggal kunjungan: ${tglPanjang(pesanan.tanggal)}',
+      if (lokasi.isNotEmpty) 'Lokasi: $lokasi',
+      'Nama pemesan: ${data.nama}',
+      'Pengunjung: ${pesanan.teksTamu}',
+      'Kode booking: $kode',
+      'Kode scan: $_kodeScan',
+      if (tautanPeta != null) 'Lihat lokasi: $tautanPeta',
+    ].join('\n');
+
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          title: 'E-Tiket ${pesanan.detail.judul}',
+          text: teks,
+          mailToFallbackEnabled: false,
+        ),
+      );
+    } catch (_) {
+      try {
+        await Clipboard.setData(ClipboardData(text: teks));
+        if (!context.mounted) return;
+        _info(
+          context,
+          'Detail tiket disalin. Tempelkan di aplikasi untuk membagikannya.',
+        );
+      } catch (error) {
+        if (!context.mounted) return;
+        _info(context, 'Tiket belum bisa dibagikan: $error');
+      }
+    }
   }
 
   Widget _kartu(BuildContext context) {
@@ -199,12 +166,18 @@ class ETiketScreens extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    _chip('TIKET AKTIF', AppColor.kuning.withValues(alpha: 0.2),
-                        AppColor.kuning,
-                        dot: true),
+                    _chip(
+                      'TIKET AKTIF',
+                      AppColor.kuning.withValues(alpha: 0.2),
+                      AppColor.kuning,
+                      dot: true,
+                    ),
                     const SizedBox(width: 6),
-                    _chip('VIP PASS', AppColor.biru.withValues(alpha: 0.2),
-                        AppColor.ungu),
+                    _chip(
+                      'VIP PASS',
+                      AppColor.biru.withValues(alpha: 0.2),
+                      AppColor.ungu,
+                    ),
                     const Spacer(),
                     InkWell(
                       onTap: () {
@@ -213,7 +186,9 @@ class ETiketScreens extends StatelessWidget {
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 5),
+                          horizontal: 8,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColor.latar,
                           borderRadius: BorderRadius.circular(8),
@@ -229,7 +204,11 @@ class ETiketScreens extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            const Icon(Icons.copy, size: 10, color: AppColor.ungu),
+                            const Icon(
+                              Icons.copy,
+                              size: 10,
+                              color: AppColor.ungu,
+                            ),
                           ],
                         ),
                       ),
@@ -254,8 +233,11 @@ class ETiketScreens extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.location_on_outlined,
-                                  size: 11, color: AppColor.ungu),
+                              const Icon(
+                                Icons.location_on_outlined,
+                                size: 11,
+                                color: AppColor.ungu,
+                              ),
                               const SizedBox(width: 3),
                               Expanded(
                                 child: Text(
@@ -282,7 +264,9 @@ class ETiketScreens extends StatelessWidget {
                           Text(
                             '${p.grup.nama} • ${p.paket.namaPendek}',
                             style: GoogleFonts.manrope(
-                                fontSize: 9, color: AppColor.abu),
+                              fontSize: 9,
+                              color: AppColor.abu,
+                            ),
                           ),
                         ],
                       ),
@@ -319,13 +303,18 @@ class ETiketScreens extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   decoration: BoxDecoration(
                     border: Border(
-                      top: BorderSide(color: AppColor.abu.withValues(alpha: 0.2)),
+                      top: BorderSide(
+                        color: AppColor.abu.withValues(alpha: 0.2),
+                      ),
                     ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.meeting_room_outlined,
-                          size: 13, color: AppColor.abu),
+                      const Icon(
+                        Icons.meeting_room_outlined,
+                        size: 13,
+                        color: AppColor.abu,
+                      ),
                       const SizedBox(width: 5),
                       Text(
                         'LOKASI: ',
@@ -452,8 +441,10 @@ class ETiketScreens extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColor.biru.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
@@ -461,8 +452,11 @@ class ETiketScreens extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.wb_sunny_outlined,
-                          size: 12, color: AppColor.kuning),
+                      const Icon(
+                        Icons.wb_sunny_outlined,
+                        size: 12,
+                        color: AppColor.kuning,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         'Atur kecerahan layar maksimal saat memindai',
@@ -486,8 +480,10 @@ class ETiketScreens extends StatelessWidget {
   Widget _chip(String teks, Color bg, Color fg, {bool dot = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration:
-          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -508,8 +504,13 @@ class ETiketScreens extends StatelessWidget {
     );
   }
 
-  Widget _kolom(String label, IconData icon, String nilai, String sub,
-      {Color warnaSub = AppColor.abu}) {
+  Widget _kolom(
+    String label,
+    IconData icon,
+    String nilai,
+    String sub, {
+    Color warnaSub = AppColor.abu,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -540,7 +541,10 @@ class ETiketScreens extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.only(left: 16, top: 1),
-          child: Text(sub, style: GoogleFonts.manrope(fontSize: 9, color: warnaSub)),
+          child: Text(
+            sub,
+            style: GoogleFonts.manrope(fontSize: 9, color: warnaSub),
+          ),
         ),
       ],
     );

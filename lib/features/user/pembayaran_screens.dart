@@ -256,26 +256,6 @@ class _QrisScreensState extends State<QrisScreens> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _tombolSekunder(
-                          Icons.download_outlined,
-                          'Unduh QR',
-                          () => _info('Unduh QR: sambungkan ke QR asli / backend'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _tombolSekunder(
-                          Icons.open_in_new,
-                          'Buka di E-Wallet',
-                          () => _info('Buka e-wallet: perlu deep link dari gateway'),
-                        ),
-                      ),
-                    ],
-                  ),
                   const SizedBox(height: 12),
                   _caraBayar([
                     'Buka aplikasi m-Banking atau e-wallet pilihan Anda.',

@@ -4,10 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/api_client.dart';
 import '../../core/app_color.dart';
 import '../../core/favorite_store.dart';
-import '../../core/format.dart';
 import '../../core/format_rupiah.dart';
+import '../../core/navigasi_wisata.dart';
 import '../../core/session_manager.dart';
 import '../../models/wisata.dart';
+import '../../services/wisata_service.dart';
+import '../../widgets/badge_rating.dart';
+import '../../widgets/tombol_kartu.dart';
 import '../../widgets/gambar_wisata.dart';
 import '../../widgets/sub_app_bar.dart';
 import '../../widgets/tombol_favorit.dart';
@@ -34,20 +37,18 @@ class _WishlistScreensState extends State<WishlistScreens> {
     if (token == null || token.isEmpty) return const [];
 
     final rows = await UserApi.wishlist(token);
-    final ids = <int>{};
-    final wisata = <Wisata>[];
+    final ids = rows
+        .map((row) => (row['id_wisata'] as num?)?.toInt())
+        .whereType<int>()
+        .toList();
 
-    for (final row in rows) {
-      final item = row['wisata'];
-      if (item is Map<String, dynamic>) {
-        final parsed = Wisata.fromApiJson(item);
-        wisata.add(parsed);
-        ids.add(parsed.id);
-      }
-    }
+    FavoritStore.ids.value = ids.toSet();
+    if (ids.isEmpty) return const [];
 
-    FavoritStore.ids.value = ids;
-    return wisata;
+    // Ambil data wisata lengkap lewat query yang sama dengan katalog, termasuk foto dan harga paket.
+    final lengkap = await WisataService().getByIds(ids);
+    final berdasarkanId = {for (final wisata in lengkap) wisata.id: wisata};
+    return ids.map((id) => berdasarkanId[id]).whereType<Wisata>().toList();
   }
 
   @override
@@ -56,7 +57,7 @@ class _WishlistScreensState extends State<WishlistScreens> {
       backgroundColor: AppColor.latar,
       body: Column(
         children: [
-          const SubAppBar(title: 'Wishlist Saya'),
+          const SubAppBar(title: 'Wishlist Saya', showAvatar: false),
           Expanded(
             child: FutureBuilder<List<Wisata>>(
               future: _daftar,
@@ -118,7 +119,21 @@ class _WishlistScreensState extends State<WishlistScreens> {
                       },
                     ),
                     const SizedBox(height: 12),
-                    if (daftar.isEmpty) _kosong() else ...daftar.map(_kartu),
+                    ValueListenableBuilder<Set<int>>(
+                      valueListenable: FavoritStore.ids,
+                      builder: (context, ids, _) {
+                        final tersimpan = daftar
+                            .where((w) => ids.contains(w.id))
+                            .toList();
+                        return Column(
+                          children: tersimpan.isEmpty
+                              ? [_kosong()]
+                              : tersimpan
+                                    .map((wisata) => _kartu(context, wisata))
+                                    .toList(),
+                        );
+                      },
+                    ),
                   ],
                 );
               },
@@ -155,101 +170,112 @@ class _WishlistScreensState extends State<WishlistScreens> {
     );
   }
 
-  Widget _kartu(Wisata w) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: AppColor.putih,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColor.hitam.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _gambar(w),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  w.nama,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: AppColor.hitam,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on_outlined,
-                      size: 12,
-                      color: AppColor.ungu,
-                    ),
-                    const SizedBox(width: 3),
-                    Expanded(
-                      child: Text(
-                        w.lokasi,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
-                          fontSize: 10,
-                          color: AppColor.abu,
-                        ),
+  Widget _kartu(BuildContext context, Wisata w) {
+    return GestureDetector(
+      onTap: () => bukaDetailWisata(context, w),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: AppColor.putih,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColor.abu.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 115,
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  GambarWisata(path: w.gambar),
+                  if (w.rating != null)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: BadgeRating(
+                        rating: w.rating!,
+                        ulasan: w.jumlahUlasan == null
+                            ? null
+                            : '${ringkasAngka(w.jumlahUlasan!)} ulasan',
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (w.hargaAsli != null)
-                            Text(
-                              'Rp ${formatAngka(w.hargaAsli!)}',
-                              style: GoogleFonts.manrope(
-                                fontSize: 10,
-                                color: AppColor.abu,
-                                decoration: TextDecoration.lineThrough,
-                              ),
+                  Positioned(
+                    top: 4,
+                    right: 6,
+                    child: TombolFavorit(wisataId: w.id),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: w.lokasi,
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppColor.ungu,
+                          ),
+                        ),
+                        if (w.subkategori != null)
+                          TextSpan(
+                            text: '  |  ${w.subkategori}',
+                            style: GoogleFonts.manrope(
+                              fontSize: 10,
+                              color: AppColor.abu,
                             ),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
+                          ),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    w.nama,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColor.hitam,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(
                             children: [
-                              Text(
-                                'Mulai ',
+                              TextSpan(
+                                text: 'Mulai dari ',
                                 style: GoogleFonts.manrope(
                                   fontSize: 10,
                                   color: AppColor.abu,
                                 ),
                               ),
-                              Text(
-                                'Rp ${formatAngka(w.harga)}',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
+                              TextSpan(
+                                text: formatRupiah(w.harga),
+                                style: GoogleFonts.outfit(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
                                   color: AppColor.ungu,
                                 ),
                               ),
                               if (w.satuanHarga != null)
-                                Text(
-                                  ' ${w.satuanHarga}',
+                                TextSpan(
+                                  text: ' ${w.satuanHarga}',
                                   style: GoogleFonts.manrope(
                                     fontSize: 10,
                                     color: AppColor.abu,
@@ -257,213 +283,19 @@ class _WishlistScreensState extends State<WishlistScreens> {
                                 ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        // TODO: arahkan ke detail wisata.
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColor.biru.withValues(alpha: 0.18),
-                        foregroundColor: AppColor.ungu,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Detail',
-                            style: GoogleFonts.manrope(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.arrow_forward, size: 14),
-                        ],
+                      TombolKartu(
+                        label: 'Pilih Paket',
+                        onPressed: () => bukaDetailWisata(context, w),
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  IconData _ikonTipe(String tipe) {
-    final t = tipe.toLowerCase();
-    if (t.contains('qr')) return Icons.qr_code_2;
-    if (t.contains('instan') || t.contains('instant')) return Icons.bolt;
-    return Icons.check_circle_outline;
-  }
-
-  Widget _gambar(Wisata w) {
-    String? teksBadge;
-    Color warnaBadge = AppColor.kuning;
-    Color warnaTeksBadge = AppColor.ungu;
-
-    if (w.diskonPersen > 0) {
-      teksBadge = 'Diskon ${w.diskonPersen}%';
-    } else if ((w.rating ?? 0) >= 4.9) {
-      teksBadge = 'Popular Choice';
-      warnaBadge = AppColor.ungu;
-      warnaTeksBadge = AppColor.putih;
-    }
-
-    final labelKategori = w.kategori ?? w.subkategori;
-
-    return SizedBox(
-      height: 150,
-      width: double.infinity,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          GambarWisata(path: w.gambar),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 60,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    AppColor.hitam.withValues(alpha: 0),
-                    AppColor.hitam.withValues(alpha: 0.55),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ),
-          Positioned(
-            top: 10,
-            left: 10,
-            child: Row(
-              children: [
-                if (teksBadge != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: warnaBadge,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      teksBadge,
-                      style: GoogleFonts.manrope(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        color: warnaTeksBadge,
-                      ),
-                    ),
-                  ),
-                if (teksBadge != null && w.tipe != null)
-                  const SizedBox(width: 6),
-                if (w.tipe != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColor.putih.withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _ikonTipe(w.tipe!),
-                          size: 11,
-                          color: AppColor.ungu,
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          w.tipe!,
-                          style: GoogleFonts.manrope(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: AppColor.ungu,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Positioned(top: 4, right: 6, child: TombolFavorit(wisataId: w.id)),
-          Positioned(
-            left: 10,
-            right: 10,
-            bottom: 8,
-            child: Row(
-              children: [
-                if (w.rating != null) ...[
-                  const Icon(
-                    Icons.star_rounded,
-                    size: 14,
-                    color: AppColor.kuning,
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    '${w.rating}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: AppColor.putih,
-                    ),
-                  ),
-                  if (w.jumlahUlasan != null) ...[
-                    const SizedBox(width: 4),
-                    Text(
-                      '(${ringkasAngka(w.jumlahUlasan!)} ulasan)',
-                      style: GoogleFonts.manrope(
-                        fontSize: 9,
-                        color: AppColor.putih.withValues(alpha: 0.85),
-                      ),
-                    ),
-                  ],
-                ],
-                const Spacer(),
-                if (labelKategori != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColor.hitam.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      labelKategori,
-                      style: GoogleFonts.manrope(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        color: AppColor.putih,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

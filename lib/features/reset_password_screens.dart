@@ -15,6 +15,7 @@ class _ResetPasswordScreensState extends State<ResetPasswordScreens> {
   final _passBaru = TextEditingController();
   final _passUlang = TextEditingController();
   bool _hidden = true;
+  bool _hiddenUlang = true;
   bool _loading = false;
 
   @override
@@ -61,8 +62,7 @@ class _ResetPasswordScreensState extends State<ResetPasswordScreens> {
     return InputDecoration(
       hintText: hint,
       hintStyle: GoogleFonts.manrope(fontSize: 12, color: AppColor.abu),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: AppColor.ungu.withValues(alpha: 0.4)),
@@ -77,80 +77,171 @@ class _ResetPasswordScreensState extends State<ResetPasswordScreens> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Atur Password Baru',
-            style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
-        automaticallyImplyLeading: false,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Password baru',
-                  style: GoogleFonts.manrope(
-                      fontSize: 12, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _passBaru,
-                obscureText: _hidden,
-                style: GoogleFonts.manrope(fontSize: 12),
-                decoration: _dekor('masukkan password baru').copyWith(
-                  suffixIcon: IconButton(
-                    onPressed: () => setState(() => _hidden = !_hidden),
-                    icon: Icon(
-                      _hidden
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                      size: 18,
-                      color: AppColor.abu,
-                    ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [AppColor.ungu, AppColor.biru, AppColor.putih],
+            stops: [0, 0.45, 0.8],
+          ),
+        ),
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: 520,
+                    minHeight: constraints.maxHeight,
+                  ),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 48),
+                      Text(
+                        'Atur Password Baru',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.outfit(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w700,
+                          color: AppColor.putih,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Buat password baru untuk mengamankan akunmu.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.manrope(
+                          fontSize: 14,
+                          color: AppColor.putih,
+                        ),
+                      ),
+                      const SizedBox(height: 42),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 26),
+                        decoration: BoxDecoration(
+                          color: AppColor.putih,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColor.hitam.withValues(alpha: 0.15),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _label('Password baru'),
+                            TextField(
+                              controller: _passBaru,
+                              obscureText: _hidden,
+                              style: GoogleFonts.manrope(fontSize: 12),
+                              decoration: _dekor('masukkan password baru')
+                                  .copyWith(
+                                    suffixIcon: IconButton(
+                                      onPressed: () =>
+                                          setState(() => _hidden = !_hidden),
+                                      icon: Icon(
+                                        _hidden
+                                            ? Icons.visibility_outlined
+                                            : Icons.visibility_off_outlined,
+                                        size: 18,
+                                        color: AppColor.abu,
+                                      ),
+                                    ),
+                                  ),
+                            ),
+                            const SizedBox(height: 16),
+                            _label('Ulangi password baru'),
+                            TextField(
+                              controller: _passUlang,
+                              obscureText: _hiddenUlang,
+                              style: GoogleFonts.manrope(fontSize: 12),
+                              decoration: _dekor('ulangi password baru')
+                                  .copyWith(
+                                    suffixIcon: IconButton(
+                                      onPressed: () => setState(
+                                        () => _hiddenUlang = !_hiddenUlang,
+                                      ),
+                                      icon: Icon(
+                                        _hiddenUlang
+                                            ? Icons.visibility_outlined
+                                            : Icons.visibility_off_outlined,
+                                        size: 18,
+                                        color: AppColor.abu,
+                                      ),
+                                    ),
+                                  ),
+                            ),
+                            const SizedBox(height: 24),
+                            Center(
+                              child: SizedBox(
+                                width: 220,
+                                height: 48,
+                                child: ElevatedButton(
+                                  onPressed: _loading ? null : _simpan,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColor.kuning,
+                                    foregroundColor: AppColor.putih,
+                                    elevation: 2,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                  ),
+                                  child: _loading
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppColor.putih,
+                                          ),
+                                        )
+                                      : Text(
+                                          'Simpan',
+                                          style: GoogleFonts.manrope(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 150),
+                      Image.asset(
+                        'assets/images/LokaTrip-logo-no-van.png',
+                        width: 90,
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 15),
-              Text('Ulangi password baru',
-                  style: GoogleFonts.manrope(
-                      fontSize: 12, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _passUlang,
-                obscureText: _hidden,
-                style: GoogleFonts.manrope(fontSize: 12),
-                decoration: _dekor('ulangi password baru'),
-              ),
-              const SizedBox(height: 24),
-              Center(
-                child: SizedBox(
-                  width: 200,
-                  height: 44,
-                  child: ElevatedButton(
-                    onPressed: _loading ? null : _simpan,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColor.kuning,
-                      foregroundColor: Colors.white,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                    ),
-                    child: _loading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        : Text('Simpan',
-                            style: GoogleFonts.outfit(
-                                fontSize: 16, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  Widget _label(String teks) => Padding(
+    padding: const EdgeInsets.only(bottom: 7),
+    child: Text(
+      teks,
+      style: GoogleFonts.manrope(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: AppColor.hitam,
+      ),
+    ),
+  );
 }

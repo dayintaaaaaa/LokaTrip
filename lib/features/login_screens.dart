@@ -257,38 +257,113 @@ class _LoginScreensState extends State<LoginScreens> {
     try {
       final kirim = await showDialog<bool>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(
-            'Lupa Password',
-            style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Masukkan email akunmu. Kami akan mengirim link untuk mengatur ulang password.',
-                style: GoogleFonts.manrope(fontSize: 12),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                style: GoogleFonts.manrope(fontSize: 12),
-                decoration: _inputDecoration('masukkan email'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Batal'),
+        builder: (dialogContext) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Container(
+            width: 420,
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+            decoration: BoxDecoration(
+              color: AppColor.putih,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColor.hitam.withValues(alpha: 0.16),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Kirim'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Lupa Password?',
+                  style: GoogleFonts.outfit(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: AppColor.hitam,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  'Masukkan email akunmu. Kami akan mengirim link untuk mengatur ulang password.',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    height: 1.45,
+                    color: AppColor.abu,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Email',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColor.hitam,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.done,
+                  style: GoogleFonts.manrope(fontSize: 12),
+                  decoration: _inputDecoration('email@contoh.com'),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColor.ungu,
+                          side: BorderSide(
+                            color: AppColor.ungu.withValues(alpha: 0.35),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: Text(
+                          'Batal',
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColor.kuning,
+                          foregroundColor: AppColor.putih,
+                          elevation: 2,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: Text(
+                          'Kirim Link',
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       );
 
@@ -405,19 +480,19 @@ class _LoginScreensState extends State<LoginScreens> {
                         style: GoogleFonts.manrope(fontSize: 12),
                         decoration: _inputDecoration('masukkan password')
                             .copyWith(
-                          suffixIcon: IconButton(
-                            onPressed: () {
-                              setState(() => _hiddenPass = !_hiddenPass);
-                            },
-                            icon: Icon(
-                              _hiddenPass
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                              size: 18,
-                              color: AppColor.abu,
+                              suffixIcon: IconButton(
+                                onPressed: () {
+                                  setState(() => _hiddenPass = !_hiddenPass);
+                                },
+                                icon: Icon(
+                                  _hiddenPass
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                  size: 18,
+                                  color: AppColor.abu,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
                       ),
                       Align(
                         alignment: Alignment.centerRight,
@@ -463,26 +538,15 @@ class _LoginScreensState extends State<LoginScreens> {
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.manrope(
-        fontSize: 12,
-        color: AppColor.abu,
-      ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 14,
-      ),
+      hintStyle: GoogleFonts.manrope(fontSize: 12, color: AppColor.abu),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: AppColor.ungu.withValues(alpha: 0.4),
-        ),
+        borderSide: BorderSide(color: AppColor.ungu.withValues(alpha: 0.4)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(
-          color: AppColor.ungu,
-          width: 1.5,
-        ),
+        borderSide: const BorderSide(color: AppColor.ungu, width: 1.5),
       ),
     );
   }

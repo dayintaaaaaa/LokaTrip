@@ -228,6 +228,17 @@ class UserApi {
     }
   }
 
+  static Future<void> markAllNotificationsRead(String token) async {
+    try {
+      await _supabase
+          .from('notifikasi')
+          .update({'status_baca': true})
+          .eq('status_baca', false);
+    } catch (error) {
+      _apiError(error);
+    }
+  }
+
   static Future<Map<String, dynamic>> points(String token) async {
     try {
       final profile = await _supabase

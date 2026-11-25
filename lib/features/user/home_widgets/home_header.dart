@@ -5,17 +5,25 @@ import '../../../core/app_color.dart';
 class _ChipData {
   final IconData icon;
   final String label;
-  const _ChipData(this.icon, this.label);
+  final String query;
+  const _ChipData(this.icon, this.label, this.query);
 }
 
 class HomeHeader extends StatelessWidget {
-  const HomeHeader({super.key});
+  final ValueChanged<String> onSearch;
+  final VoidCallback onFilter;
+
+  const HomeHeader({super.key, required this.onSearch, required this.onFilter});
 
   // isi chip cepat
   static const _chips = [
-    _ChipData(Icons.trending_up, 'Trending Labuan Bajo'),
-    _ChipData(Icons.bolt, 'Tiket Dufan Ancol'),
-    _ChipData(Icons.verified_outlined, 'Borobudur Sunrise'),
+    _ChipData(Icons.trending_up, 'Trending Labuan Bajo', 'Labuan Bajo'),
+    _ChipData(Icons.bolt, 'Tiket Dufan Ancol', 'Dufan Ancol'),
+    _ChipData(
+      Icons.verified_outlined,
+      'Borobudur Sunrise',
+      'Borobudur Sunrise',
+    ),
   ];
 
   @override
@@ -65,7 +73,6 @@ class HomeHeader extends StatelessWidget {
                     ],
                   ),
                 ),
-
               ],
             ),
           ),
@@ -96,6 +103,8 @@ class HomeHeader extends StatelessWidget {
                   Expanded(
                     child: TextField(
                       style: GoogleFonts.manrope(fontSize: 12),
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (kata) => onSearch(kata.trim()),
                       decoration: InputDecoration(
                         border: InputBorder.none,
                         isDense: true,
@@ -109,9 +118,7 @@ class HomeHeader extends StatelessWidget {
                     ),
                   ),
                   InkWell(
-                    onTap: () {
-                      // nanti buka filter
-                    },
+                    onTap: onFilter,
                     borderRadius: BorderRadius.circular(15),
                     child: Container(
                       width: 36,
@@ -120,7 +127,7 @@ class HomeHeader extends StatelessWidget {
                         color: AppColor.biru.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      child: Icon(Icons.tune,  size: 18, color: AppColor.biru),
+                      child: Icon(Icons.tune, size: 18, color: AppColor.biru),
                     ),
                   ),
                 ],
@@ -141,9 +148,7 @@ class HomeHeader extends StatelessWidget {
               itemBuilder: (_, i) {
                 final c = _chips[i];
                 return GestureDetector(
-                  onTap: () {
-                    // nanti: isi kolom pencarian / buka Wisata dengan filter ini
-                  },
+                  onTap: () => onSearch(c.query),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
@@ -176,5 +181,4 @@ class HomeHeader extends StatelessWidget {
       ),
     );
   }
-
 }
