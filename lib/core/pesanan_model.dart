@@ -56,9 +56,6 @@ class Pesanan {
   });
 
   bool get aktif => status != StatusPesanan.selesai;
-<<<<<<< HEAD
-}
-=======
 
   factory Pesanan.fromApiJson(Map<String, dynamic> json) {
     Map<String, dynamic>? firstMap(dynamic value) {
@@ -97,6 +94,7 @@ class Pesanan {
 
     return Pesanan(
       id: json['kode_pesan'] as String? ?? '$rawId',
+      idPemesanan: rawId,
       wisataId: wisataId,
       orderId: rawId,
       tglBeli: orderDate == null
@@ -250,4 +248,3 @@ class DataPesanan {
     ),
   ];
 }
->>>>>>> daa95c622d6c50a0444812146fd6c39ce86954ea

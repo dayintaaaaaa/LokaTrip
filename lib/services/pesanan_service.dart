@@ -1,9 +1,9 @@
-<<<<<<< HEAD
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/format_rupiah.dart';
 import '../core/pesanan_model.dart';
+import '../models/pesanan_saya.dart';
 
 class PesananGagal implements Exception {
   final String pesan;
@@ -17,6 +17,20 @@ class PesananGagal implements Exception {
 /// Pembatasan per akun dilakukan RLS (pemesanan_milik_sendiri).
 class PesananService {
   final SupabaseClient _db = Supabase.instance.client;
+
+  static const _selectSaya = '''
+    *,
+    kuota_harian(
+      tanggal,
+      paket_wisata(
+        id_paket, nama_paket, tipe_paket,
+        wisata(id_wisata, nama_wisata, kota, foto_wisata(url_foto, urutan))
+      )
+    ),
+    detail_pemesanan(tipe_pengunjung, jumlah, subtotal_harga_tiket),
+    pembayaran(metode_bayar, status_bayar, waktu_bayar),
+    e_tiket(id_tiket, kode_qr, status_tiket)
+  ''';
 
   static const _bulan = [
     'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
@@ -246,38 +260,12 @@ class PesananService {
 
     return hasil;
   }
-}
-=======
-import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/pesanan_saya.dart';
-
-// Membaca pesanan milik wisatawan yang sedang login.
-// Yang terbaca otomatis hanya milik sendiri karena dibatasi policy RLS
-// (pesanan_milik_sendiri dan policy tabel turunannya).
-class PesananService {
-  final SupabaseClient _db = Supabase.instance.client;
-
-  static const _select = '''
-    *,
-    kuota_harian(
-      tanggal,
-      paket_wisata(
-        id_paket, nama_paket, tipe_paket,
-        wisata(id_wisata, nama_wisata, kota, foto_wisata(url_foto, urutan))
-      )
-    ),
-    detail_pemesanan(tipe_pengunjung, jumlah, subtotal_harga_tiket),
-    pembayaran(metode_bayar, status_bayar, waktu_bayar),
-    e_tiket(id_tiket, kode_qr, status_tiket)
-  ''';
-
   /// Semua pesanan, yang terbaru di atas.
   Future<List<PesananSaya>> daftarSaya() async {
     try {
       final data = await _db
           .from('pemesanan')
-          .select(_select)
+          .select(_selectSaya)
           .order('dibuat_pada', ascending: false);
       return (data as List)
           .map((e) => PesananSaya.fromMap(e as Map<String, dynamic>))
@@ -293,7 +281,7 @@ class PesananService {
     try {
       final data = await _db
           .from('pemesanan')
-          .select(_select)
+          .select(_selectSaya)
           .eq('kode_pesan', kodePesan)
           .single();
       return PesananSaya.fromMap(data);
@@ -303,4 +291,3 @@ class PesananService {
     }
   }
 }
->>>>>>> daa95c622d6c50a0444812146fd6c39ce86954ea

@@ -2066,7 +2066,7 @@ class _MitraDetailAdminScreensState extends State<_MitraDetailAdminScreens> {
   late String _accountEmail;
   late final TextEditingController _catatanController;
   late final List<_MitraHistory> _history;
-  bool _provisioningAuth = false;
+  bool _savingMitraAccount = false;
 
   @override
   void initState() {
@@ -2189,15 +2189,15 @@ class _MitraDetailAdminScreensState extends State<_MitraDetailAdminScreens> {
     );
   }
 
-  Future<void> _provisionAuthAccount() async {
-    if (_provisioningAuth || widget.mitra.backendId == null) return;
+  Future<void> _saveMitraAccount() async {
+    if (_savingMitraAccount || widget.mitra.backendId == null) return;
     final formKey = GlobalKey<FormState>();
     final emailController = TextEditingController(text: _accountEmail);
     final passwordController = TextEditingController();
     final credentials = await showDialog<Map<String, String>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Buat akun login mitra'),
+        title: const Text('Tambah akun mitra'),
         content: SizedBox(
           width: 420,
           child: Form(
@@ -2209,7 +2209,7 @@ class _MitraDetailAdminScreensState extends State<_MitraDetailAdminScreens> {
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
-                    labelText: 'Email asli mitra',
+                    labelText: 'Email login mitra',
                     hintText: 'mitra@email.com',
                   ),
                   validator: (value) =>
@@ -2225,7 +2225,7 @@ class _MitraDetailAdminScreensState extends State<_MitraDetailAdminScreens> {
                   controller: passwordController,
                   obscureText: true,
                   decoration: const InputDecoration(
-                    labelText: 'Password awal (minimal 8 karakter)',
+                  labelText: 'Password awal (minimal 8 karakter)',
                   ),
                   validator: (value) => value == null || value.length < 8
                       ? 'Password minimal 8 karakter.'
@@ -2248,7 +2248,7 @@ class _MitraDetailAdminScreensState extends State<_MitraDetailAdminScreens> {
                 'password': passwordController.text,
               });
             },
-            child: const Text('Buat akun'),
+            child: const Text('Simpan akun'),
           ),
         ],
       ),
@@ -2257,9 +2257,9 @@ class _MitraDetailAdminScreensState extends State<_MitraDetailAdminScreens> {
     passwordController.dispose();
     if (credentials == null || !mounted) return;
 
-    setState(() => _provisioningAuth = true);
+    setState(() => _savingMitraAccount = true);
     try {
-      await AdminAuthService.provisionMitraAuth(
+      await AdminAuthService.provisionMitraAccount(
         accessToken: SessionManager.adminAccessToken ?? '',
         mitraId: widget.mitra.backendId!,
         email: credentials['email']!,
@@ -2270,17 +2270,17 @@ class _MitraDetailAdminScreensState extends State<_MitraDetailAdminScreens> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Akun Auth mitra dibuat untuk ${credentials['email']}. Berikan password awal kepada mitra.',
+            'Akun mitra dibuat untuk ${credentials['email']}. Berikan password awal kepada mitra.',
           ),
         ),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Akun Auth mitra gagal dibuat: $error')),
+        SnackBar(content: Text('Akun mitra gagal dibuat: $error')),
       );
     } finally {
-      if (mounted) setState(() => _provisioningAuth = false);
+      if (mounted) setState(() => _savingMitraAccount = false);
     }
   }
 
@@ -2431,7 +2431,7 @@ class _MitraDetailAdminScreensState extends State<_MitraDetailAdminScreens> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Akun Login Supabase Auth',
+                    'Akun login mitra',
                     style: GoogleFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
@@ -2452,10 +2452,10 @@ class _MitraDetailAdminScreensState extends State<_MitraDetailAdminScreens> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: _provisioningAuth
+                      onPressed: _savingMitraAccount
                           ? null
-                          : _provisionAuthAccount,
-                      icon: _provisioningAuth
+                          : _saveMitraAccount,
+                      icon: _savingMitraAccount
                           ? const SizedBox(
                               width: 16,
                               height: 16,
@@ -2463,15 +2463,15 @@ class _MitraDetailAdminScreensState extends State<_MitraDetailAdminScreens> {
                             )
                           : const Icon(Icons.person_add_alt_1_outlined),
                       label: Text(
-                        _provisioningAuth
-                            ? 'Membuat akun...'
-                            : 'Buat akun Auth / email login',
+                        _savingMitraAccount
+                            ? 'Menyimpan akun...'
+                            : 'Tambah akun mitra',
                       ),
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    'Password disimpan di Supabase Auth, tidak di tabel mitra.',
+                    'Password disimpan sebagai hash aman di Supabase.',
                     style: GoogleFonts.manrope(
                       fontSize: 10,
                       color: _mitraMuted,
