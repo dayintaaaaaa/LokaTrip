@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lokatrip/services/auth_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/api_client.dart';
 import '../core/app_color.dart';
 import '../core/session_manager.dart';
 import '../features/login_screens.dart';
@@ -47,12 +49,21 @@ class _SplashScreensState extends State<SplashScreens>
         return;
       }
 
-      final loggedIn = await SessionManager.isLoggedIn();
+      var loggedIn = await SessionManager.isLoggedIn();
       final role = await SessionManager.accountRole();
 
       final mitraToken = role == 'mitra'
           ? await SessionManager.currentMitraToken()
           : null;
+      if (loggedIn && role == 'mitra') {
+        final valid = mitraToken != null &&
+            await MitraApi.validateSession(mitraToken);
+        if (!valid) {
+          await Supabase.instance.client.auth.signOut();
+          await SessionManager.logout();
+          loggedIn = false;
+        }
+      }
       final adminToken = role == 'admin'
           ? await SessionManager.currentAdminToken()
           : null;

@@ -1,5 +1,3 @@
-import 'format_rupiah.dart';
-
 enum KategoriPesanan { tiketWisata, tur }
 
 enum StatusPesanan { siapDigunakan, terkonfirmasi, selesai }

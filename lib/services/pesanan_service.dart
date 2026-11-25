@@ -214,9 +214,14 @@ class PesananService {
         (x) => x['status_bayar'] == 'berhasil',
         orElse: () => bayar.isNotEmpty ? bayar.first : <String, dynamic>{},
       );
-      final sudahBayar = bayar.any((x) =>
-          const ['berhasil', 'dibayar', 'lunas', 'paid'].contains(
-              '${x['status_bayar']}'.toLowerCase()));
+      final sudahBayar = bayar.any(
+        (x) => const [
+          'berhasil',
+          'dibayar',
+          'lunas',
+          'paid',
+        ].contains('${x['status_bayar']}'.toLowerCase()),
+      );
       final wisataId = (wisata?['id_wisata'] as num?)?.toInt() ?? 0;
 
       final buka = _jam(wisata?['jam_buka']);
@@ -255,7 +260,11 @@ class PesananService {
           metode: _metode(b),
           rating: (u?['rating'] as num?)?.toDouble(),
           ulasan: u?['komentar'] as String?,
-          bisaUlas: status == StatusPesanan.selesai && u == null && sudahBayar && wisataId > 0,
+          bisaUlas:
+              status == StatusPesanan.selesai &&
+              u == null &&
+              sudahBayar &&
+              wisataId > 0,
           wisataId: wisataId,
           orderId: idPemesanan,
         ),
