@@ -2191,70 +2191,10 @@ class _MitraDetailAdminScreensState extends State<_MitraDetailAdminScreens> {
 
   Future<void> _saveMitraAccount() async {
     if (_savingMitraAccount || widget.mitra.backendId == null) return;
-    final formKey = GlobalKey<FormState>();
-    final emailController = TextEditingController(text: _accountEmail);
-    final passwordController = TextEditingController();
     final credentials = await showDialog<Map<String, String>>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Tambah akun mitra'),
-        content: SizedBox(
-          width: 420,
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email login mitra',
-                    hintText: 'mitra@email.com',
-                  ),
-                  validator: (value) =>
-                      value == null ||
-                          !RegExp(
-                            r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                          ).hasMatch(value.trim())
-                      ? 'Masukkan email yang valid.'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                  labelText: 'Password awal (minimal 8 karakter)',
-                  ),
-                  validator: (value) => value == null || value.length < 8
-                      ? 'Password minimal 8 karakter.'
-                      : null,
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-              Navigator.pop(dialogContext, {
-                'email': emailController.text.trim().toLowerCase(),
-                'password': passwordController.text,
-              });
-            },
-            child: const Text('Simpan akun'),
-          ),
-        ],
-      ),
+      builder: (_) => _MitraAccountDialog(initialEmail: _accountEmail),
     );
-    emailController.dispose();
-    passwordController.dispose();
     if (credentials == null || !mounted) return;
 
     setState(() => _savingMitraAccount = true);
@@ -2943,6 +2883,102 @@ class _AdditionalSettings extends StatelessWidget {
   }
 }
 
+class _MitraAccountDialog extends StatefulWidget {
+  final String initialEmail;
+
+  const _MitraAccountDialog({required this.initialEmail});
+
+  @override
+  State<_MitraAccountDialog> createState() => _MitraAccountDialogState();
+}
+
+class _MitraAccountDialogState extends State<_MitraAccountDialog> {
+  late final TextEditingController _emailController;
+  final _passwordController = TextEditingController();
+  bool _showValidationErrors = false;
+
+  bool get _emailIsValid => RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+      .hasMatch(_emailController.text.trim());
+  bool get _passwordIsValid => _passwordController.text.length >= 8;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.initialEmail);
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!_emailIsValid || !_passwordIsValid) {
+      setState(() => _showValidationErrors = true);
+      return;
+    }
+
+    Navigator.pop(context, {
+      'email': _emailController.text.trim().toLowerCase(),
+      'password': _passwordController.text,
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Tambah akun mitra'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              onChanged: (_) {
+                if (_showValidationErrors) setState(() {});
+              },
+              decoration: InputDecoration(
+                labelText: 'Email login mitra',
+                hintText: 'mitra@email.com',
+                errorText: _showValidationErrors && !_emailIsValid
+                    ? 'Masukkan email yang valid.'
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _passwordController,
+              obscureText: true,
+              onChanged: (_) {
+                if (_showValidationErrors) setState(() {});
+              },
+              decoration: InputDecoration(
+                labelText: 'Password awal (minimal 8 karakter)',
+                errorText: _showValidationErrors && !_passwordIsValid
+                    ? 'Password minimal 8 karakter.'
+                    : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Simpan akun'),
+        ),
+      ],
+    );
+  }
+}
 class _MitraHistory {
   final String title;
   final String description;

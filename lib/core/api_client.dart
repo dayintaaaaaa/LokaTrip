@@ -375,6 +375,24 @@ class MitraApi {
   static const _profileColumns =
       'id_mitra, id_admin, username, nama_lengkap_admin, email, no_telephone';
 
+  static Future<List<String>> getKategoriWisata() async {
+    try {
+      final rows = _rows(
+        await _supabase
+            .from('kategori')
+            .select('nama_kategori')
+            .order('id_kategori'),
+        'Daftar kategori wisata tidak valid.',
+      );
+      return rows
+          .map((row) => row['nama_kategori']?.toString().trim() ?? '')
+          .where((name) => name.isNotEmpty)
+          .toList(growable: false);
+    } catch (error) {
+      _apiError(error);
+    }
+  }
+
   static Future<String> _sessionToken() async {
     final token = await SessionManager.currentMitraToken();
     if (token == null || token.isEmpty) {
@@ -700,7 +718,7 @@ class MitraApi {
     final documentIds = <int>[];
     int? wisataId;
     int? packageId;
-    int? detailId;
+    final detailIds = <int>[];
     int? photoId;
 
     Future<void> rollback() async {
@@ -719,11 +737,11 @@ class MitraApi {
               .from('kuota_harian')
               .delete()
               .eq('id_paket', packageId);
-          if (detailId != null) {
+          if (detailIds.isNotEmpty) {
             await _supabase
                 .from('detail_paket')
                 .delete()
-                .eq('id_detail_paket', detailId);
+                .inFilter('id_detail_paket', detailIds);
           }
           await _supabase
               .from('paket_wisata')
@@ -785,9 +803,17 @@ class MitraApi {
       }
 
       final price = int.tryParse(values['harga'].toString());
+      final childPrice = int.tryParse(values['harga_anak'].toString());
       final quota = int.tryParse(values['kuota'].toString());
-      if (price == null || price < 0 || quota == null || quota < 1) {
-        throw const ApiException('Harga tiket atau kuota harian tidak valid.');
+      if (price == null ||
+          price < 0 ||
+          childPrice == null ||
+          childPrice < 0 ||
+          quota == null ||
+          quota < 1) {
+        throw const ApiException(
+          'Harga tiket dewasa, harga tiket anak, atau kuota harian tidak valid.',
+        );
       }
 
       String? photoPath;
@@ -852,16 +878,27 @@ class MitraApi {
           .single();
       packageId = (paket['id_paket'] as num).toInt();
 
-      final detail = await _supabase
+      final insertedDetails = await _supabase
           .from('detail_paket')
-          .insert({
-            'id_paket': packageId,
-            'tipe_pengunjung': 'dewasa',
-            'harga': price,
-          })
-          .select('id_detail_paket')
-          .single();
-      detailId = (detail['id_detail_paket'] as num).toInt();
+          .insert([
+            {
+              'id_paket': packageId,
+              'tipe_pengunjung': 'dewasa',
+              'harga': price,
+            },
+            {
+              'id_paket': packageId,
+              'tipe_pengunjung': 'anak_anak',
+              'harga': childPrice,
+            },
+          ])
+          .select('id_detail_paket');
+      detailIds.addAll(
+        _rows(
+          insertedDetails,
+          'Harga tiket wisata tidak valid.',
+        ).map((row) => (row['id_detail_paket'] as num).toInt()),
+      );
 
       final today = DateTime.now();
       final quotas = List.generate(60, (index) {

@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/api_client.dart';
 import '../../core/session_manager.dart';
 import '../../widgets/mitra_bottom_navigator.dart';
+import '../../widgets/tombol_ai_deskripsi_mitra.dart';
 import 'wisata_saya_mitra_screen.dart';
 
 const _blue = MitraPalette.primary;
@@ -44,6 +45,7 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
       'location',
       'ticket',
       'price',
+      'child_price',
       'quota',
       'hours',
     ])
@@ -54,7 +56,8 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
   final _previousFilesNeedReupload = <String>[];
 
   int _step = 0;
-  String _category = 'Wisata Alam';
+  String _category = '';
+  List<String> _categories = const [];
   String _photoName = '';
   String _submissionId = '';
   Uint8List? _photo;
@@ -111,6 +114,16 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
           _previousFilesNeedReupload.add(entry.value);
         }
       }
+    }
+    try {
+      _categories = await MitraApi.getKategoriWisata();
+      if (!_categories.contains(_category)) {
+        _category = _categories.isEmpty ? '' : _categories.first;
+      }
+    } catch (error) {
+      _categories = const [];
+      _category = '';
+      if (mounted) _message('Kategori wisata gagal dimuat: $error');
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -279,7 +292,8 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
           'kategori': _category,
           'lokasi': _value('location'),
           'nama_paket': _value('ticket'),
-          'harga': int.tryParse(_value('price').replaceAll('.', '')) ?? 0,
+          'harga': _value('price').replaceAll('.', ''),
+          'harga_anak': _value('child_price').replaceAll('.', ''),
           'kuota': int.tryParse(_value('quota').replaceAll('.', '')) ?? 0,
           'jam_operasional': _value('hours'),
         },
@@ -491,23 +505,35 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
         _panel('Identitas destinasi', Icons.explore_outlined, [
           _field('destination', 'Nama destinasi', required: true),
           _field('description', 'Deskripsi singkat', required: true, lines: 3),
+          TombolAiDeskripsiMitra(
+            ambilData: () => {
+              'nama_wisata': _value('destination'),
+              'kategori': _category,
+              'lokasi': _value('location'),
+              'jam_operasional': _value('hours'),
+              'deskripsi_saat_ini': _value('description'),
+            },
+            onPakai: (teks) {
+              _fields['description']!.text = teks;
+              _changed();
+            },
+          ),
           _label('Kategori wisata'),
           DropdownButtonFormField<String>(
             initialValue: _category,
             decoration: _decoration(),
-            items:
-                const [
-                      'Wisata Alam',
-                      'Wisata Budaya',
-                      'Wisata Bahari',
-                      'Taman Rekreasi',
-                      'Petualangan',
-                    ]
-                    .map(
-                      (item) =>
-                          DropdownMenuItem(value: item, child: Text(item)),
-                    )
-                    .toList(),
+            hint: Text(
+              _categories.isEmpty
+                  ? 'Kategori belum tersedia'
+                  : 'Pilih kategori wisata',
+            ),
+            validator: (value) =>
+                value == null || value.isEmpty ? 'Pilih kategori wisata.' : null,
+            items: _categories
+                .map(
+                  (item) => DropdownMenuItem(value: item, child: Text(item)),
+                )
+                .toList(),
             onChanged: (value) {
               if (value == null) return;
               setState(() => _category = value);
@@ -580,8 +606,15 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
           _field('ticket', 'Nama paket tiket', required: true),
           _field(
             'price',
-            'Harga tiket per orang (Rp)',
+            'Harga tiket dewasa (Rp)',
             required: true,
+            keyboard: TextInputType.number,
+          ),
+          _field(
+            'child_price',
+            'Harga tiket anak (3-12 tahun) (Rp)',
+            required: true,
+            hint: 'Masukkan 0 jika gratis',
             keyboard: TextInputType.number,
           ),
           _field(
@@ -778,7 +811,8 @@ class _PengajuanMitraScreensState extends State<PengajuanMitraScreens> {
         _summary('Kategori', _category),
         _summary('Lokasi', _value('location')),
         _summary('Tiket', _value('ticket')),
-        _summary('Harga', 'Rp ${_value('price')} / orang'),
+        _summary('Harga dewasa', 'Rp ${_value('price')} / orang'),
+        _summary('Harga anak (3-12 tahun)', 'Rp ${_value('child_price')} / orang'),
         _summary('Kuota per hari', _value('quota')),
       ]),
       const SizedBox(height: 14),

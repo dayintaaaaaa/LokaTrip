@@ -286,7 +286,7 @@ Deno.serve(async (req) => {
     const isPhone = /^[+\d\s()-]+$/.test(identifier)
 
     if (isEmail) {
-      const [admin, mitra, user] = await Promise.all([
+      const [admin, user] = await Promise.all([
         service.from('admin_lokatrip').select('email, auth_id').ilike('email', identifier).maybeSingle(),
         service.from('users').select('email, auth_id').ilike('email', identifier).maybeSingle(),
       ])
@@ -298,7 +298,7 @@ Deno.serve(async (req) => {
         const { data } = await service.from('users').select('email, auth_id').eq('no_telephone', phone).maybeSingle()
         if (data?.email && data.auth_id) candidates.push({ role: 'wisatawan', email: data.email, authId: data.auth_id })
       }
-      const [admin, mitra, user] = await Promise.all([
+      const [admin, user] = await Promise.all([
         service.from('admin_lokatrip').select('email, auth_id').eq('username', identifier).maybeSingle(),
         service.from('users').select('email, auth_id').eq('username', identifier).maybeSingle(),
       ])

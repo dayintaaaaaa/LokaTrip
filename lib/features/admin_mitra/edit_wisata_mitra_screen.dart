@@ -5,6 +5,7 @@ import '../../core/mitra_theme.dart';
 
 import '../../core/api_client.dart';
 import '../../core/session_manager.dart';
+import '../../widgets/tombol_ai_deskripsi_mitra.dart';
 
 class EditWisataMitraScreen extends StatefulWidget {
   const EditWisataMitraScreen({super.key, required this.wisata});
@@ -193,6 +194,22 @@ class _EditWisataMitraScreenState extends State<EditWisataMitraScreen> {
             _section('Informasi wisata', Icons.landscape_outlined, [
               _field(_name, 'Nama wisata'),
               _field(_description, 'Deskripsi', maxLines: 4),
+              TombolAiDeskripsiMitra(
+                ambilData: () {
+                  final kategori = widget.wisata['kategori'];
+                  return {
+                    'nama_wisata': _name.text,
+                    'kategori': kategori is Map
+                        ? kategori['nama_kategori']?.toString() ?? ''
+                        : '',
+                    'kota': _city.text,
+                    'lokasi': _location.text,
+                    'jam_operasional': _open.text + ' - ' + _close.text,
+                    'deskripsi_saat_ini': _description.text,
+                  };
+                },
+                onPakai: (teks) => _description.text = teks,
+              ),
               _field(_location, 'Alamat / lokasi'),
               _field(_city, 'Kota'),
               Row(

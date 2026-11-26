@@ -2,3 +2,6 @@ project_id = "eokrqohaofdiaabpcnyg"
 
 [functions.smart-endpoint]
 verify_jwt = false
+
+[functions.mitra-ai-description]
+verify_jwt = false
