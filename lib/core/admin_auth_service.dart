@@ -279,7 +279,7 @@ class AdminAuthService {
     }
   }
 
-  static Future<void> provisionMitraAuth({
+  static Future<void> provisionMitraAccount({
     required String accessToken,
     required int mitraId,
     required String email,
@@ -288,8 +288,9 @@ class AdminAuthService {
     try {
       final response = await _db.functions.invoke(
         'smart-endpoint',
+        headers: {'Authorization': 'Bearer $accessToken'},
         body: {
-          'action': 'provision_mitra_auth',
+          'action': 'provision_mitra_account',
           'id_mitra': mitraId,
           'email': email.trim().toLowerCase(),
           'password': password,

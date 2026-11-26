@@ -375,61 +375,72 @@ class MitraApi {
   static const _profileColumns =
       'id_mitra, id_admin, username, nama_lengkap_admin, email, no_telephone';
 
+  static Future<List<String>> getKategoriWisata() async {
+    try {
+      final rows = _rows(
+        await _supabase
+            .from('kategori')
+            .select('nama_kategori')
+            .order('id_kategori'),
+        'Daftar kategori wisata tidak valid.',
+      );
+      return rows
+          .map((row) => row['nama_kategori']?.toString().trim() ?? '')
+          .where((name) => name.isNotEmpty)
+          .toList(growable: false);
+    } catch (error) {
+      _apiError(error);
+    }
+  }
+
+  static Future<String> _sessionToken() async {
+    final token = await SessionManager.currentMitraToken();
+    if (token == null || token.isEmpty) {
+      throw const ApiException(
+        'Sesi mitra tidak tersedia. Silakan login kembali.',
+      );
+    }
+    return token;
+  }
+
   static Future<Map<String, dynamic>> login({
     required String identifier,
     required String password,
   }) async {
     try {
-      if (!identifier.contains('@')) {
-        throw const ApiException('Login mitra sekarang memakai alamat email.');
-      }
-      final response = await _supabase.auth.signInWithPassword(
-        email: identifier.trim(),
-        password: password,
+      final response = await _supabase.functions.invoke(
+        'smart-endpoint',
+        body: {
+          'action': 'mitra_login',
+          'identifier': identifier.trim(),
+          'password': password,
+        },
       );
-      late final Map<String, dynamic> mitra;
-      try {
-        mitra = await _supabase
-            .from('admin_wisata')
-            .select(_profileColumns)
-            .eq('email', response.user!.email!)
-            .single();
-      } catch (_) {
-        await _supabase.auth.signOut();
-        rethrow;
+      final payload = _map(response.data, 'Respons login mitra tidak valid.');
+      final token = payload['mitra_session'] as String?;
+      final mitra = _map(payload['mitra'], 'Profil mitra tidak valid.');
+      if (token == null || token.isEmpty) {
+        throw const ApiException('Sesi login mitra tidak valid.');
       }
       return {
         'mitra': mitra,
-        'access_token': response.session!.accessToken,
-        'refresh_token': response.session!.refreshToken,
+        'access_token': token,
+        'refresh_token': null,
       };
     } catch (error) {
       _apiError(error);
     }
   }
 
-  static Future<void> _reauthenticate(String currentPassword) async {
+  static Future<bool> validateSession(String token) async {
     try {
-      final email = _supabase.auth.currentUser?.email;
-      if (email == null || email.isEmpty) {
-        throw const ApiException(
-          'Sesi mitra tidak tersedia. Silakan masuk kembali.',
-        );
-      }
-      final response = await _supabase.auth.signInWithPassword(
-        email: email,
-        password: currentPassword,
+      await _supabase.functions.invoke(
+        'smart-endpoint',
+        body: {'action': 'mitra_session_check', 'mitra_session': token},
       );
-      final session = response.session;
-      if (session == null) {
-        throw const ApiException('Verifikasi password tidak berhasil.');
-      }
-      await SessionManager.setMitraSession(
-        accessToken: session.accessToken,
-        refreshToken: session.refreshToken,
-      );
-    } catch (error) {
-      _apiError(error);
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -438,9 +449,15 @@ class MitraApi {
     required String newPassword,
   }) async {
     try {
-      await _reauthenticate(currentPassword);
-      await _supabase.auth.updateUser(
-        UserAttributes(password: newPassword, currentPassword: currentPassword),
+      final token = await _sessionToken();
+      await _supabase.functions.invoke(
+        'smart-endpoint',
+        body: {
+          'action': 'mitra_change_password',
+          'mitra_session': token,
+          'current_password': currentPassword,
+          'new_password': newPassword,
+        },
       );
     } catch (error) {
       _apiError(error);
@@ -452,10 +469,24 @@ class MitraApi {
     required String newEmail,
   }) async {
     try {
-      await _reauthenticate(currentPassword);
-      await _supabase.auth.updateUser(
-        UserAttributes(email: newEmail.trim().toLowerCase()),
+      final token = await _sessionToken();
+      final response = await _supabase.functions.invoke(
+        'smart-endpoint',
+        body: {
+          'action': 'mitra_change_email',
+          'mitra_session': token,
+          'current_password': currentPassword,
+          'new_email': newEmail.trim().toLowerCase(),
+        },
       );
+      final payload = _map(
+        response.data,
+        'Respons perubahan email tidak valid.',
+      );
+      final newToken = payload['mitra_session'] as String?;
+      if (newToken != null) {
+        await SessionManager.setMitraDatabaseSession(token: newToken);
+      }
     } catch (error) {
       _apiError(error);
     }
@@ -466,7 +497,7 @@ class MitraApi {
       final row = await _supabase
           .from('admin_wisata')
           .select(_profileColumns)
-          .eq('email', _supabase.auth.currentUser!.email!)
+          .limit(1)
           .single();
       return {'mitra': row};
     } catch (error) {
@@ -482,7 +513,7 @@ class MitraApi {
       final row = await _supabase
           .from('admin_wisata')
           .update(values)
-          .eq('email', _supabase.auth.currentUser!.email!)
+          .eq('id_mitra', await _currentMitraId())
           .select(_profileColumns)
           .single();
       return {'mitra': row};
@@ -687,7 +718,7 @@ class MitraApi {
     final documentIds = <int>[];
     int? wisataId;
     int? packageId;
-    int? detailId;
+    final detailIds = <int>[];
     int? photoId;
 
     Future<void> rollback() async {
@@ -706,11 +737,11 @@ class MitraApi {
               .from('kuota_harian')
               .delete()
               .eq('id_paket', packageId);
-          if (detailId != null) {
+          if (detailIds.isNotEmpty) {
             await _supabase
                 .from('detail_paket')
                 .delete()
-                .eq('id_detail_paket', detailId);
+                .inFilter('id_detail_paket', detailIds);
           }
           await _supabase
               .from('paket_wisata')
@@ -772,9 +803,17 @@ class MitraApi {
       }
 
       final price = int.tryParse(values['harga'].toString());
+      final childPrice = int.tryParse(values['harga_anak'].toString());
       final quota = int.tryParse(values['kuota'].toString());
-      if (price == null || price < 0 || quota == null || quota < 1) {
-        throw const ApiException('Harga tiket atau kuota harian tidak valid.');
+      if (price == null ||
+          price < 0 ||
+          childPrice == null ||
+          childPrice < 0 ||
+          quota == null ||
+          quota < 1) {
+        throw const ApiException(
+          'Harga tiket dewasa, harga tiket anak, atau kuota harian tidak valid.',
+        );
       }
 
       String? photoPath;
@@ -839,16 +878,27 @@ class MitraApi {
           .single();
       packageId = (paket['id_paket'] as num).toInt();
 
-      final detail = await _supabase
+      final insertedDetails = await _supabase
           .from('detail_paket')
-          .insert({
-            'id_paket': packageId,
-            'tipe_pengunjung': 'dewasa',
-            'harga': price,
-          })
-          .select('id_detail_paket')
-          .single();
-      detailId = (detail['id_detail_paket'] as num).toInt();
+          .insert([
+            {
+              'id_paket': packageId,
+              'tipe_pengunjung': 'dewasa',
+              'harga': price,
+            },
+            {
+              'id_paket': packageId,
+              'tipe_pengunjung': 'anak_anak',
+              'harga': childPrice,
+            },
+          ])
+          .select('id_detail_paket');
+      detailIds.addAll(
+        _rows(
+          insertedDetails,
+          'Harga tiket wisata tidak valid.',
+        ).map((row) => (row['id_detail_paket'] as num).toInt()),
+      );
 
       final today = DateTime.now();
       final quotas = List.generate(60, (index) {
@@ -941,20 +991,23 @@ class MitraApi {
 
   static Future<void> logout(String token) async {
     try {
-      await _supabase.auth.signOut();
+      await _supabase.functions.invoke(
+        'smart-endpoint',
+        body: {'action': 'mitra_logout', 'mitra_session': token},
+      );
+    } catch (_) {
+      // Keep logout available even when the network is offline; the server-side
+      // session expires automatically.
+    } finally {
       await SessionManager.logout();
-    } catch (error) {
-      _apiError(error);
     }
   }
 
   static Future<int> _currentMitraId() async {
-    final email = _supabase.auth.currentUser?.email;
-    if (email == null) throw const ApiException('Sesi mitra tidak tersedia.');
     final row = await _supabase
         .from('admin_wisata')
         .select('id_mitra')
-        .eq('email', email)
+        .limit(1)
         .single();
     return row['id_mitra'] as int;
   }

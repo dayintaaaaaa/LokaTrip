@@ -56,6 +56,22 @@ class _LoginScreensState extends State<LoginScreens> {
     try {
       final client = Supabase.instance.client;
 
+      // Coba akun mitra dari database Supabase terlebih dahulu. Akun user dan
+      // admin tetap memakai Supabase Auth.
+      try {
+        final mitra = await MitraApi.login(
+          identifier: identifier,
+          password: password,
+        );
+        final mitraToken = mitra['access_token'] as String;
+        await client.auth.signOut();
+        await SessionManager.setMitraDatabaseSession(token: mitraToken);
+        if (mounted) _openHome(const WisataSayaMitraScreen());
+        return;
+      } on ApiException {
+        // Identifier ini bisa milik wisatawan/admin; lanjutkan alur Auth lama.
+      }
+
       if (!identifier.contains('@')) {
         // Username atau nomor telepon diproses melalui Edge Function.
         final response = await client.functions.invoke(
@@ -109,45 +125,24 @@ class _LoginScreensState extends State<LoginScreens> {
           if (admin != null) {
             resolvedRole = 'admin';
           } else {
-            final email = authUser.email;
-            if (email != null) {
-              final mitra = await client
-                  .from('admin_wisata')
-                  .select('id_mitra')
-                  .eq('email', email)
-                  .maybeSingle();
+            final profile = await client
+                .from('users')
+                .select('id_user')
+                .eq('auth_id', authUser.id)
+                .maybeSingle();
 
-              if (mitra != null) {
-                resolvedRole = 'mitra';
-              }
-            }
-
-            if (resolvedRole == null) {
-              final profile = await client
-                  .from('users')
-                  .select('id_user')
-                  .eq('auth_id', authUser.id)
-                  .maybeSingle();
-
-              if (profile != null) resolvedRole = 'wisatawan';
-            }
+            if (profile != null) resolvedRole = 'wisatawan';
           }
         }
 
         final destination = switch (resolvedRole) {
           'admin' => const DashboardAdminScreens(),
-          'mitra' => const WisataSayaMitraScreen(),
           'wisatawan' => const HomeScreens(),
           _ => throw const ApiException('Jenis akun belum terdaftar.'),
         };
 
         if (resolvedRole == 'admin') {
           await SessionManager.setAdminSession(
-            accessToken: activeSession.accessToken,
-            refreshToken: activeSession.refreshToken,
-          );
-        } else if (resolvedRole == 'mitra') {
-          await SessionManager.setMitraSession(
             accessToken: activeSession.accessToken,
             refreshToken: activeSession.refreshToken,
           );
@@ -188,24 +183,6 @@ class _LoginScreensState extends State<LoginScreens> {
         );
         if (mounted) _openHome(const DashboardAdminScreens());
         return;
-      }
-
-      final email = user.email;
-      if (email != null) {
-        final mitra = await client
-            .from('admin_wisata')
-            .select('id_mitra')
-            .eq('email', email)
-            .maybeSingle();
-
-        if (mitra != null) {
-          await SessionManager.setMitraSession(
-            accessToken: session.accessToken,
-            refreshToken: session.refreshToken,
-          );
-          if (mounted) _openHome(const WisataSayaMitraScreen());
-          return;
-        }
       }
 
       final profile = await client
@@ -288,7 +265,7 @@ class _LoginScreensState extends State<LoginScreens> {
                 ),
                 const SizedBox(height: 7),
                 Text(
-                  'Masukkan email akunmu. Kami akan mengirim link untuk mengatur ulang password.',
+                  'Masukkan email akunmu. Kami akan mengirim link untuk mengatur ulang password. Untuk akun mitra, hubungi superadmin untuk mengatur ulang password.',
                   style: GoogleFonts.manrope(
                     fontSize: 12,
                     height: 1.45,
