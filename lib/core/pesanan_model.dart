@@ -56,9 +56,7 @@ class Pesanan {
   });
 
   bool get aktif => status != StatusPesanan.selesai;
-<<<<<<< HEAD
 }
-=======
 
   factory Pesanan.fromApiJson(Map<String, dynamic> json) {
     Map<String, dynamic>? firstMap(dynamic value) {
@@ -117,7 +115,6 @@ class Pesanan {
       bisaUlas: paid && !selesai,
     );
   }
-}
 
 const _bulanSingkat = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
@@ -250,4 +247,3 @@ class DataPesanan {
     ),
   ];
 }
->>>>>>> daa95c622d6c50a0444812146fd6c39ce86954ea
