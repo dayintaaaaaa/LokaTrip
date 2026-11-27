@@ -200,7 +200,7 @@ class AdminAuthService {
           .select('status_approve, masa_berlaku_sampai');
       final orders = await _db
           .from('pemesanan')
-          .select('id_pemesanan, total_bayar, status_pesan');
+          .select('id_pemesanan, total_bayar, biaya_layanan, status_pesan');
       final details = await _db.from('detail_pemesanan').select('jumlah');
       final docs = dokumen as List;
       final paid = (orders as List).where(
@@ -209,6 +209,7 @@ class AdminAuthService {
           'dibayar',
           'lunas',
           'paid',
+          'aktif',
         }.contains('${row['status_pesan']}'.toLowerCase()),
       );
       final expiryRows = docs.where((row) {
@@ -247,6 +248,10 @@ class AdminAuthService {
         'nilai_transaksi_bruto': paid.fold<int>(
           0,
           (sum, row) => sum + ((row['total_bayar'] as num?)?.toInt() ?? 0),
+        ),
+        'pendapatan_loka': paid.fold<int>(
+          0,
+          (sum, row) => sum + ((row['biaya_layanan'] as num?)?.toInt() ?? 0),
         ),
       };
     } catch (error) {

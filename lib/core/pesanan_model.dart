@@ -1,4 +1,3 @@
-
 import 'format_rupiah.dart';
 
 enum KategoriPesanan { tiketWisata, tur }
@@ -16,6 +15,7 @@ class Pesanan {
   final String kategoriWisata;
   final String labelFoto;
   final String judul;
+  final String? fotoUrl;
   final String lokasi;
   final List<String> chips;
   final String labelJadwal;
@@ -42,6 +42,7 @@ class Pesanan {
     this.kategoriWisata = '',
     required this.labelFoto,
     required this.judul,
+    this.fotoUrl,
     required this.lokasi,
     required this.chips,
     required this.labelJadwal,
@@ -85,13 +86,10 @@ class Pesanan {
     final package = firstMap(detailPaket?['paket_wisata']);
     final attraction = firstMap(package?['wisata']);
 
-    final paymentStatus =
-        (payment?['status_bayar'] as String? ?? '').toLowerCase();
+    final paymentStatus = (payment?['status_bayar'] as String? ?? '')
+        .toLowerCase();
 
-    final orderStatus =
-        (json['status_pesan'] as String? ?? '').toLowerCase();
-
-    final selesai = orderStatus == 'kadaluarsa';
+    final orderStatus = (json['status_pesan'] as String? ?? '').toLowerCase();
 
     final paid = const {
       'berhasil',
@@ -105,31 +103,38 @@ class Pesanan {
 
     final visitDate =
         firstMap(json['kuota_harian'])?['tanggal'] as String? ?? '';
+    final visit = DateTime.tryParse(visitDate);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selesai =
+        orderStatus == 'kadaluarsa' ||
+        (paid &&
+            visit != null &&
+            DateTime(visit.year, visit.month, visit.day).isBefore(today));
 
     final guests = details is List
         ? details.fold<int>(
             0,
             (sum, row) =>
-                sum +
-                ((firstMap(row)?['jumlah'] as num?)?.toInt() ?? 0),
+                sum + ((firstMap(row)?['jumlah'] as num?)?.toInt() ?? 0),
           )
         : 0;
 
     final rawId = (json['id_pemesanan'] as num?)?.toInt() ?? 0;
 
-    final wisataId =
-        (attraction?['id_wisata'] as num?)?.toInt() ?? 0;
+    final wisataId = (attraction?['id_wisata'] as num?)?.toInt() ?? 0;
 
-    final title = attraction?['nama_wisata'] as String? ??
+    final title =
+        attraction?['nama_wisata'] as String? ??
         package?['nama_paket'] as String? ??
         'Pesanan LokaTrip';
 
     final location = attraction?['lokasi'] as String? ?? '';
+    final photos = firstMap(attraction?['foto_wisata']);
 
     final total = (json['total_bayar'] as num?)?.toInt() ?? 0;
 
-    final packageName =
-        package?['nama_paket'] as String? ?? 'Tiket wisata';
+    final packageName = package?['nama_paket'] as String? ?? 'Tiket wisata';
 
     return Pesanan(
       id: json['kode_pesan'] as String? ?? '$rawId',
@@ -141,17 +146,18 @@ class Pesanan {
       status: selesai
           ? StatusPesanan.selesai
           : paid
-              ? StatusPesanan.siapDigunakan
-              : StatusPesanan.terkonfirmasi,
+          ? StatusPesanan.siapDigunakan
+          : StatusPesanan.terkonfirmasi,
       labelStatus: selesai
-          ? 'Kedaluwarsa'
+          ? (paid ? 'Selesai' : 'Kedaluwarsa')
           : paid
-              ? 'Siap Digunakan'
-              : 'Menunggu Pembayaran',
+          ? 'Siap Digunakan'
+          : 'Menunggu Pembayaran',
       kategori: KategoriPesanan.tiketWisata,
       kategoriWisata: '',
       labelFoto: 'Tiket Wisata',
       judul: title,
+      fotoUrl: photos?['url_foto'] as String?,
       lokasi: location,
       chips: [packageName, '$guests Pengunjung'],
       labelJadwal: 'Jadwal Kunjungan',
@@ -287,8 +293,7 @@ class DataPesanan {
       total: 'Rp 196.000',
       metode: 'QRIS',
       rating: 4,
-      ulasan:
-          'Wahananya seru, cuma antrean di akhir pekan lumayan panjang.',
+      ulasan: 'Wahananya seru, cuma antrean di akhir pekan lumayan panjang.',
     ),
     Pesanan(
       id: 'LKT-22118740',

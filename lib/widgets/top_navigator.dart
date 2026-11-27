@@ -3,9 +3,11 @@ import '../core/app_color.dart';
 import '../features/user/akun_screens.dart';
 import '../features/user/notifikasi_screens.dart';
 import '../services/profile_store.dart';
+import 'gambar_wisata.dart';
 
 class TopNavigator extends StatefulWidget {
-  final bool adaNotif; // titik kuning di lonceng (belum dipakai di halaman mana pun)
+  final bool
+  adaNotif; // titik kuning di lonceng (belum dipakai di halaman mana pun)
 
   const TopNavigator({super.key, this.adaNotif = false});
 
@@ -32,10 +34,7 @@ class _TopNavigatorState extends State<TopNavigator> {
           child: Row(
             children: [
               // logo
-              Image.asset(
-                'assets/images/LokaTrip-logo-no-van.png',
-                height: 20,
-              ),
+              Image.asset('assets/images/LokaTrip-logo-no-van.png', height: 20),
 
               const Spacer(),
 
@@ -94,15 +93,25 @@ class _TopNavigatorState extends State<TopNavigator> {
                   valueListenable: ProfilStore.instance.profil,
                   builder: (_, _, _) {
                     final foto = ProfilStore.instance.fotoUrl;
-                    return CircleAvatar(
-                      radius: 14,
-                      backgroundColor: AppColor.biru,
-                      backgroundImage:
-                          foto != null ? NetworkImage(foto) : null,
-                      child: foto == null
-                          ? Icon(Icons.person,
-                              size: 16, color: AppColor.putih)
-                          : null,
+                    return ClipOval(
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: foto == null
+                            ? const ColoredBox(
+                                color: AppColor.biru,
+                                child: Icon(
+                                  Icons.person,
+                                  size: 16,
+                                  color: AppColor.putih,
+                                ),
+                              )
+                            : GambarWisata(
+                                path: foto,
+                                placeholderIcon: Icons.person,
+                                placeholderIconSize: 16,
+                              ),
+                      ),
                     );
                   },
                 ),

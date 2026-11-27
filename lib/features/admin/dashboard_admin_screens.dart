@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/admin_auth_service.dart';
 import '../../core/session_manager.dart';
+import '../../core/format_rupiah.dart';
 import '../../widgets/admin_bottom_navigator.dart';
 import '../../widgets/admin_notification_button.dart';
+import '../../widgets/gambar_wisata.dart';
 import 'mitra_admin_screens.dart';
 import 'laporan_admin_screens.dart';
 import 'notifikasi_admin_screens.dart';
@@ -198,6 +200,15 @@ class _DashboardAdminScreensState extends State<DashboardAdminScreens> {
             final id = (row['id_wisata'] as num?)?.toInt() ?? 0;
 
             final title = row['nama_wisata'] as String? ?? 'Wisata';
+            final photoValue = row['foto_wisata'];
+            final photos = photoValue is List
+                ? photoValue.whereType<Map<String, dynamic>>().toList()
+                : <Map<String, dynamic>>[];
+            photos.sort(
+              (a, b) => ((a['urutan'] ?? 0) as num).compareTo(
+                (b['urutan'] ?? 0) as num,
+              ),
+            );
 
             final partner =
                 owner['nama_lengkap_admin'] as String? ??
@@ -214,6 +225,9 @@ class _DashboardAdminScreensState extends State<DashboardAdminScreens> {
                 documents: 'ID wisata $id',
                 icon: Icons.landscape_rounded,
                 imageColor: const Color(0xFFB8D7C8),
+                imageUrl: photos.isEmpty
+                    ? null
+                    : photos.first['url_foto'] as String?,
                 onPressed: () => _openVerification(
                   context,
                   id: '$id',
@@ -548,7 +562,7 @@ class _SummaryGridState extends State<_SummaryGrid> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SizedBox(
-            height: 288,
+            height: 432,
             child: Center(child: CircularProgressIndicator()),
           );
         }
@@ -564,6 +578,8 @@ class _SummaryGridState extends State<_SummaryGrid> {
         final data = snapshot.data ?? const <String, dynamic>{};
         String count(String key) =>
             (data[key] as num?)?.toInt().toString() ?? '0';
+        String rupiah(String key) =>
+            formatRupiah((data[key] as num?)?.toInt() ?? 0);
         final reviews =
             ((data['wisata_menunggu_verifikasi'] as num?)?.toInt() ?? 0) +
             ((data['dokumen_menunggu_verifikasi'] as num?)?.toInt() ?? 0);
@@ -604,6 +620,20 @@ class _SummaryGridState extends State<_SummaryGrid> {
             SizedBox(height: 10),
             Row(
               children: [
+                Expanded(
+                  child: _SummaryCard(
+                    icon: Icons.account_balance_wallet_outlined,
+                    iconColor: Color(0xFF047857),
+                    iconBackground: Color(0xFF9BF4D1),
+                    badge: 'Biaya layanan',
+                    badgeColor: Color(0xFFD8F4E9),
+                    value: rupiah('pendapatan_loka'),
+                    label: 'Pendapatan LokaTrip',
+                    note: 'Dari pesanan dibayar',
+                    noteIcon: Icons.payments_outlined,
+                  ),
+                ),
+                SizedBox(width: 10),
                 Expanded(
                   child: _SummaryCard(
                     icon: Icons.verified_rounded,
@@ -731,8 +761,10 @@ class _SummaryCard extends StatelessWidget {
           const Spacer(),
           Text(
             value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.manrope(
-              fontSize: 28,
+              fontSize: value.startsWith('Rp ') ? 19 : 28,
               height: 1.05,
               fontWeight: FontWeight.w800,
               color: _navy,
@@ -943,6 +975,7 @@ class _VerificationCard extends StatelessWidget {
   final String documents;
   final IconData icon;
   final Color imageColor;
+  final String? imageUrl;
   final VoidCallback onPressed;
 
   const _VerificationCard({
@@ -953,6 +986,7 @@ class _VerificationCard extends StatelessWidget {
     required this.documents,
     required this.icon,
     required this.imageColor,
+    this.imageUrl,
     required this.onPressed,
   });
 
@@ -970,17 +1004,21 @@ class _VerificationCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: imageColor,
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Icon(
-                  icon,
-                  color: Colors.white.withValues(alpha: 0.9),
-                  size: 28,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(9),
+                child: SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: imageUrl == null
+                      ? Container(
+                          color: imageColor,
+                          child: Icon(
+                            icon,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            size: 28,
+                          ),
+                        )
+                      : GambarWisata(path: imageUrl),
                 ),
               ),
               const SizedBox(width: 10),

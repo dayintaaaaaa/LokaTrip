@@ -5,6 +5,7 @@ import '../../core/mitra_theme.dart';
 import '../../core/api_client.dart';
 import '../../core/session_manager.dart';
 import '../../widgets/mitra_bottom_navigator.dart';
+import '../../widgets/gambar_wisata.dart';
 import 'pengajuan_mitra_screens.dart';
 import 'profil_mitra_screen.dart';
 import 'edit_wisata_mitra_screen.dart';
@@ -32,10 +33,11 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
   Future<void> _loadWisata() async {
     try {
       final token = await SessionManager.currentMitraToken();
-      if (token == null)
+      if (token == null) {
         throw const ApiException(
           'Sesi mitra tidak tersedia. Silakan login kembali.',
         );
+      }
       final rows = await MitraApi.wisata(token);
       if (mounted) setState(() => _wisata = rows);
     } catch (error) {
@@ -54,6 +56,15 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
   }).toList();
 
   Widget _liveWisataCard(Map<String, dynamic> row) {
+    final photos = row['foto_wisata'] is List
+        ? (row['foto_wisata'] as List)
+              .whereType<Map<String, dynamic>>()
+              .toList()
+        : <Map<String, dynamic>>[];
+    photos.sort(
+      (a, b) =>
+          ((a['urutan'] ?? 0) as num).compareTo((b['urutan'] ?? 0) as num),
+    );
     final packages = row['paket_wisata'] is List
         ? row['paket_wisata'] as List
         : const [];
@@ -101,16 +112,22 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: MitraPalette.primaryLight,
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: const Icon(
-                      Icons.landscape_rounded,
-                      color: MitraPalette.primary,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(13),
+                    child: SizedBox(
+                      width: 42,
+                      height: 42,
+                      child: photos.isEmpty
+                          ? Container(
+                              color: MitraPalette.primaryLight,
+                              child: const Icon(
+                                Icons.landscape_rounded,
+                                color: MitraPalette.primary,
+                              ),
+                            )
+                          : GambarWisata(
+                              path: photos.first['url_foto'] as String?,
+                            ),
                     ),
                   ),
                   const SizedBox(width: 12),

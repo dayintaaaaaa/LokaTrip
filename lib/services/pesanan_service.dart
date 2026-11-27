@@ -113,6 +113,7 @@ class PesananService {
             'dibuat_pada, '
             'kuota_harian(tanggal, paket_wisata(nama_paket, tipe_paket, '
             'wisata(id_wisata, nama_wisata, lokasi, kota, jenis, jam_buka, jam_tutup, '
+            'foto_wisata(url_foto, urutan), '
             'kategori(nama_kategori)))), '
             'pembayaran(metode_bayar, penyedia, status_bayar), '
             'detail_pemesanan(tipe_pengunjung, jumlah)',
@@ -223,6 +224,11 @@ class PesananService {
         ].contains('${x['status_bayar']}'.toLowerCase()),
       );
       final wisataId = (wisata?['id_wisata'] as num?)?.toInt() ?? 0;
+      final fotoWisata = _daftar(wisata?['foto_wisata'])
+        ..sort(
+          (a, b) =>
+              ((a['urutan'] ?? 0) as num).compareTo((b['urutan'] ?? 0) as num),
+        );
 
       final buka = _jam(wisata?['jam_buka']);
       final tutup = _jam(wisata?['jam_tutup']);
@@ -242,6 +248,9 @@ class PesananService {
           kategoriWisata: namaKategori.isEmpty ? 'Lainnya' : namaKategori,
           labelFoto: (wisata?['jenis'] as String?) ?? (tur ? 'Tur' : 'Tiket'),
           judul: (wisata?['nama_wisata'] as String?) ?? 'Wisata',
+          fotoUrl: fotoWisata.isEmpty
+              ? null
+              : fotoWisata.first['url_foto'] as String?,
           lokasi:
               (wisata?['lokasi'] as String?) ??
               (wisata?['kota'] as String?) ??

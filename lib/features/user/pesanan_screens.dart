@@ -8,6 +8,7 @@ import 'ulasan_wisata_screens.dart';
 import '../../services/pesanan_service.dart';
 import '../../services/maps_service.dart';
 import '../../widgets/qr_palsu.dart';
+import '../../widgets/gambar_wisata.dart';
 import 'home_screens.dart';
 
 TextStyle _gaya(
@@ -629,6 +630,27 @@ class _PesananScreensState extends State<PesananScreens> {
           children: [
             _header(),
             _tabs(),
+            if (!_tabAktif)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.info_outline,
+                      size: 15,
+                      color: AppColor.ungu,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        'Pesanan yang sudah dibayar masuk ke riwayat setelah tanggal kunjungan lewat.',
+                        style: _gaya(10.5, c: AppColor.abu, h: 1.35),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 12),
             _chipFilter(),
             Expanded(
@@ -973,7 +995,13 @@ class _PesananScreensState extends State<PesananScreens> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _Foto(label: p.labelFoto, height: 84, width: 76, radius: 12),
+                _Foto(
+                  label: p.labelFoto,
+                  path: p.fotoUrl,
+                  height: 84,
+                  width: 76,
+                  radius: 12,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -1098,6 +1126,7 @@ class _PesananScreensState extends State<PesananScreens> {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: _Foto(
               label: p.labelFoto,
+              path: p.fotoUrl,
               height: 140,
               radius: 12,
               labelKanan: true,
@@ -1511,9 +1540,10 @@ class _PesananScreensState extends State<PesananScreens> {
   }
 }
 
-// foto placeholder, TODO: ganti dengan Image.asset / Image.network dari backend
+// Thumbnail wisata; tetap menampilkan placeholder bila foto belum tersedia.
 class _Foto extends StatelessWidget {
   final String label;
+  final String? path;
   final double height;
   final double? width;
   final double radius;
@@ -1521,6 +1551,7 @@ class _Foto extends StatelessWidget {
 
   const _Foto({
     required this.label,
+    this.path,
     required this.height,
     this.width,
     required this.radius,
@@ -1541,36 +1572,42 @@ class _Foto extends StatelessWidget {
       ),
     );
 
-    return Container(
-      height: height,
-      width: width ?? double.infinity,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColor.biru, AppColor.ungu],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: SizedBox(
+        height: height,
+        width: width ?? double.infinity,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: path == null || path!.trim().isEmpty
+                  ? Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppColor.biru, AppColor.ungu],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.landscape_outlined,
+                        size: height > 100 ? 36 : 22,
+                        color: AppColor.putih.withValues(alpha: 0.6),
+                      ),
+                    )
+                  : GambarWisata(path: path),
+            ),
+            if (labelKanan)
+              Positioned(right: 8, bottom: 8, child: chip)
+            else
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 5,
+                child: Center(child: chip),
+              ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(radius),
-      ),
-      child: Stack(
-        children: [
-          Center(
-            child: Icon(
-              Icons.landscape_outlined,
-              size: height > 100 ? 36 : 22,
-              color: AppColor.putih.withValues(alpha: 0.6),
-            ),
-          ),
-          if (labelKanan)
-            Positioned(right: 8, bottom: 8, child: chip)
-          else
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 5,
-              child: Center(child: chip),
-            ),
-        ],
       ),
     );
   }

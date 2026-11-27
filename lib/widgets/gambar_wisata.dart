@@ -6,8 +6,16 @@ import '../core/app_color.dart';
 class GambarWisata extends StatelessWidget {
   final String? path;
   final BoxFit fit;
+  final IconData placeholderIcon;
+  final double placeholderIconSize;
 
-  const GambarWisata({super.key, this.path, this.fit = BoxFit.cover});
+  const GambarWisata({
+    super.key,
+    this.path,
+    this.fit = BoxFit.cover,
+    this.placeholderIcon = Icons.image_not_supported_outlined,
+    this.placeholderIconSize = 32,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -16,15 +24,20 @@ class GambarWisata extends StatelessWidget {
       height: double.infinity,
       color: AppColor.ungu.withValues(alpha: 0.08),
       alignment: Alignment.center,
-      child: Icon(Icons.broken_image_outlined, size: 32, color: AppColor.abu),
+      child: Icon(
+        placeholderIcon,
+        size: placeholderIconSize,
+        color: AppColor.abu,
+      ),
     );
 
     final p = path;
-    if (p == null || p.isEmpty) return placeholder;
+    final source = p?.trim();
+    if (source == null || source.isEmpty) return placeholder;
 
-    if (p.startsWith('http://') || p.startsWith('https://')) {
+    if (source.startsWith('http://') || source.startsWith('https://')) {
       return Image.network(
-        p,
+        source,
         fit: fit,
         width: double.infinity,
         height: double.infinity,
@@ -42,7 +55,7 @@ class GambarWisata extends StatelessWidget {
     }
 
     return Image.asset(
-      p,
+      source,
       fit: fit,
       width: double.infinity,
       height: double.infinity,

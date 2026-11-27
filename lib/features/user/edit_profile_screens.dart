@@ -10,6 +10,7 @@ import '../../services/auth_service.dart';
 import '../../services/profile_store.dart';
 import '../../services/profile_service.dart';
 import '../../widgets/sub_app_bar.dart';
+import '../../widgets/gambar_wisata.dart';
 
 class EditProfileScreens extends StatefulWidget {
   const EditProfileScreens({super.key});
@@ -413,21 +414,38 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
             children: [
               GestureDetector(
                 onTap: _uploadFoto ? null : _gantiFoto,
-                child: CircleAvatar(
-                  radius: 42,
-                  backgroundColor: AppColor.biru,
-                  backgroundImage: _fotoUrl != null
-                      ? NetworkImage(_fotoUrl!)
-                      : null,
-                  child: _uploadFoto
-                      ? const CircularProgressIndicator(color: AppColor.putih)
-                      : (_fotoUrl == null
-                            ? const Icon(
-                                Icons.person,
-                                size: 44,
-                                color: AppColor.putih,
+                child: ClipOval(
+                  child: SizedBox(
+                    width: 84,
+                    height: 84,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _fotoUrl == null
+                            ? const ColoredBox(
+                                color: AppColor.biru,
+                                child: Icon(
+                                  Icons.person,
+                                  size: 44,
+                                  color: AppColor.putih,
+                                ),
                               )
-                            : null),
+                            : GambarWisata(
+                                path: _fotoUrl,
+                                placeholderIcon: Icons.person,
+                              ),
+                        if (_uploadFoto)
+                          const ColoredBox(
+                            color: Color(0x66000000),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: AppColor.putih,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
               Positioned(

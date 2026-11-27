@@ -331,7 +331,7 @@ class _ProfilMitraScreenState extends State<ProfilMitraScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Nilai pembayaran berhasil (bruto)',
+            'Nilai tiket terbayar (biaya layanan dikecualikan)',
             style: GoogleFonts.manrope(fontSize: 11, color: MitraPalette.muted),
           ),
           const SizedBox(height: 3),
@@ -370,7 +370,7 @@ class _ProfilMitraScreenState extends State<ProfilMitraScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Angka pembayaran adalah total transaksi berhasil, bukan saldo pencairan.',
+            'Nilai ini hanya bagian tiket setelah diskon. Biaya layanan Rp20.000 dicatat untuk LokaTrip; angka ini bukan saldo pencairan.',
             style: GoogleFonts.manrope(fontSize: 10, color: MitraPalette.muted),
           ),
         ],

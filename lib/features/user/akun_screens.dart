@@ -1,4 +1,3 @@
-
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,6 +12,7 @@ import '../../services/pesanan_service.dart';
 import '../../services/profile_service.dart';
 import '../../services/profile_store.dart';
 import '../../widgets/top_navigator.dart';
+import '../../widgets/gambar_wisata.dart';
 import '../../widgets/bottom_navigator.dart';
 import '../login_screens.dart';
 import 'edit_profile_screens.dart';
@@ -36,8 +36,7 @@ class _AkunScreensState extends State<AkunScreens> {
   int _eTiketAktif = 0;
 
   // Email diambil dari akun login Supabase Auth.
-  String get _email =>
-      Supabase.instance.client.auth.currentUser?.email ?? '';
+  String get _email => Supabase.instance.client.auth.currentUser?.email ?? '';
 
   @override
   void initState() {
@@ -58,11 +57,9 @@ class _AkunScreensState extends State<AkunScreens> {
       if (!mounted) return;
 
       setState(() {
-        _jumlahWishlist =
-            (result['wishlist_count'] as num?)?.toInt() ?? 0;
+        _jumlahWishlist = (result['wishlist_count'] as num?)?.toInt() ?? 0;
 
-        _jumlahUlasan =
-            (result['reviews_count'] as num?)?.toInt() ?? 0;
+        _jumlahUlasan = (result['reviews_count'] as num?)?.toInt() ?? 0;
       });
     } catch (e) {
       debugPrint('Gagal memuat ringkasan akun: $e');
@@ -125,7 +122,9 @@ class _AkunScreensState extends State<AkunScreens> {
                   padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
                   decoration: const BoxDecoration(
                     color: AppColor.putih,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(34),
+                    ),
                   ),
                   child: SingleChildScrollView(
                     child: Column(
@@ -154,8 +153,11 @@ class _AkunScreensState extends State<AkunScreens> {
                                   width: 10,
                                 ),
                               ),
-                              child: const Icon(Icons.logout_rounded,
-                                  size: 48, color: AppColor.kuning),
+                              child: const Icon(
+                                Icons.logout_rounded,
+                                size: 48,
+                                color: AppColor.kuning,
+                              ),
                             ),
                             Positioned(
                               right: -2,
@@ -166,19 +168,28 @@ class _AkunScreensState extends State<AkunScreens> {
                                 decoration: BoxDecoration(
                                   color: AppColor.putih,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: const Color(0xFFE5EAF1)),
+                                  border: Border.all(
+                                    color: const Color(0xFFE5EAF1),
+                                  ),
                                   boxShadow: const [
-                                    BoxShadow(color: Color(0x18000000), blurRadius: 6),
+                                    BoxShadow(
+                                      color: Color(0x18000000),
+                                      blurRadius: 6,
+                                    ),
                                   ],
                                 ),
-                                child: const Icon(Icons.lock_outline_rounded,
-                                    size: 21, color: Color(0xFF334155)),
+                                child: const Icon(
+                                  Icons.lock_outline_rounded,
+                                  size: 21,
+                                  color: Color(0xFF334155),
+                                ),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 24),
-                        Text('Keluar dari Akun?',
+                        Text(
+                          'Keluar dari Akun?',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.outfit(
                             fontSize: 24,
@@ -190,12 +201,14 @@ class _AkunScreensState extends State<AkunScreens> {
                         Text.rich(
                           TextSpan(
                             style: GoogleFonts.manrope(
-                              fontSize: 14, height: 1.55,
+                              fontSize: 14,
+                              height: 1.55,
                               color: const Color(0xFF64748B),
                             ),
                             children: [
                               const TextSpan(
-                                text: 'Sesi Anda akan berakhir. Tiket aktif dan riwayat perjalanan tetap tersimpan aman di akun Anda.',
+                                text:
+                                    'Sesi Anda akan berakhir. Tiket aktif dan riwayat perjalanan tetap tersimpan aman di akun Anda.',
                               ),
                             ],
                           ),
@@ -211,15 +224,24 @@ class _AkunScreensState extends State<AkunScreens> {
                           ),
                           child: Row(
                             children: [
-                              CircleAvatar(
-                                radius: 28,
-                                backgroundColor: const Color(0xFFE7EEF9),
-                                backgroundImage: foto == null || foto.isEmpty
-                                    ? null : NetworkImage(foto),
-                                child: foto == null || foto.isEmpty
-                                    ? const Icon(Icons.person_rounded,
-                                        color: AppColor.ungu, size: 28)
-                                    : null,
+                              ClipOval(
+                                child: SizedBox(
+                                  width: 56,
+                                  height: 56,
+                                  child: foto == null || foto.isEmpty
+                                      ? const ColoredBox(
+                                          color: Color(0xFFE7EEF9),
+                                          child: Icon(
+                                            Icons.person_rounded,
+                                            color: AppColor.ungu,
+                                            size: 28,
+                                          ),
+                                        )
+                                      : GambarWisata(
+                                          path: foto,
+                                          placeholderIcon: Icons.person_rounded,
+                                        ),
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -228,7 +250,8 @@ class _AkunScreensState extends State<AkunScreens> {
                                   children: [
                                     Text(
                                       nama == null || nama.isEmpty
-                                          ? 'Pengguna LokaTrip' : nama,
+                                          ? 'Pengguna LokaTrip'
+                                          : nama,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.manrope(
@@ -251,14 +274,25 @@ class _AkunScreensState extends State<AkunScreens> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Row(mainAxisSize: MainAxisSize.min, children: [
-                                const Icon(Icons.check_circle, size: 17,
-                                    color: Color(0xFF2563EB)),
-                                const SizedBox(width: 4),
-                                Text('Tersimpan', style: GoogleFonts.manrope(
-                                  fontSize: 11, fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF2563EB))),
-                              ]),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle,
+                                    size: 17,
+                                    color: Color(0xFF2563EB),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Tersimpan',
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF2563EB),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -268,8 +302,11 @@ class _AkunScreensState extends State<AkunScreens> {
                           children: [
                             const Padding(
                               padding: EdgeInsets.only(top: 2),
-                              child: Icon(Icons.info_outline_rounded,
-                                  size: 18, color: Color(0xFF94A3B8)),
+                              child: Icon(
+                                Icons.info_outline_rounded,
+                                size: 18,
+                                color: Color(0xFF94A3B8),
+                              ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -277,7 +314,8 @@ class _AkunScreensState extends State<AkunScreens> {
                                 'Masuk kembali kapan saja dengan email atau nomor telepon yang terdaftar.',
                                 textAlign: TextAlign.center,
                                 style: GoogleFonts.manrope(
-                                  fontSize: 12, height: 1.5,
+                                  fontSize: 12,
+                                  height: 1.5,
                                   color: const Color(0xFF94A3B8),
                                 ),
                               ),
@@ -286,7 +324,8 @@ class _AkunScreensState extends State<AkunScreens> {
                         ),
                         const SizedBox(height: 22),
                         SizedBox(
-                          width: double.infinity, height: 58,
+                          width: double.infinity,
+                          height: 58,
                           child: ElevatedButton.icon(
                             onPressed: () => Navigator.pop(dialogContext, true),
                             icon: const Icon(Icons.logout_rounded, size: 20),
@@ -296,25 +335,34 @@ class _AkunScreensState extends State<AkunScreens> {
                               foregroundColor: AppColor.putih,
                               elevation: 0,
                               textStyle: GoogleFonts.manrope(
-                                fontSize: 16, fontWeight: FontWeight.w800),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20)),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(height: 12),
                         SizedBox(
-                          width: double.infinity, height: 56,
+                          width: double.infinity,
+                          height: 56,
                           child: TextButton(
-                            onPressed: () => Navigator.pop(dialogContext, false),
+                            onPressed: () =>
+                                Navigator.pop(dialogContext, false),
                             style: TextButton.styleFrom(
                               backgroundColor: const Color(0xFFF1F5F9),
                               foregroundColor: const Color(0xFF334155),
                               textStyle: GoogleFonts.manrope(
-                                fontSize: 15, fontWeight: FontWeight.w800),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
-                                side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                side: const BorderSide(
+                                  color: Color(0xFFE2E8F0),
+                                ),
                               ),
                             ),
                             child: const Text('Batal & Tetap Masuk'),
@@ -322,10 +370,12 @@ class _AkunScreensState extends State<AkunScreens> {
                         ),
                         const SizedBox(height: 18),
                         Container(
-                          width: 120, height: 5,
+                          width: 120,
+                          height: 5,
                           decoration: BoxDecoration(
                             color: const Color(0xFFCBD5E1),
-                            borderRadius: BorderRadius.circular(5)),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
                         ),
                       ],
                     ),
@@ -337,11 +387,19 @@ class _AkunScreensState extends State<AkunScreens> {
         ),
       ),
       transitionBuilder: (context, animation, secondaryAnimation, child) =>
-        SlideTransition(
-          position: Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
-            .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-          child: child,
-        ),
+          SlideTransition(
+            position:
+                Tween<Offset>(
+                  begin: const Offset(0, 0.08),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
+            child: child,
+          ),
     );
 
     if (konfirmasi != true || !mounted) return;
@@ -367,21 +425,19 @@ class _AkunScreensState extends State<AkunScreens> {
       PageRouteBuilder(
         pageBuilder: (_, _, _) => const LoginScreens(),
         transitionsBuilder: (_, animation, _, child) =>
-          FadeTransition(opacity: animation, child: child),
+            FadeTransition(opacity: animation, child: child),
         transitionDuration: const Duration(milliseconds: 350),
       ),
       (route) => false,
     );
   }
 
-
   // Pindah ke tab Pesanan.
   void _keTabPesanan({bool riwayat = false}) {
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, _, _) =>
-            PesananScreens(mulaiDiRiwayat: riwayat),
+        pageBuilder: (_, _, _) => PesananScreens(mulaiDiRiwayat: riwayat),
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
       ),
@@ -414,8 +470,7 @@ class _AkunScreensState extends State<AkunScreens> {
                             warna: AppColor.ungu,
                             angka: '$_jumlahUlasan',
                             label: 'Ulasan Wisata',
-                            onTap: () =>
-                                _keTabPesanan(riwayat: true),
+                            onTap: () => _keTabPesanan(riwayat: true),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -428,8 +483,7 @@ class _AkunScreensState extends State<AkunScreens> {
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    const WishlistScreens(),
+                                builder: (_) => const WishlistScreens(),
                               ),
                             ),
                           ),
@@ -447,8 +501,7 @@ class _AkunScreensState extends State<AkunScreens> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                const EditProfileScreens(),
+                            builder: (_) => const EditProfileScreens(),
                           ),
                         ),
                       ),
@@ -484,8 +537,7 @@ class _AkunScreensState extends State<AkunScreens> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                const KeamananAkunScreens(),
+                            builder: (_) => const KeamananAkunScreens(),
                           ),
                         ),
                       ),
@@ -495,9 +547,7 @@ class _AkunScreensState extends State<AkunScreens> {
                         subjudul: 'LokaTrip versi 3.14.0',
                         onTap: () => Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const SnkScreens(),
-                          ),
+                          MaterialPageRoute(builder: (_) => const SnkScreens()),
                         ),
                       ),
                     ]),
@@ -508,10 +558,7 @@ class _AkunScreensState extends State<AkunScreens> {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: _logout,
-                        icon: const Icon(
-                          Icons.logout,
-                          size: 18,
-                        ),
+                        icon: const Icon(Icons.logout, size: 18),
                         label: Text(
                           'Keluar dari Akun',
                           style: GoogleFonts.manrope(
@@ -520,12 +567,12 @@ class _AkunScreensState extends State<AkunScreens> {
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              AppColor.kuning.withValues(alpha: 0.2),
+                          backgroundColor: AppColor.kuning.withValues(
+                            alpha: 0.2,
+                          ),
                           foregroundColor: AppColor.kuning,
                           elevation: 0,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -551,8 +598,7 @@ class _AkunScreensState extends State<AkunScreens> {
           ],
         ),
       ),
-      bottomNavigationBar:
-          const BottomNavigator(currentIndex: 3),
+      bottomNavigationBar: const BottomNavigator(currentIndex: 3),
     );
   }
 
@@ -561,8 +607,7 @@ class _AkunScreensState extends State<AkunScreens> {
     return ValueListenableBuilder<Map<String, dynamic>?>(
       valueListenable: ProfilStore.instance.profil,
       builder: (_, profil, _) {
-        final nama =
-            (profil?['nama_lengkap_user'] ?? '') as String;
+        final nama = (profil?['nama_lengkap_user'] ?? '') as String;
 
         final telepon = ProfileService.keFormatLokal(
           (profil?['no_telephone'] ?? '') as String,
@@ -573,18 +618,21 @@ class _AkunScreensState extends State<AkunScreens> {
 
         return Row(
           children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundColor: AppColor.biru,
-              backgroundImage:
-                  foto != null ? NetworkImage(foto) : null,
-              child: foto == null
-                  ? const Icon(
-                      Icons.person,
-                      size: 32,
-                      color: AppColor.putih,
-                    )
-                  : null,
+            ClipOval(
+              child: SizedBox(
+                width: 60,
+                height: 60,
+                child: foto == null
+                    ? const ColoredBox(
+                        color: AppColor.biru,
+                        child: Icon(
+                          Icons.person,
+                          size: 32,
+                          color: AppColor.putih,
+                        ),
+                      )
+                    : GambarWisata(path: foto, placeholderIcon: Icons.person),
+              ),
             ),
 
             const SizedBox(width: 12),
@@ -596,9 +644,7 @@ class _AkunScreensState extends State<AkunScreens> {
                   Text(
                     profil == null
                         ? 'Memuat...'
-                        : (nama.isEmpty
-                            ? 'Pengguna LokaTrip'
-                            : nama),
+                        : (nama.isEmpty ? 'Pengguna LokaTrip' : nama),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.manrope(
@@ -636,9 +682,7 @@ class _AkunScreensState extends State<AkunScreens> {
             IconButton(
               onPressed: () => Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const EditProfileScreens(),
-                ),
+                MaterialPageRoute(builder: (_) => const EditProfileScreens()),
               ),
               icon: const Icon(
                 Icons.edit_outlined,
@@ -673,11 +717,7 @@ class _AkunScreensState extends State<AkunScreens> {
                 color: warna.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(
-                icon,
-                size: 18,
-                color: warna,
-              ),
+              child: Icon(icon, size: 18, color: warna),
             ),
 
             const SizedBox(width: 10),
@@ -695,10 +735,7 @@ class _AkunScreensState extends State<AkunScreens> {
                 ),
                 Text(
                   label,
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    color: AppColor.abu,
-                  ),
+                  style: GoogleFonts.manrope(fontSize: 10, color: AppColor.abu),
                 ),
               ],
             ),
@@ -792,11 +829,7 @@ class _MenuTile extends StatelessWidget {
                 color: AppColor.ungu.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(
-                icon,
-                size: 18,
-                color: AppColor.ungu,
-              ),
+              child: Icon(icon, size: 18, color: AppColor.ungu),
             ),
 
             const SizedBox(width: 12),
@@ -825,16 +858,9 @@ class _MenuTile extends StatelessWidget {
               ),
             ),
 
-            if (trailing != null) ...[
-              trailing!,
-              const SizedBox(width: 6),
-            ],
+            if (trailing != null) ...[trailing!, const SizedBox(width: 6)],
 
-            const Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: AppColor.hitam,
-            ),
+            const Icon(Icons.chevron_right, size: 18, color: AppColor.hitam),
           ],
         ),
       ),

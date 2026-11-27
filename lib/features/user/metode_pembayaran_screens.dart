@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_color.dart';
 import '../../core/format_rupiah.dart';
@@ -59,18 +61,18 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
   }
 
   String get _labelMetode => switch (_metode) {
-        0 => 'QRIS Instan',
-        1 => 'Virtual Account ${_pilihan[1]}',
-        2 => _pilihan[2]!,
-        3 => 'Kartu Kredit',
-        _ => 'PayLater',
-      };
+    0 => 'QRIS Instan',
+    1 => 'Virtual Account ${_pilihan[1]}',
+    2 => _pilihan[2]!,
+    3 => 'Kartu Kredit',
+    _ => 'PayLater',
+  };
 
   void _pesan(String teks) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(teks, style: GoogleFonts.manrope())),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(teks, style: GoogleFonts.manrope())));
   }
 
   Future<String?> _siapkanPesanan() async {
@@ -114,9 +116,45 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
     final kode = await _siapkanPesanan();
     if (kode == null || !mounted) return;
 
-    final Widget tujuan = QrisScreens(data: _d, orderId: kode);
+    // QRIS uses Midtrans Core API Sandbox; DOKU Checkout sandbox does not expose QRIS.
+    if (_d.pesanan.paket.idPaket == null || _metode == 0) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => QrisScreens(data: _d, orderId: kode),
+        ),
+      );
+      return;
+    }
 
-    Navigator.push(context, MaterialPageRoute(builder: (_) => tujuan));
+    setState(() => _memproses = true);
+    try {
+      final response = await Supabase.instance.client.functions.invoke(
+        'create-payment',
+        body: {'invoice_number': kode, 'name': _d.nama, 'email': _d.email},
+      );
+      final data = response.data;
+      if (data is! Map) throw Exception('Respons DOKU tidak valid.');
+      final responseData = data['response'];
+      final payment = responseData is Map ? responseData['payment'] : null;
+      final paymentUrl = payment is Map ? payment['url']?.toString() : null;
+      final uri = paymentUrl == null ? null : Uri.tryParse(paymentUrl);
+      if (uri == null || uri.scheme != 'https') {
+        throw Exception(
+          data['error']?.toString() ?? 'Link checkout tidak ditemukan.',
+        );
+      }
+
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened) throw Exception('Halaman pembayaran DOKU gagal dibuka.');
+      _pesan(
+        'Checkout DOKU terbuka. Selesaikan pembayaran, lalu kembali ke LokaTrip.',
+      );
+    } catch (error) {
+      _pesan('Gagal membuka pembayaran: $error');
+    } finally {
+      if (mounted) setState(() => _memproses = false);
+    }
   }
 
   @override
@@ -181,10 +219,7 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                 children: [
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: AppColor.hitam,
-                    ),
+                    icon: const Icon(Icons.arrow_back, color: AppColor.hitam),
                   ),
                   Expanded(
                     child: Text(
@@ -307,10 +342,7 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                   '${p.teksTamu} • ${p.paket.namaPendek}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    fontSize: 9,
-                    color: AppColor.abu,
-                  ),
+                  style: GoogleFonts.manrope(fontSize: 9, color: AppColor.abu),
                 ),
               ],
             ),
@@ -480,9 +512,7 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                           style: GoogleFonts.manrope(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: dipilih
-                                ? AppColor.putih
-                                : AppColor.hitam,
+                            color: dipilih ? AppColor.putih : AppColor.hitam,
                           ),
                         ),
                       ),
@@ -514,9 +544,7 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
           color: AppColor.putih,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: aktif
-                ? AppColor.ungu
-                : AppColor.abu.withValues(alpha: 0.2),
+            color: aktif ? AppColor.ungu : AppColor.abu.withValues(alpha: 0.2),
             width: aktif ? 2 : 1,
           ),
         ),
@@ -550,9 +578,7 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
               ),
             ),
             Icon(
-              aktif
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
+              aktif ? Icons.radio_button_checked : Icons.radio_button_unchecked,
               size: 18,
               color: aktif ? AppColor.ungu : AppColor.abu,
             ),
@@ -645,9 +671,7 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
     return BoxDecoration(
       color: AppColor.putih,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(
-        color: AppColor.abu.withValues(alpha: 0.15),
-      ),
+      border: Border.all(color: AppColor.abu.withValues(alpha: 0.15)),
     );
   }
 }
