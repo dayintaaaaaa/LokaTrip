@@ -243,7 +243,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
       backgroundColor: AppColor.latar,
       body: Column(
         children: [
-          const SubAppBar(title: 'Edit Profile'),
+          const SubAppBar(title: 'Edit Profile', showAvatar: false),
           Expanded(
             child: _memuat
                 ? const Center(child: CircularProgressIndicator())

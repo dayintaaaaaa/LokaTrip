@@ -1,3 +1,4 @@
+
 import 'format_rupiah.dart';
 
 enum KategoriPesanan { tiketWisata, tur }
@@ -5,17 +6,18 @@ enum KategoriPesanan { tiketWisata, tur }
 enum StatusPesanan { siapDigunakan, terkonfirmasi, selesai }
 
 class Pesanan {
-  final String id; // kode_pesan
+  final String id;
   final int idPemesanan;
   final String tglBeli;
   final DateTime? dibuat;
   final StatusPesanan status;
   final String labelStatus;
   final KategoriPesanan kategori;
+  final String kategoriWisata;
   final String labelFoto;
   final String judul;
   final String lokasi;
-  final List<String> chips; // [nama paket, peserta]
+  final List<String> chips;
   final String labelJadwal;
   final String jadwal;
   final String? jam;
@@ -37,6 +39,7 @@ class Pesanan {
     required this.status,
     required this.labelStatus,
     required this.kategori,
+    this.kategoriWisata = '',
     required this.labelFoto,
     required this.judul,
     required this.lokasi,
@@ -56,42 +59,77 @@ class Pesanan {
   });
 
   bool get aktif => status != StatusPesanan.selesai;
-}
 
   factory Pesanan.fromApiJson(Map<String, dynamic> json) {
     Map<String, dynamic>? firstMap(dynamic value) {
       if (value is Map<String, dynamic>) return value;
-      if (value is List && value.isNotEmpty && value.first is Map<String, dynamic>) {
+
+      if (value is List &&
+          value.isNotEmpty &&
+          value.first is Map<String, dynamic>) {
         return value.first as Map<String, dynamic>;
       }
+
       return null;
     }
 
     final payment = firstMap(json['pembayaran']);
     final details = json['detail_pemesanan'];
+
     final firstDetail = details is List && details.isNotEmpty
         ? firstMap(details.first)
         : null;
-    final package = firstMap(firstDetail?['detail_paket'] == null
-        ? null
-        : firstMap(firstDetail?['detail_paket'])?['paket_wisata']);
+
+    final detailPaket = firstMap(firstDetail?['detail_paket']);
+
+    final package = firstMap(detailPaket?['paket_wisata']);
     final attraction = firstMap(package?['wisata']);
-    final paymentStatus = (payment?['status_bayar'] as String? ?? '').toLowerCase();
-    final orderStatus = (json['status_pesan'] as String? ?? '').toLowerCase();
+
+    final paymentStatus =
+        (payment?['status_bayar'] as String? ?? '').toLowerCase();
+
+    final orderStatus =
+        (json['status_pesan'] as String? ?? '').toLowerCase();
+
     final selesai = orderStatus == 'kadaluarsa';
-    final paid = const {'berhasil', 'dibayar', 'lunas', 'paid'}.contains(paymentStatus);
+
+    final paid = const {
+      'berhasil',
+      'dibayar',
+      'lunas',
+      'paid',
+    }.contains(paymentStatus);
+
     final dateText = json['tgl_pesan'] as String? ?? '';
     final orderDate = DateTime.tryParse(dateText);
-    final visitDate = firstMap(json['kuota_harian'])?['tanggal'] as String? ?? '';
+
+    final visitDate =
+        firstMap(json['kuota_harian'])?['tanggal'] as String? ?? '';
+
     final guests = details is List
-        ? details.fold<int>(0, (sum, row) => sum + ((firstMap(row)?['jumlah'] as num?)?.toInt() ?? 0))
+        ? details.fold<int>(
+            0,
+            (sum, row) =>
+                sum +
+                ((firstMap(row)?['jumlah'] as num?)?.toInt() ?? 0),
+          )
         : 0;
+
     final rawId = (json['id_pemesanan'] as num?)?.toInt() ?? 0;
-    final wisataId = (attraction?['id_wisata'] as num?)?.toInt() ?? 0;
-    final title = attraction?['nama_wisata'] as String? ?? package?['nama_paket'] as String? ?? 'Pesanan LokaTrip';
+
+    final wisataId =
+        (attraction?['id_wisata'] as num?)?.toInt() ?? 0;
+
+    final title = attraction?['nama_wisata'] as String? ??
+        package?['nama_paket'] as String? ??
+        'Pesanan LokaTrip';
+
     final location = attraction?['lokasi'] as String? ?? '';
+
     final total = (json['total_bayar'] as num?)?.toInt() ?? 0;
-    final packageName = package?['nama_paket'] as String? ?? 'Tiket wisata';
+
+    final packageName =
+        package?['nama_paket'] as String? ?? 'Tiket wisata';
 
     return Pesanan(
       id: json['kode_pesan'] as String? ?? '$rawId',
@@ -100,9 +138,18 @@ class Pesanan {
       tglBeli: orderDate == null
           ? dateText
           : '${orderDate.day} ${_bulanSingkat[orderDate.month - 1]} ${orderDate.year}',
-      status: selesai ? StatusPesanan.selesai : paid ? StatusPesanan.siapDigunakan : StatusPesanan.terkonfirmasi,
-      labelStatus: selesai ? 'Kedaluwarsa' : paid ? 'Siap Digunakan' : 'Menunggu Pembayaran',
+      status: selesai
+          ? StatusPesanan.selesai
+          : paid
+              ? StatusPesanan.siapDigunakan
+              : StatusPesanan.terkonfirmasi,
+      labelStatus: selesai
+          ? 'Kedaluwarsa'
+          : paid
+              ? 'Siap Digunakan'
+              : 'Menunggu Pembayaran',
       kategori: KategoriPesanan.tiketWisata,
+      kategoriWisata: '',
       labelFoto: 'Tiket Wisata',
       judul: title,
       lokasi: location,
@@ -115,8 +162,22 @@ class Pesanan {
       bisaUlas: paid && !selesai,
     );
   }
+}
 
-const _bulanSingkat = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const _bulanSingkat = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mei',
+  'Jun',
+  'Jul',
+  'Agu',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des',
+];
 
 class DataPesanan {
   static final List<Pesanan> semua = [
@@ -136,7 +197,7 @@ class DataPesanan {
       jam: '09:00 - 18:00 WITA',
       labelTotal: 'Total Bayar',
       total: 'Rp 137.500',
-            metode: 'QRIS',
+      metode: 'QRIS',
     ),
     Pesanan(
       id: 'LKT-78391024',
@@ -208,7 +269,7 @@ class DataPesanan {
       labelTotal: 'Total Bayar',
       total: 'Rp 600.000',
       metode: 'QRIS',
-      bisaUlas: false, // masa pemberian ulasan sudah lewat
+      bisaUlas: false,
     ),
     Pesanan(
       id: 'LKT-33009871',
@@ -226,7 +287,8 @@ class DataPesanan {
       total: 'Rp 196.000',
       metode: 'QRIS',
       rating: 4,
-      ulasan: 'Wahananya seru, cuma antrean di akhir pekan lumayan panjang.',
+      ulasan:
+          'Wahananya seru, cuma antrean di akhir pekan lumayan panjang.',
     ),
     Pesanan(
       id: 'LKT-22118740',

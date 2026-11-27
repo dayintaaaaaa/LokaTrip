@@ -7,6 +7,8 @@ class SubTopBar extends StatelessWidget {
   final String? lokasi; // null = baris lokasi disembunyikan
   final VoidCallback? onLokasiTap;
   final ValueChanged<String>? onSubmitted;
+  final ValueChanged<String>? onChanged;
+  final TextEditingController? controller;
   final VoidCallback? onFilterTap;
 
   const SubTopBar({
@@ -14,6 +16,8 @@ class SubTopBar extends StatelessWidget {
     this.lokasi,
     this.onLokasiTap,
     this.onSubmitted,
+    this.onChanged,
+    this.controller,
     this.onFilterTap,
   });
 
@@ -58,8 +62,11 @@ class SubTopBar extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Icon(Icons.keyboard_arrow_down,
-                        size: 18, color: AppColor.abu),
+                    Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 18,
+                      color: AppColor.abu,
+                    ),
                   ],
                 ),
               ),
@@ -82,6 +89,8 @@ class SubTopBar extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
+                    controller: controller,
+                    onChanged: onChanged,
                     onSubmitted: onSubmitted,
                     textInputAction: TextInputAction.search,
                     style: GoogleFonts.manrope(fontSize: 12),

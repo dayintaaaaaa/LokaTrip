@@ -1,10 +1,12 @@
 
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/api_client.dart';
 import '../../core/app_color.dart';
+import '../../core/favorite_store.dart';
 import '../../core/session_manager.dart';
 import '../../models/pesanan_saya.dart';
 import '../../services/pesanan_service.dart';
@@ -57,10 +59,10 @@ class _AkunScreensState extends State<AkunScreens> {
 
       setState(() {
         _jumlahWishlist =
-            (result['jumlah_wishlist'] as num?)?.toInt() ?? 0;
+            (result['wishlist_count'] as num?)?.toInt() ?? 0;
 
         _jumlahUlasan =
-            (result['jumlah_ulasan'] as num?)?.toInt() ?? 0;
+            (result['reviews_count'] as num?)?.toInt() ?? 0;
       });
     } catch (e) {
       debugPrint('Gagal memuat ringkasan akun: $e');
@@ -86,42 +88,278 @@ class _AkunScreensState extends State<AkunScreens> {
     }
   }
 
-  // Logout dari API dan hapus sesi lokal setelah konfirmasi.
+  // Konfirmasi logout sebelum mengakhiri sesi.
   Future<void> _logout() async {
-    final konfirmasi = await showDialog<bool>(
+    final profil = ProfilStore.instance.profil.value;
+    final nama = (profil?['nama_lengkap_user'] as String?)?.trim();
+    final email = _email.trim();
+    final telepon = ProfilStore.instance.telepon;
+    final kontak = email.isNotEmpty ? email : telepon;
+    final foto = ProfilStore.instance.fotoUrl;
+
+    final konfirmasi = await showGeneralDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Konfirmasi Keluar'),
-        content: const Text(
-          'Apakah kamu yakin ingin keluar dari akun?',
+      barrierDismissible: true,
+      barrierLabel: 'Tutup konfirmasi keluar',
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 260),
+      pageBuilder: (dialogContext, _, _) => Material(
+        color: Colors.transparent,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                child: ColoredBox(color: Colors.black.withValues(alpha: 0.52)),
+              ),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: SafeArea(
+                top: false,
+                child: Container(
+                  width: double.infinity,
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.88,
+                  ),
+                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+                  decoration: const BoxDecoration(
+                    color: AppColor.putih,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 76,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD6DEE9),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                        ),
+                        const SizedBox(height: 26),
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              width: 104,
+                              height: 104,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF7E8),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: const Color(0xFFFFF3F0),
+                                  width: 10,
+                                ),
+                              ),
+                              child: const Icon(Icons.logout_rounded,
+                                  size: 48, color: AppColor.kuning),
+                            ),
+                            Positioned(
+                              right: -2,
+                              bottom: 0,
+                              child: Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: AppColor.putih,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: const Color(0xFFE5EAF1)),
+                                  boxShadow: const [
+                                    BoxShadow(color: Color(0x18000000), blurRadius: 6),
+                                  ],
+                                ),
+                                child: const Icon(Icons.lock_outline_rounded,
+                                    size: 21, color: Color(0xFF334155)),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        Text('Keluar dari Akun?',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.outfit(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF111827),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text.rich(
+                          TextSpan(
+                            style: GoogleFonts.manrope(
+                              fontSize: 14, height: 1.55,
+                              color: const Color(0xFF64748B),
+                            ),
+                            children: [
+                              const TextSpan(
+                                text: 'Sesi Anda akan berakhir. Tiket aktif dan riwayat perjalanan tetap tersimpan aman di akun Anda.',
+                              ),
+                            ],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 22),
+                        Container(
+                          padding: const EdgeInsets.all(13),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            borderRadius: BorderRadius.circular(22),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 28,
+                                backgroundColor: const Color(0xFFE7EEF9),
+                                backgroundImage: foto == null || foto.isEmpty
+                                    ? null : NetworkImage(foto),
+                                child: foto == null || foto.isEmpty
+                                    ? const Icon(Icons.person_rounded,
+                                        color: AppColor.ungu, size: 28)
+                                    : null,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      nama == null || nama.isEmpty
+                                          ? 'Pengguna LokaTrip' : nama,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      kontak.isEmpty ? 'Akun LokaTrip' : kontak,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 12,
+                                        color: const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                                const Icon(Icons.check_circle, size: 17,
+                                    color: Color(0xFF2563EB)),
+                                const SizedBox(width: 4),
+                                Text('Tersimpan', style: GoogleFonts.manrope(
+                                  fontSize: 11, fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF2563EB))),
+                              ]),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 2),
+                              child: Icon(Icons.info_outline_rounded,
+                                  size: 18, color: Color(0xFF94A3B8)),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Masuk kembali kapan saja dengan email atau nomor telepon yang terdaftar.',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.manrope(
+                                  fontSize: 12, height: 1.5,
+                                  color: const Color(0xFF94A3B8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 22),
+                        SizedBox(
+                          width: double.infinity, height: 58,
+                          child: ElevatedButton.icon(
+                            onPressed: () => Navigator.pop(dialogContext, true),
+                            icon: const Icon(Icons.logout_rounded, size: 20),
+                            label: const Text('Ya, Keluar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColor.kuning,
+                              foregroundColor: AppColor.putih,
+                              elevation: 0,
+                              textStyle: GoogleFonts.manrope(
+                                fontSize: 16, fontWeight: FontWeight.w800),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity, height: 56,
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(dialogContext, false),
+                            style: TextButton.styleFrom(
+                              backgroundColor: const Color(0xFFF1F5F9),
+                              foregroundColor: const Color(0xFF334155),
+                              textStyle: GoogleFonts.manrope(
+                                fontSize: 15, fontWeight: FontWeight.w800),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: const BorderSide(color: Color(0xFFE2E8F0)),
+                              ),
+                            ),
+                            child: const Text('Batal & Tetap Masuk'),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Container(
+                          width: 120, height: 5,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFCBD5E1),
+                            borderRadius: BorderRadius.circular(5)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Keluar'),
-          ),
-        ],
       ),
+      transitionBuilder: (context, animation, secondaryAnimation, child) =>
+        SlideTransition(
+          position: Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
+            .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+          child: child,
+        ),
     );
 
     if (konfirmasi != true || !mounted) return;
-
     final token = await SessionManager.currentUserToken();
-
-    if (token != null) {
+    if (token != null && token.isNotEmpty) {
       try {
         await UserApi.logout(token);
       } catch (_) {
-        // Tetap hapus sesi lokal jika server tidak dapat dihubungi.
+        try {
+          await Supabase.instance.client.auth.signOut();
+        } catch (_) {
+          // Hapus sesi lokal meski server tidak dapat dihubungi.
+        }
       }
     }
-
     await SessionManager.logout();
-
+    ProfilStore.instance.bersihkan();
+    FavoritStore.bersihkan();
     if (!mounted) return;
 
     Navigator.pushAndRemoveUntil(
@@ -129,15 +367,13 @@ class _AkunScreensState extends State<AkunScreens> {
       PageRouteBuilder(
         pageBuilder: (_, _, _) => const LoginScreens(),
         transitionsBuilder: (_, animation, _, child) =>
-            FadeTransition(
-          opacity: animation,
-          child: child,
-        ),
+          FadeTransition(opacity: animation, child: child),
         transitionDuration: const Duration(milliseconds: 350),
       ),
       (route) => false,
     );
   }
+
 
   // Pindah ke tab Pesanan.
   void _keTabPesanan({bool riwayat = false}) {

@@ -107,6 +107,17 @@ class WisataService {
     return Wisata.fromMap(data);
   }
 
+  // beberapa wisata sekaligus berdasarkan id (dipakai hasil AI)
+  Future<List<Wisata>> getByIds(List<int> ids) async {
+    if (ids.isEmpty) return [];
+    final data = await _db
+        .from('wisata')
+        .select(_select)
+        .eq('status_approve', 'Y')
+        .inFilter('id_wisata', ids);
+    return _parse(data);
+  }
+
   // daftar kategori untuk halaman Semua Kategori
   Future<List<Map<String, dynamic>>> getKategori() async {
     final data = await _db.from('kategori').select().order('id_kategori');

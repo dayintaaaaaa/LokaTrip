@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SessionManager {
   static const _keyLogin = 'is_logged_in';
@@ -36,7 +37,11 @@ class SessionManager {
     if (role != 'admin') _adminAccessToken = null;
     if (role != 'admin') _adminRefreshToken = null;
     if (role != 'wisatawan') _userAccessToken = null;
-    if (role != 'mitra') _mitraAccessToken = null;
+    if (role != 'mitra') {
+      _mitraAccessToken = null;
+      _mitraRefreshToken = null;
+      _setMitraHeader(null);
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyLogin, true);
     await prefs.setString(_keyRole, role);
@@ -84,25 +89,38 @@ class SessionManager {
     return _userRefreshToken;
   }
 
-  static Future<void> setMitraSession({
-    required String accessToken,
-    String? refreshToken,
-  }) async {
+  static Future<void> setMitraDatabaseSession({required String token}) async {
     await setLoggedIn(role: 'mitra');
-    _mitraAccessToken = accessToken;
-    _mitraRefreshToken = refreshToken;
+    _mitraAccessToken = token;
+    _mitraRefreshToken = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyLogin, true);
     await prefs.setString(_keyRole, 'mitra');
-    await prefs.setString(_keyMitraToken, accessToken);
-    if (refreshToken != null)
-      await prefs.setString(_keyMitraRefreshToken, refreshToken);
+    await prefs.setString(_keyMitraToken, token);
+    await prefs.remove(_keyMitraRefreshToken);
+    _setMitraHeader(token);
+  }
+
+  static void _setMitraHeader(String? token) {
+    final client = Supabase.instance.client;
+    final headers = Map<String, String>.from(client.headers)
+      ..remove('x-mitra-session');
+    if (token != null && token.isNotEmpty) {
+      headers['X-Client-Info'] = 'lokatrip-mitra-session/$token';
+    } else {
+      headers.remove('X-Client-Info');
+    }
+    client.headers = headers;
   }
 
   static Future<String?> currentMitraToken() async {
-    if (_mitraAccessToken != null) return _mitraAccessToken;
+    if (_mitraAccessToken != null) {
+      _setMitraHeader(_mitraAccessToken);
+      return _mitraAccessToken;
+    }
     final prefs = await SharedPreferences.getInstance();
     _mitraAccessToken = prefs.getString(_keyMitraToken);
+    if (_mitraAccessToken != null) _setMitraHeader(_mitraAccessToken);
     return _mitraAccessToken;
   }
 
@@ -149,6 +167,7 @@ class SessionManager {
     _userRefreshToken = null;
     _mitraAccessToken = null;
     _mitraRefreshToken = null;
+    _setMitraHeader(null);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyLogin, false);
     await prefs.remove(_keyRole);

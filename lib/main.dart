@@ -1,5 +1,6 @@
-
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:lokatrip/services/auth_service.dart';
 
@@ -21,6 +22,7 @@ final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (kIsWeb) usePathUrlStrategy();
 
   await Supabase.initialize(
     url: _supabaseUrl,
@@ -32,10 +34,9 @@ Future<void> main() async {
     if (data.event == AuthChangeEvent.passwordRecovery) {
       AuthService.sedangPulihkanPassword = true;
 
-      navigatorKey.currentState?.push(
-        MaterialPageRoute(
-          builder: (_) => const ResetPasswordScreens(),
-        ),
+      navigatorKey.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const ResetPasswordScreens()),
+        (_) => false,
       );
     }
   });
@@ -53,9 +54,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'LokaTrip',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColor.ungu,
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: AppColor.ungu),
       ),
       home: const SplashScreens(),
     );

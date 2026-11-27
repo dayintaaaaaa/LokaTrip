@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/app_color.dart';
+import '../../core/favorite_store.dart';
+import '../../core/session_manager.dart';
 import '../../models/wisata.dart';
 import '../../models/wisata_dummy.dart';
 import '../../services/wisata_service.dart';
@@ -11,6 +13,8 @@ import 'home_widgets/home_header.dart';
 import 'home_widgets/jaminan_tiket.dart';
 import 'home_widgets/kategori_wisata.dart';
 import 'home_widgets/trip_akhir_pekan.dart';
+import 'ai_trip_screens.dart';
+import 'wisata_screens.dart';
 
 class HomeScreens extends StatefulWidget {
   const HomeScreens({super.key});
@@ -33,10 +37,17 @@ class _HomeScreensState extends State<HomeScreens> {
   }
 
   Future<void> _muat() async {
-    await Future.wait([
-      _muatPopuler(),
-      _muatTripAkhirPekan(),
-    ]);
+    await Future.wait([_muatPopuler(), _muatTripAkhirPekan(), _muatFavorit()]);
+  }
+
+  Future<void> _muatFavorit() async {
+    final token = await SessionManager.currentUserToken();
+    if (token == null || token.isEmpty) return;
+    try {
+      await FavoritStore.muat(token);
+    } catch (e) {
+      debugPrint('Gagal memuat wishlist: $e');
+    }
   }
 
   Future<void> _muatPopuler() async {
@@ -69,6 +80,22 @@ class _HomeScreensState extends State<HomeScreens> {
     }
   }
 
+  void _bukaPencarian(String kata) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => WisataScreens(initialQuery: kata)),
+    );
+  }
+
+  void _bukaFilter() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const WisataScreens(bukaFilterOtomatis: true),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // ikon status bar gelap karena latar top bar terang
@@ -86,8 +113,17 @@ class _HomeScreensState extends State<HomeScreens> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    HomeHeader(),
-                    SizedBox(height: 20),
+                    HomeHeader(onSearch: _bukaPencarian, onFilter: _bukaFilter),
+                    const SizedBox(height: 20),
+                    AiTripPromo(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AiTripScreens(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                     KategoriWisata(),
                     SizedBox(height: 24),
                     SizedBox(height: 24),

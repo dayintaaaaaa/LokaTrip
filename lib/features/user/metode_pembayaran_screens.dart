@@ -114,14 +114,7 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
     final kode = await _siapkanPesanan();
     if (kode == null || !mounted) return;
 
-    final Widget tujuan = _metode == 0
-        ? QrisScreens(data: _d, orderId: kode)
-        : PembayaranLainScreens(
-            data: _d,
-            orderId: kode,
-            metode: _labelMetode,
-            jenis: _metode,
-          );
+    final Widget tujuan = QrisScreens(data: _d, orderId: kode);
 
     Navigator.push(context, MaterialPageRoute(builder: (_) => tujuan));
   }
@@ -154,45 +147,8 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                     index: 0,
                     icon: Icons.qr_code_2,
                     judul: 'QRIS Instan',
-                    sub: 'Scan otomatis lewat GoPay, OVO, BCA, DANA, ShopeePay',
-                    info: const ['GOPAY', 'OVO', 'BCA', 'DANA'],
-                  ),
-                  _metodeKartu(
-                    index: 1,
-                    icon: Icons.account_balance_outlined,
-                    judul: 'Virtual Account Bank',
-                    sub: 'BCA, Mandiri, BNI, BRI',
-                    dropdown: const ['BCA', 'Mandiri', 'BNI', 'BRI'],
-                  ),
-                  _metodeKartu(
-                    index: 2,
-                    icon: Icons.account_balance_wallet_outlined,
-                    judul: 'Dompet Digital',
-                    sub: 'GoPay, ShopeePay, OVO, DANA',
-                    dropdown: const ['GoPay', 'ShopeePay', 'OVO', 'DANA'],
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _metodeKecil(
-                          3,
-                          Icons.credit_card,
-                          'Kartu Kredit',
-                          'Visa/Master',
-                          AppColor.abu,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _metodeKecil(
-                          4,
-                          Icons.access_time,
-                          'PayLater',
-                          'Cicilan 0%',
-                          AppColor.kuning,
-                        ),
-                      ),
-                    ],
+                    sub: 'Scan dengan aplikasi pembayaran QRIS',
+                    info: const ['QRIS'],
                   ),
                 ],
               ),

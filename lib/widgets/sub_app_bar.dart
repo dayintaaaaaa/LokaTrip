@@ -6,8 +6,14 @@ import '../core/app_color.dart';
 class SubAppBar extends StatelessWidget {
   final String title;
   final Widget? trailing;
+  final bool showAvatar;
 
-  const SubAppBar({super.key, required this.title, this.trailing});
+  const SubAppBar({
+    super.key,
+    required this.title,
+    this.trailing,
+    this.showAvatar = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -34,15 +40,21 @@ class SubAppBar extends StatelessWidget {
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: trailing ??
-                    const CircleAvatar(
-                      radius: 14,
-                      backgroundColor: AppColor.ungu,
-                      child: Icon(Icons.person, size: 16, color: AppColor.putih),
-                    ),
-              ),
+              if (trailing != null || showAvatar)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child:
+                      trailing ??
+                      const CircleAvatar(
+                        radius: 14,
+                        backgroundColor: AppColor.ungu,
+                        child: Icon(
+                          Icons.person,
+                          size: 16,
+                          color: AppColor.putih,
+                        ),
+                      ),
+                ),
             ],
           ),
         ),
