@@ -281,14 +281,7 @@ class _PerizinanAdminScreensState extends State<PerizinanAdminScreens> {
       _ => null,
     };
     if (page == null || index == 2) return;
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, _, _) => page,
-        transitionDuration: Duration.zero,
-        reverseTransitionDuration: Duration.zero,
-      ),
-    );
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => page));
   }
 
   void _message(String text) {

@@ -116,14 +116,7 @@ class _NotifikasiAdminScreensState extends State<NotifikasiAdminScreens> {
       _message('Halaman ini belum tersedia.');
       return;
     }
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, _, _) => page,
-        transitionDuration: Duration.zero,
-        reverseTransitionDuration: Duration.zero,
-      ),
-    );
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => page));
   }
 
   @override

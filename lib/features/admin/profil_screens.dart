@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
@@ -196,14 +195,12 @@ class _ProfilAdminScreensState extends State<ProfilAdminScreens> {
           if (index == 0 || index == 2 || index == 3) {
             Navigator.pushReplacement(
               context,
-              PageRouteBuilder(
-                pageBuilder: (_, _, _) => switch (index) {
+              MaterialPageRoute(
+                builder: (_) => switch (index) {
                   0 => const DashboardAdminScreens(),
                   2 => const PerizinanAdminScreens(),
                   _ => const LaporanAdminScreens(),
                 },
-                transitionDuration: Duration.zero,
-                reverseTransitionDuration: Duration.zero,
               ),
             );
           }

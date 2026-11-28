@@ -45,44 +45,28 @@ class _DashboardAdminScreensState extends State<DashboardAdminScreens> {
   void _openProfile(BuildContext context) {
     Navigator.pushReplacement(
       context,
-      PageRouteBuilder(
-        pageBuilder: (_, _, _) => const ProfilAdminScreens(),
-        transitionDuration: Duration.zero,
-        reverseTransitionDuration: Duration.zero,
-      ),
+      MaterialPageRoute(builder: (_) => const ProfilAdminScreens()),
     );
   }
 
   void _openMitra(BuildContext context) {
     Navigator.pushReplacement(
       context,
-      PageRouteBuilder(
-        pageBuilder: (_, _, _) => const MitraAdminScreens(),
-        transitionDuration: Duration.zero,
-        reverseTransitionDuration: Duration.zero,
-      ),
+      MaterialPageRoute(builder: (_) => const MitraAdminScreens()),
     );
   }
 
   void _openReport(BuildContext context) {
     Navigator.pushReplacement(
       context,
-      PageRouteBuilder(
-        pageBuilder: (_, _, _) => const LaporanAdminScreens(),
-        transitionDuration: Duration.zero,
-        reverseTransitionDuration: Duration.zero,
-      ),
+      MaterialPageRoute(builder: (_) => const LaporanAdminScreens()),
     );
   }
 
   void _openLicenses(BuildContext context) {
     Navigator.pushReplacement(
       context,
-      PageRouteBuilder(
-        pageBuilder: (_, _, _) => const PerizinanAdminScreens(),
-        transitionDuration: Duration.zero,
-        reverseTransitionDuration: Duration.zero,
-      ),
+      MaterialPageRoute(builder: (_) => const PerizinanAdminScreens()),
     );
   }
 

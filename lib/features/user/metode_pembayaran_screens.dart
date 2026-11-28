@@ -59,18 +59,44 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
   }
 
   String get _labelMetode => switch (_metode) {
-        0 => 'QRIS Instan',
-        1 => 'Virtual Account ${_pilihan[1]}',
-        2 => _pilihan[2]!,
-        3 => 'Kartu Kredit',
-        _ => 'PayLater',
-      };
+    0 => 'QRIS Instan',
+    1 => 'Virtual Account ${_pilihan[1]}',
+    2 => _pilihan[2]!,
+    3 => 'Kartu Kredit',
+    _ => 'PayLater',
+  };
+
+  String get _metodeDb => switch (_metode) {
+    0 => 'qris',
+    1 => 'virtual_account',
+    2 => 'dompet_digital',
+    3 => 'kartu_kredit',
+    _ => 'paylater',
+  };
+
+  String get _paymentOption => switch (_metode) {
+    0 => 'qris',
+    1 => switch (_pilihan[1]) {
+      'Mandiri' => 'virtual_account_mandiri',
+      'BNI' => 'virtual_account_bni',
+      'BRI' => 'virtual_account_bri',
+      _ => 'virtual_account_bca',
+    },
+    2 => switch (_pilihan[2]) {
+      'OVO' => 'ovo',
+      'DANA' => 'dana',
+      'ShopeePay' => 'shopeepay',
+      _ => 'gopay',
+    },
+    3 => 'kartu_kredit',
+    _ => 'paylater',
+  };
 
   void _pesan(String teks) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(teks, style: GoogleFonts.manrope())),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(teks, style: GoogleFonts.manrope())));
   }
 
   Future<String?> _siapkanPesanan() async {
@@ -114,16 +140,18 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
     final kode = await _siapkanPesanan();
     if (kode == null || !mounted) return;
 
-    final Widget tujuan = _metode == 0
-        ? QrisScreens(data: _d, orderId: kode)
-        : PembayaranLainScreens(
-            data: _d,
-            orderId: kode,
-            metode: _labelMetode,
-            jenis: _metode,
-          );
-
-    Navigator.push(context, MaterialPageRoute(builder: (_) => tujuan));
+    await prosesBayarMidtrans(
+      context: context,
+      data: _d,
+      orderId: kode,
+      metodeLabel: _labelMetode,
+      metodeDb: _metodeDb,
+      paymentOption: _paymentOption,
+      penyedia: _labelMetode,
+      sedangMemproses: (value) {
+        if (mounted) setState(() => _memproses = value);
+      },
+    );
   }
 
   @override
@@ -225,10 +253,7 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                 children: [
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: AppColor.hitam,
-                    ),
+                    icon: const Icon(Icons.arrow_back, color: AppColor.hitam),
                   ),
                   Expanded(
                     child: Text(
@@ -351,10 +376,7 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                   '${p.teksTamu} • ${p.paket.namaPendek}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    fontSize: 9,
-                    color: AppColor.abu,
-                  ),
+                  style: GoogleFonts.manrope(fontSize: 9, color: AppColor.abu),
                 ),
               ],
             ),
@@ -524,9 +546,7 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                           style: GoogleFonts.manrope(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: dipilih
-                                ? AppColor.putih
-                                : AppColor.hitam,
+                            color: dipilih ? AppColor.putih : AppColor.hitam,
                           ),
                         ),
                       ),
@@ -558,9 +578,7 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
           color: AppColor.putih,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: aktif
-                ? AppColor.ungu
-                : AppColor.abu.withValues(alpha: 0.2),
+            color: aktif ? AppColor.ungu : AppColor.abu.withValues(alpha: 0.2),
             width: aktif ? 2 : 1,
           ),
         ),
@@ -594,9 +612,7 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
               ),
             ),
             Icon(
-              aktif
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
+              aktif ? Icons.radio_button_checked : Icons.radio_button_unchecked,
               size: 18,
               color: aktif ? AppColor.ungu : AppColor.abu,
             ),
@@ -689,9 +705,7 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
     return BoxDecoration(
       color: AppColor.putih,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(
-        color: AppColor.abu.withValues(alpha: 0.15),
-      ),
+      border: Border.all(color: AppColor.abu.withValues(alpha: 0.15)),
     );
   }
 }

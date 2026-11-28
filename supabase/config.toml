@@ -2,3 +2,6 @@ project_id = "eokrqohaofdiaabpcnyg"
 
 [functions.smart-endpoint]
 verify_jwt = false
+
+[functions.midtrans-payment]
+verify_jwt = false

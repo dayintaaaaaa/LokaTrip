@@ -33,3 +33,32 @@ docker run --rm -p 8080:80 lokatrip
 ```
 
 Supabase tetap menjadi layanan hosted untuk Auth dan database. Tidak perlu men-deploy server Express terpisah.
+
+## Pembayaran Midtrans Sandbox
+
+Alur pembayaran menggunakan Snap redirect. Server key hanya disimpan sebagai Supabase Edge Function secret; status lunas dan tiket hanya diproses setelah webhook diverifikasi.
+
+1. Masuk ke direktori proyek, autentikasi dan hubungkan Supabase CLI ke project yang sama dengan `supabase/config.toml`:
+
+   ```sh
+   supabase login
+   supabase link --project-ref eokrqohaofdiaabpcnyg
+   ```
+
+2. Pada project development yang benar, buka **Supabase Dashboard > SQL Editor** dan jalankan isi file `supabase/migrations/202611270001_midtrans_sandbox.sql`. Migration membuat tabel transaksi Midtrans, RPC settlement khusus server, dan menonaktifkan RPC pembayaran simulasi. Untuk mengaktifkan metode Akulaku/PayLater, jalankan juga `supabase/migrations/202611280001_midtrans_paylater.sql`.
+
+3. Di Supabase Dashboard, buka **Edge Function Secrets** lalu tambahkan `MIDTRANS_SERVER_KEY`, `MIDTRANS_SIGNATURE_SECRET_KEY`, dan `MIDTRANS_ENVIRONMENT` dengan nilai `sandbox`. Ambil dua key dari **Sandbox** dashboard Midtrans. Jangan masukkan secret ke Flutter atau Git. Supabase juga menerima secrets melalui file env yang diabaikan Git.
+
+4. Deploy Edge Function:
+
+   ```sh
+   supabase functions deploy midtrans-payment
+   ```
+
+5. Di dashboard **Sandbox Midtrans**, atur HTTP Notification URL ke:
+
+   `https://eokrqohaofdiaabpcnyg.supabase.co/functions/v1/midtrans-payment`
+
+   Di dashboard Sandbox Midtrans, buka **Settings > Configuration** lalu isi **Payment Notification URL**. Notifikasi harus mengarah ke endpoint HTTPS yang sudah live.
+
+6. Jalankan Flutter dan buat pesanan paket sungguhan dari database. Pilih metode, lanjutkan ke halaman Midtrans Sandbox, lalu bayar dengan data uji yang disediakan Midtrans. Setelah webhook berhasil diproses, status pesanan menjadi aktif dan e-tiket diterbitkan.
