@@ -16,6 +16,16 @@ class HasilPemesanan {
   HasilPemesanan(this.idPemesanan, this.kodePesan, this.totalBayar);
 }
 
+// Hasil pembayaran: pesanan lunas dan e-tiket yang diterbitkan
+// (satu kode per tiket dewasa/anak, bayi tidak).
+class HasilBayar {
+  final int idPemesanan;
+  final String kodePesan;
+  final int totalBayar;
+  final List<String> kodeTiket;
+  HasilBayar(this.idPemesanan, this.kodePesan, this.totalBayar, this.kodeTiket);
+}
+
 class PemesananService {
   final SupabaseClient _db = Supabase.instance.client;
 
@@ -90,6 +100,37 @@ class PemesananService {
     } catch (e) {
       debugPrint('buat_pemesanan error: $e');
       throw PemesananGagal('Gagal membuat pesanan, periksa koneksi internetmu');
+    }
+  }
+
+  /// Catat pembayaran dan terbitkan e-tiket via simulasi Supabase.
+  Future<HasilBayar> bayarSimulasi({
+    required String kodePesan,
+    required String metode,
+    String? penyedia,
+  }) async {
+    try {
+      final res = await _db.rpc('simulasi_bayar', params: {
+        'p_kode_pesan': kodePesan,
+        'p_metode': metode,
+        'p_penyedia': penyedia,
+      });
+      final row = (res as List).first as Map<String, dynamic>;
+      return HasilBayar(
+        row['o_id_pemesanan'] as int,
+        row['o_kode_pesan'] as String,
+        row['o_total_bayar'] as int,
+        ((row['o_kode_tiket'] ?? []) as List).cast<String>(),
+      );
+    } on PostgrestException catch (e) {
+      debugPrint('simulasi_bayar gagal: code=${e.code} '
+          'msg=${e.message} details=${e.details}');
+      throw PemesananGagal(_terjemah(e.message));
+    } catch (e) {
+      debugPrint('simulasi_bayar error: $e');
+      throw PemesananGagal(
+        'Gagal memproses pembayaran, periksa koneksi internetmu',
+      );
     }
   }
 
