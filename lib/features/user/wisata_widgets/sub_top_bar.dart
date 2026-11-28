@@ -40,10 +40,10 @@ class SubTopBar extends StatelessWidget {
                 height: 40,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F6FA),
+                  color: AppColor.putih,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColor.ungu.withValues(alpha: 0.15),
+                    color: const Color(0xFFE0E0E0),
                   ),
                 ),
                 child: Row(
@@ -76,14 +76,22 @@ class SubTopBar extends StatelessWidget {
 
           // kolom pencarian + tombol filter
           Container(
-            height: 46,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F6FA),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColor.ungu.withValues(alpha: 0.15)),
+              color: AppColor.putih,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE0E0E0)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColor.hitam.withValues(alpha: 0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Icon(Icons.search, size: 20, color: AppColor.abu),
                 const SizedBox(width: 8),
@@ -93,14 +101,19 @@ class SubTopBar extends StatelessWidget {
                     onChanged: onChanged,
                     onSubmitted: onSubmitted,
                     textInputAction: TextInputAction.search,
-                    style: GoogleFonts.manrope(fontSize: 12),
+                    style: GoogleFonts.manrope(fontSize: 14),
                     decoration: InputDecoration(
                       border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
+                      filled: false,
+                      isCollapsed: true,
                       hintText: 'Cari atraksi, tur candi, waterpark, wahana...',
                       hintStyle: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: AppColor.abu,
                       ),
                     ),
@@ -122,7 +135,7 @@ class SubTopBar extends StatelessWidget {
                       Text(
                         'Filter',
                         style: GoogleFonts.manrope(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: AppColor.ungu,
                         ),

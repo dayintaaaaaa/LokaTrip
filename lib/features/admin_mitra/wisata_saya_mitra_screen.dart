@@ -252,7 +252,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                 ),
                 const SizedBox(height: 12),
                 _notificationTile(
-                  title: 'Verifikasi Berkas Kawah Ijen',
+                  title: 'Verifikasi Berkas Coban Rondo',
                   subtitle:
                       'Tim kurator sedang menguji SOP pemandu dan sertifikat P3K.',
                   time: '18 jam tersisa',
@@ -263,7 +263,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                 _notificationTile(
                   title: 'Perhatian: Polis Asuransi Kedaluwarsa',
                   subtitle:
-                      'Mohon perbarui dokumen asuransi Paket Rafting Pekalen.',
+                      'Mohon perbarui dokumen asuransi Paket Outbound Malang.',
                   time: 'Kemarin',
                   color: const Color(0xFFDC2626),
                   icon: Icons.warning_amber_rounded,
@@ -452,7 +452,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          'Detail Audit Kawah Ijen',
+          'Detail Audit Coban Rondo',
           style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 16),
         ),
         content: Column(
@@ -1275,7 +1275,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'Kab. Probolinggo, Jawa Timur',
+                          'Poncokusumo, Kabupaten Malang',
                           style: GoogleFonts.manrope(
                             fontSize: 11,
                             color: Colors.white70,
@@ -1599,7 +1599,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
     );
   }
 
-  // Card 2: Paket Rafting Sungai Pekalen (Perlu Revisi)
+  // Card 2: Paket Outbound Kabupaten Malang (Perlu Revisi)
   Widget _buildCard2Rafting() {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -1695,7 +1695,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Paket Rafting Sungai Pekalen',
+                      'Paket Outbound Kabupaten Malang',
                       style: GoogleFonts.manrope(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
@@ -1712,7 +1712,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                         ),
                         const SizedBox(width: 2),
                         Text(
-                          'Probolinggo â€¢ Wisata Ekstrem',
+                          'Kabupaten Malang • Wisata Ekstrem',
                           style: GoogleFonts.manrope(
                             fontSize: 11,
                             color: MitraPalette.muted,
@@ -1814,7 +1814,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
     );
   }
 
-  // Card 3: Kawah Ijen Blue Fire Experience (Audit Super Admin)
+  // Card 3: Wisata Alam Kabupaten Malang (Audit Super Admin)
   Widget _buildCard3KawahIjen() {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -1918,7 +1918,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Kawah Ijen Blue Fire Experience',
+                      'Wisata Alam Kabupaten Malang',
                       style: GoogleFonts.manrope(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
@@ -1935,7 +1935,7 @@ class _WisataSayaMitraScreenState extends State<WisataSayaMitraScreen> {
                         ),
                         const SizedBox(width: 2),
                         Text(
-                          'Banyuwangi â€¢ Wisata Gunung',
+                          'Kabupaten Malang • Wisata Alam',
                           style: GoogleFonts.manrope(
                             fontSize: 11,
                             color: MitraPalette.muted,

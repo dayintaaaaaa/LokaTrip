@@ -571,7 +571,7 @@ class _KeamananAkunScreensState extends State<KeamananAkunScreens> {
     final bool optimal = skor >= 2;
 
     return Scaffold(
-      backgroundColor: AppColor.latar,
+      backgroundColor: AppColor.putih,
       body: Column(
         children: [
           const SubAppBar(title: 'Keamanan Akun', showAvatar: false),

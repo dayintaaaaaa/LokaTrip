@@ -6,8 +6,15 @@ import '../../../models/detail_wisata.dart';
 // Bagian "Ulasan Pengunjung" di halaman Destination Detail.
 class UlasanPengunjung extends StatelessWidget {
   final List<UlasanDetail> daftar;
+  final VoidCallback onLihatSemua;
+  final ValueChanged<UlasanDetail> onPilihUlasan;
 
-  const UlasanPengunjung({super.key, required this.daftar});
+  const UlasanPengunjung({
+    super.key,
+    required this.daftar,
+    required this.onLihatSemua,
+    required this.onPilihUlasan,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -43,9 +50,7 @@ class UlasanPengunjung extends StatelessWidget {
               ),
             ),
             GestureDetector(
-              onTap: () {
-                // nanti: buka halaman semua ulasan
-              },
+              onTap: onLihatSemua,
               child: Text(
                 'Lihat Semua',
                 style: GoogleFonts.manrope(
@@ -61,24 +66,30 @@ class UlasanPengunjung extends StatelessWidget {
         for (final u in daftar)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: _kartu(u),
+            child: _kartu(u, () => onPilihUlasan(u)),
           ),
       ],
     );
   }
 
-  Widget _kartu(UlasanDetail u) {
+  Widget _kartu(UlasanDetail u, VoidCallback onTap) {
     final inisial = u.nama.isEmpty ? '?' : u.nama[0].toUpperCase();
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColor.putih,
+    return Material(
+      color: AppColor.putih,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColor.abu.withValues(alpha: 0.2)),
-      ),
-      child: Column(
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColor.putih,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColor.abu.withValues(alpha: 0.2)),
+          ),
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -86,6 +97,9 @@ class UlasanPengunjung extends StatelessWidget {
               CircleAvatar(
                 radius: 16,
                 backgroundColor: AppColor.ungu.withValues(alpha: 0.12),
+                foregroundImage: u.fotoProfil?.isNotEmpty == true
+                    ? NetworkImage(u.fotoProfil!)
+                    : null,
                 child: Text(
                   inisial,
                   style: GoogleFonts.manrope(
@@ -140,6 +154,8 @@ class UlasanPengunjung extends StatelessWidget {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

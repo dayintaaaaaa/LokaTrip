@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'session_manager.dart';
+import 'lokasi_malang_raya.dart';
 
 class ApiException implements Exception {
   const ApiException(this.message);
@@ -313,6 +314,8 @@ class UserApi {
             'id_wisata, nama_wisata, lokasi, kota, deskripsi, jenis, subkategori, rata_rating, jml_ulasan, id_kategori, kategori(nama_kategori), paket_wisata!inner(id_paket, nama_paket, tipe_paket, status_aktif, detail_paket(id_detail_paket, harga, tipe_pengunjung)), foto_wisata(url_foto, urutan)',
           )
           .eq('status_approve', 'Y')
+          .eq('aktif_katalog', true)
+          .inFilter('kota', LokasiMalangRaya.kota)
           .eq('paket_wisata.status_aktif', true)
           .order('id_wisata');
       return _rows(rows, 'Data wisata tidak valid.');
@@ -326,8 +329,12 @@ class UserApi {
       final rows = await _supabase
           .from('wishlist')
           .select(
-            'id_wishlist, id_wisata, wisata(id_wisata, nama_wisata, lokasi, kota, rata_rating, jml_ulasan, kategori(nama_kategori), paket_wisata(id_paket, nama_paket, tipe_paket, detail_paket(harga, tipe_pengunjung)), foto_wisata(url_foto, urutan))',
+            'id_wishlist, id_wisata, wisata!inner(id_wisata, nama_wisata, lokasi, kota, status_approve, aktif_katalog, rata_rating, jml_ulasan, kategori(nama_kategori), paket_wisata(id_paket, nama_paket, tipe_paket, status_aktif, detail_paket(harga, tipe_pengunjung)), foto_wisata(url_foto, urutan))',
           )
+          .eq('wisata.status_approve', 'Y')
+          .eq('wisata.aktif_katalog', true)
+          .inFilter('wisata.kota', LokasiMalangRaya.kota)
+          .eq('wisata.paket_wisata.status_aktif', true)
           .order('id_wishlist', ascending: false);
       return _rows(rows, 'Data wishlist tidak valid.');
     } catch (error) {

@@ -5,15 +5,16 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/app_color.dart';
 import '../../core/format_rupiah.dart';
 import '../../models/detail_wisata.dart';
-import '../../models/detail_wisata_dummy.dart';
 import '../../models/wisata.dart';
 import '../../services/maps_service.dart';
+import '../../services/wisata_service.dart';
 import '../../widgets/gambar_wisata.dart';
 import '../../widgets/tombol_favorit.dart';
 import 'detail_widgets/fasilitas_tur.dart';
 import 'detail_widgets/kartu_paket.dart';
 import 'detail_widgets/ulasan_pengunjung.dart';
 import '../user/atur_jadwal_screens.dart';
+import 'semua_ulasan_wisata_screens.dart';
 
 // 12800 -> "12.800"
 String _ribuan(int n) => formatRupiah(n).replaceFirst('Rp ', '');
@@ -37,6 +38,9 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
   static const _latar = Color(0xFFF5F6FA);
 
   late final DetailWisata _d;
+  late List<UlasanDetail> _ulasan;
+  double? _rating;
+  int? _jumlahUlasan;
   int _grup = 0; // WNI / WNA
   int _paket = 0; // paket yang dipilih di kelompok itu
 
@@ -46,9 +50,27 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
   @override
   void initState() {
     super.initState();
-    _d = widget.wisata.paketTiket.isNotEmpty
-        ? DetailWisata.dariWisata(widget.wisata)
-        : DetailDummy.untuk(widget.wisata);
+    _d = widget.wisata.paket.isNotEmpty
+        ? DetailWisata.dariSupabase(widget.wisata)
+        : DetailWisata.dariWisata(widget.wisata);
+    _ulasan = _d.ulasan;
+    _rating = _d.rating;
+    _jumlahUlasan = _d.jumlahUlasan;
+    _muatUlasanWisata();
+  }
+
+  Future<void> _muatUlasanWisata() async {
+    try {
+      final hasil = await WisataService().ambilUlasanWisata(widget.wisata.id);
+      if (!mounted) return;
+      setState(() {
+        _ulasan = hasil.ulasan;
+        _jumlahUlasan = hasil.jumlah == 0 ? null : hasil.jumlah;
+        _rating = hasil.rating;
+      });
+    } catch (error) {
+      debugPrint('Gagal memuat ulasan wisata: $error');
+    }
   }
 
   void _gantiGrup(int i) {
@@ -118,9 +140,28 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
                       termasuk: _g.termasuk,
                       tidakTermasuk: _g.tidakTermasuk,
                     ),
-                  if (_d.ulasan.isNotEmpty) ...[
+                  if (_ulasan.isNotEmpty) ...[
                     const SizedBox(height: 22),
-                    UlasanPengunjung(daftar: _d.ulasan),
+                    UlasanPengunjung(
+                      daftar: _ulasan,
+                      onLihatSemua: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SemuaUlasanWisataScreens(
+                            wisata: widget.wisata,
+                          ),
+                        ),
+                      ),
+                      onPilihUlasan: (ulasan) => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DetailUlasanWisataScreens(
+                            wisata: widget.wisata,
+                            ulasan: ulasan,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -394,28 +435,28 @@ class _DetailWisataScreensState extends State<DetailWisataScreens> {
   }
 
   Widget _barisRating() {
-    final r = _d.rating;
+    final r = _rating;
     if (r == null) return const SizedBox.shrink();
-    final puas = _d.persenPuas;
+    final puas = (r / 5 * 100).round();
 
     return Row(
       children: [
         const Icon(Icons.star_rounded, size: 16, color: AppColor.kuning),
         const SizedBox(width: 3),
         Text(
-          '$r',
+          r.toStringAsFixed(1),
           style: GoogleFonts.manrope(
             fontSize: 14,
             fontWeight: FontWeight.w800,
             color: AppColor.hitam,
           ),
         ),
-        if (_d.jumlahUlasan != null)
+        if (_jumlahUlasan != null)
           Text(
-            ' (${_ribuan(_d.jumlahUlasan!)} Ulasan)',
+            ' (${_ribuan(_jumlahUlasan!)} Ulasan)',
             style: GoogleFonts.manrope(fontSize: 11, color: AppColor.abu),
           ),
-        if (puas != null) ...[
+        ...[
           const SizedBox(width: 12),
           const Icon(Icons.thumb_up_outlined, size: 13, color: AppColor.ungu),
           const SizedBox(width: 4),

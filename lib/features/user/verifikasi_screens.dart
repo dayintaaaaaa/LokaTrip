@@ -600,7 +600,7 @@ class _VerifikasiIdentitasScreensState
             _Untung(
               Icons.qr_code_scanner,
               'Check-in Wisata Instan',
-              'Cukup scan barcode Lokatrip di gate Borobudur, GWK Bali, & Jatim Park tanpa antre loket verifikasi fisik KTP.',
+              'Cukup scan barcode LokaTrip di gate Jatim Park, Coban Rondo, dan Malang Smart Arena tanpa antre loket verifikasi fisik KTP.',
             ),
             _Untung(
               Icons.shield_outlined,

@@ -50,3 +50,5 @@ supabase/functions/.env.midtrans
 
 # Local MCP configuration
 .mcp.json
+
+node_modules/

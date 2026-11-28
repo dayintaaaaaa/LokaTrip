@@ -7,6 +7,7 @@ import '../../core/api_client.dart';
 import '../../core/session_manager.dart';
 import '../../widgets/mitra_bottom_navigator.dart';
 import '../login_screens.dart';
+import 'pendapatan_mitra_screen.dart';
 import 'ubah_data_mitra_screen.dart';
 
 class ProfilMitraScreen extends StatefulWidget {
@@ -372,6 +373,21 @@ class _ProfilMitraScreenState extends State<ProfilMitraScreen> {
           Text(
             'Nilai ini hanya bagian tiket setelah diskon. Biaya layanan Rp20.000 dicatat untuk LokaTrip; angka ini bukan saldo pencairan.',
             style: GoogleFonts.manrope(fontSize: 10, color: MitraPalette.muted),
+          ),
+          const SizedBox(height: 14),
+          // Tombol ke halaman laporan pendapatan (grafik dari DB)
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PendapatanMitraScreen()),
+            ),
+            icon: const Icon(Icons.bar_chart_rounded, size: 16),
+            label: const Text('Lihat laporan pendapatan lengkap'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: MitraPalette.primary,
+              side: const BorderSide(color: MitraPalette.primaryBorder),
+              minimumSize: const Size(double.infinity, 42),
+            ),
           ),
         ],
       ),

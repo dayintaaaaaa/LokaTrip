@@ -26,7 +26,7 @@ class _TopNavigatorState extends State<TopNavigator> {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: AppColor.latar,
+      color: AppColor.putih,
       child: SafeArea(
         bottom: false,
         child: Padding(
@@ -67,7 +67,7 @@ class _TopNavigatorState extends State<TopNavigator> {
                             color: AppColor.kuning,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: AppColor.latar,
+                              color: AppColor.putih,
                               width: 1.5,
                             ),
                           ),

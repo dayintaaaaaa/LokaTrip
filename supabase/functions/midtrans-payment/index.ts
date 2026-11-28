@@ -17,9 +17,9 @@ const required = (name: string) => {
   return value;
 };
 
-const baseUrl = () => Deno.env.get('MIDTRANS_ENVIRONMENT') === 'production'
-  ? 'https://app.midtrans.com'
-  : 'https://app.sandbox.midtrans.com';
+const midtransHosts = () => Deno.env.get('MIDTRANS_ENVIRONMENT') === 'production'
+  ? { snap: 'https://app.midtrans.com', coreApi: 'https://api.midtrans.com' }
+  : { snap: 'https://app.sandbox.midtrans.com', coreApi: 'https://api.sandbox.midtrans.com' };
 
 const basicAuthorization = (serverKey: string) =>
   `Basic ${btoa(`${serverKey}:`)}`;
@@ -128,7 +128,7 @@ async function createSnapPayment(body: Record<string, unknown>, request: Request
     expiry: { unit: 'minute', duration: 15 },
   };
 
-  const response = await fetch(`${baseUrl()}/snap/v1/transactions`, {
+  const response = await fetch(`${midtransHosts().snap}/snap/v1/transactions`, {
     method: 'POST',
     headers: {
       Authorization: basicAuthorization(serverKey),
@@ -184,13 +184,13 @@ async function reconcileTransaction(orderId: string, force = false) {
   if (!force && Date.now() - Date.parse(payment.diperbarui_pada) < 10_000) return { status: priorStatus };
 
   // Verify against Midtrans status API as well as the signed webhook payload.
-  const statusResponse = await fetch(`${baseUrl()}/v2/${encodeURIComponent(orderId)}/status`, {
+  const statusResponse = await fetch(`${midtransHosts().coreApi}/v2/${encodeURIComponent(orderId)}/status`, {
     headers: { Authorization: basicAuthorization(required('MIDTRANS_SERVER_KEY')) },
   });
-  const status = await statusResponse.json();
   // A new Snap transaction may not have a Core API status until the payer
   // chooses a payment channel. Keep it pending and check again later.
   if (statusResponse.status === 404) return { status: priorStatus };
+  const status = await statusResponse.json();
   if (!statusResponse.ok || status.order_id !== orderId) throw new Error('Status transaksi Midtrans belum dapat diverifikasi.');
   const qrImageUrl = qrisImageUrl(status);
 
@@ -271,6 +271,7 @@ async function reconcileForAdmin(request: Request) {
 
   let settled = 0;
   let checked = 0;
+  let failed = 0;
   const candidates = (pending ?? []).filter((transaction) => {
     if (transaction.transaction_status === 'pending') return true;
     const order = Array.isArray(transaction.pemesanan)
@@ -284,12 +285,13 @@ async function reconcileForAdmin(request: Request) {
     return !alreadySettled;
   }).slice(0, 20);
   for (const transaction of candidates) {
+    checked++;
     try {
       const force = transaction.transaction_status !== 'pending';
       const result = await reconcileTransaction(transaction.midtrans_order_id, force);
-      checked++;
       if (result.status === 'settlement') settled++;
     } catch (error) {
+      failed++;
       console.error('Admin Midtrans reconciliation failed:', transaction.midtrans_order_id, error);
     }
   }
@@ -304,6 +306,7 @@ async function reconcileForAdmin(request: Request) {
   return json({
     checked,
     settled,
+    failed,
     latest_status: latest?.transaction_status ?? null,
     latest_order_code: latestOrder?.kode_pesan ?? null,
   });
@@ -335,11 +338,11 @@ async function recoverForAdmin(body: Record<string, unknown>, request: Request) 
     .maybeSingle();
   if (orderError || !order) return json({ error: 'Pesanan LokaTrip tidak ditemukan.' }, 404);
 
-  const statusResponse = await fetch(`${baseUrl()}/v2/${encodeURIComponent(orderId)}/status`, {
+  const statusResponse = await fetch(`${midtransHosts().coreApi}/v2/${encodeURIComponent(orderId)}/status`, {
     headers: { Authorization: basicAuthorization(required('MIDTRANS_SERVER_KEY')) },
   });
-  const status = await statusResponse.json();
   if (statusResponse.status === 404) return json({ error: 'Order ID tidak ditemukan di Midtrans.' }, 404);
+  const status = await statusResponse.json();
   if (!statusResponse.ok || status.order_id !== orderId) {
     return json({ error: 'Status transaksi Midtrans tidak dapat diverifikasi.' }, 502);
   }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_color.dart';
+import '../../core/lokasi_malang_raya.dart';
 import '../../core/promo_data.dart';
 import '../../widgets/top_navigator.dart';
 import '../../widgets/bottom_navigator.dart';
@@ -27,12 +28,7 @@ class _PromoScreensState extends State<PromoScreens> {
   Duration _sisaWaktu = const Duration(hours: 4, minutes: 18, seconds: 22);
   Timer? _timer;
 
-  static const _daftarKota = [
-    'Semua Kota',
-    'Bali',
-    'Yogyakarta',
-    'Malang & Batu',
-  ];
+  static const _daftarKota = ['Semua Lokasi', ...LokasiMalangRaya.kota];
 
   static const _daftarKategori = [
     ('Semua Promo', Icons.confirmation_number_outlined),
@@ -219,7 +215,7 @@ class _PromoScreensState extends State<PromoScreens> {
               onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
               style: GoogleFonts.manrope(fontSize: 12, color: AppColor.hitam),
               decoration: InputDecoration(
-                hintText: 'Cari destinasi diskon (cth- Bali, Borobudur)',
+                hintText: 'Cari wisata Malang Raya (cth- Batu, Coban Rondo)',
                 hintStyle:
                     GoogleFonts.manrope(fontSize: 11, color: AppColor.abu),
                 border: InputBorder.none,

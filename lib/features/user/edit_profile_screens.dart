@@ -241,7 +241,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
         : '${_tanggalLahir!.day} ${_bulan[_tanggalLahir!.month - 1]} ${_tanggalLahir!.year}';
 
     return Scaffold(
-      backgroundColor: AppColor.latar,
+      backgroundColor: AppColor.putih,
       body: Column(
         children: [
           const SubAppBar(title: 'Edit Profile', showAvatar: false),
@@ -258,7 +258,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                         Text(
                           'Data Pribadi Traveler',
                           style: GoogleFonts.manrope(
-                            fontSize: 15,
+                            fontSize: 16,
                             fontWeight: FontWeight.w800,
                             color: AppColor.hitam,
                           ),
@@ -267,7 +267,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                         Text(
                           'Pastikan informasi Anda akurat untuk tiket\n& atraksi wisata.',
                           style: GoogleFonts.manrope(
-                            fontSize: 10,
+                            fontSize: 12,
                             color: AppColor.abu,
                           ),
                         ),
@@ -321,7 +321,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                                     child: Text(
                                       tgl,
                                       style: GoogleFonts.manrope(
-                                        fontSize: 12,
+                                        fontSize: 14,
                                         color: AppColor.hitam,
                                       ),
                                     ),
@@ -364,7 +364,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
           // Tombol simpan.
           Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-            color: AppColor.latar,
+            color: AppColor.putih,
             child: SafeArea(
               top: false,
               child: SizedBox(
@@ -473,7 +473,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
           const SizedBox(height: 8),
           Text(
             'Format JPG atau PNG, maks. 5MB',
-            style: GoogleFonts.manrope(fontSize: 10, color: AppColor.abu),
+            style: GoogleFonts.manrope(fontSize: 11, color: AppColor.abu),
           ),
           const SizedBox(height: 4),
           InkWell(
@@ -490,7 +490,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                 Text(
                   'Hapus Foto',
                   style: GoogleFonts.manrope(
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: AppColor.ungu,
                   ),
@@ -535,7 +535,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                   text: TextSpan(
                     text: label,
                     style: GoogleFonts.manrope(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: AppColor.hitam,
                     ),
@@ -543,7 +543,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
                       TextSpan(
                         text: ' *',
                         style: GoogleFonts.manrope(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: AppColor.ungu,
                         ),
@@ -555,7 +555,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
               if (labelKanan != null)
                 Text(
                   labelKanan,
-                  style: GoogleFonts.manrope(fontSize: 9, color: AppColor.abu),
+                  style: GoogleFonts.manrope(fontSize: 11, color: AppColor.abu),
                 ),
             ],
           ),
@@ -570,7 +570,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
               Expanded(
                 child: Text(
                   info,
-                  style: GoogleFonts.manrope(fontSize: 9, color: AppColor.abu),
+                  style: GoogleFonts.manrope(fontSize: 11, color: AppColor.abu),
                 ),
               ),
             ],
@@ -585,7 +585,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColor.latar,
+        color: AppColor.putih,
         borderRadius: BorderRadius.circular(10),
       ),
       child: child,
@@ -598,32 +598,41 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
     TextInputType tipe = TextInputType.text,
     bool readOnly = false,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: AppColor.latar,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 16, color: AppColor.abu),
-            const SizedBox(width: 10),
-          ],
-          Expanded(
-            child: TextField(
-              controller: c,
-              readOnly: readOnly,
-              keyboardType: tipe,
-              style: GoogleFonts.manrope(fontSize: 12, color: AppColor.hitam),
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
+    return SizedBox(
+      width: double.infinity,
+      child: TextField(
+        controller: c,
+        readOnly: readOnly,
+        keyboardType: tipe,
+        style: GoogleFonts.manrope(fontSize: 14, color: AppColor.hitam),
+        decoration: InputDecoration(
+          prefixIcon: icon == null
+              ? null
+              : Icon(icon, size: 18, color: AppColor.abu),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 42,
+            minHeight: 48,
           ),
-        ],
+          filled: true,
+          fillColor: AppColor.putih,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 14,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: AppColor.abu.withValues(alpha: 0.18)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: AppColor.abu.withValues(alpha: 0.18)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppColor.ungu, width: 1.4),
+          ),
+        ),
       ),
     );
   }
@@ -637,7 +646,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
-          color: aktif ? AppColor.ungu.withValues(alpha: 0.08) : AppColor.latar,
+          color: aktif ? AppColor.ungu.withValues(alpha: 0.08) : AppColor.putih,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: aktif ? AppColor.ungu : Colors.transparent),
         ),
@@ -662,7 +671,7 @@ class _EditProfileScreensState extends State<EditProfileScreens> {
               child: Text(
                 nilai,
                 style: GoogleFonts.manrope(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: aktif ? FontWeight.w700 : FontWeight.w500,
                   color: AppColor.hitam,
                 ),

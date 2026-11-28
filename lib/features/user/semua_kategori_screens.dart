@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/api_client.dart';
 import '../../core/app_color.dart';
 import '../../models/kategori.dart';
-import '../../models/wisata_dummy.dart';
+import '../../models/wisata.dart';
 import '../../widgets/bottom_navigator.dart';
 import '../../widgets/gambar_wisata.dart';
 import 'home_widgets/section_title.dart';
@@ -23,9 +24,26 @@ class _SemuaKategoriScreensState extends State<SemuaKategoriScreens> {
 
   int _filterAktif = 0;
   String _kata = '';
+  List<Wisata> _wisata = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _muatWisata();
+  }
+
+  Future<void> _muatWisata() async {
+    try {
+      final rows = await UserApi.catalog();
+      if (!mounted) return;
+      setState(() => _wisata = rows.map(Wisata.fromApiJson).toList());
+    } catch (error) {
+      debugPrint('Gagal memuat jumlah wisata kategori: $error');
+    }
+  }
 
   // jumlah wisata di kategori (termasuk yang tampil sebagai kategori lain)
-  int _jumlah(Kategori k) => WisataDummy.semuaWisata
+  int _jumlah(Kategori k) => _wisata
       .where((w) => w.kategori == k.nama || w.kategoriLain.contains(k.nama))
       .length;
 

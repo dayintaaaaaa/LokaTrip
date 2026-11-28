@@ -53,7 +53,7 @@ class _UlasanWisataScreensState extends State<UlasanWisataScreens> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColor.latar,
+    backgroundColor: AppColor.putih,
     body: Column(children: [
       const SubAppBar(title: 'Ulasan Wisata'),
       Expanded(child: FutureBuilder<_DataUlasan>(
@@ -238,7 +238,7 @@ class _FormUlasanState extends State<_FormUlasan> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColor.latar,
+    backgroundColor: AppColor.putih,
     appBar: AppBar(title: const Text('Tulis Ulasan'),
       backgroundColor: AppColor.putih, foregroundColor: AppColor.hitam),
     body: ListView(padding: const EdgeInsets.all(20), children: [

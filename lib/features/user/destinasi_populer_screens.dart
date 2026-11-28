@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/api_client.dart';
 import '../../core/app_color.dart';
+import '../../core/lokasi_malang_raya.dart';
 import '../../core/navigasi_wisata.dart';
 import '../../models/wisata.dart';
 import '../../widgets/bottom_navigator.dart';
@@ -72,17 +73,8 @@ class _DestinasiPopulerScreensState extends State<DestinasiPopulerScreens> {
     super.dispose();
   }
 
-  // Membuat daftar kota secara otomatis dari data wisata.
-  List<String> get _daftarKota {
-    final kota = _wisata
-        .map((w) => w.kota)
-        .whereType<String>()
-        .toSet()
-        .toList();
-
-    kota.sort();
-    return kota;
-  }
+  // Lokasi filter sama dengan katalog utama.
+  List<String> get _daftarKota => LokasiMalangRaya.kota;
 
   // Menerapkan pencarian dan seluruh filter destinasi.
   List<Wisata> get _hasil {
@@ -291,7 +283,7 @@ class _DestinasiPopulerScreensState extends State<DestinasiPopulerScreens> {
         itemBuilder: (_, i) {
           if (i == 0) {
             return _chipKota(
-              'Semua Kota',
+              'Semua Lokasi',
               _kota == null,
               () => setState(() => _kota = null),
               denganIkon: true,

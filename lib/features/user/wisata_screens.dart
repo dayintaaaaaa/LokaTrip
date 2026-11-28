@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
 import '../../core/app_color.dart';
+import '../../core/lokasi_malang_raya.dart';
 import '../../models/wisata.dart';
 import '../../widgets/bottom_navigator.dart';
 import '../../widgets/top_navigator.dart';
@@ -83,17 +84,7 @@ class _WisataScreensState extends State<WisataScreens> {
     }
   }
 
-  List<String> get _daftarKota {
-    final kota =
-        _wisata
-            .map((wisata) => wisata.kota)
-            .whereType<String>()
-            .toSet()
-            .toList()
-          ..sort();
-
-    return kota;
-  }
+  List<String> get _daftarKota => LokasiMalangRaya.kota;
 
   List<Wisata> get _hasil {
     final kata = _kata.trim().toLowerCase();
@@ -468,37 +459,9 @@ class _WisataScreensState extends State<WisataScreens> {
                           children: _adaPenyaring
                               ? [
                                   _panel(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              '${hasil.length} wisata ditemukan',
-                                              style: GoogleFonts.manrope(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w700,
-                                                color: AppColor.hitam,
-                                              ),
-                                            ),
-                                          ),
-                                          TextButton(
-                                            onPressed: () {
-                                              setState(() {
-                                                _kata = '';
-                                                _kota = null;
-                                                _cariController.clear();
-                                                _ratingTinggi = false;
-                                                _konfirmasiInstan = false;
-                                                _urutTerlaris = false;
-                                              });
-                                            },
-                                            child: const Text('Hapus filter'),
-                                          ),
-                                        ],
-                                      ),
+                                    child: const KategoriWisata(
+                                      tampilJudul: false,
+                                      maxBaris: 2,
                                     ),
                                   ),
                                   _panel(

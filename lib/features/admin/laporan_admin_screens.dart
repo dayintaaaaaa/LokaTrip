@@ -10,11 +10,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../widgets/admin_bottom_navigator.dart';
 import '../../widgets/admin_notification_button.dart';
-import 'dashboard_admin_screens.dart';
-import 'mitra_admin_screens.dart';
-import 'notifikasi_admin_screens.dart';
-import 'perizinan_admin_screens.dart';
-import 'profil_screens.dart';
 import 'laporan_admin_service.dart';
 
 const _blue = Color(0xFF1D4ED8);
@@ -45,6 +40,7 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
   LaporanAdminData? _data;
   var _exporting = false;
   var _recovering = false;
+  var _autoReconciling = false;
 
   @override
   void initState() {
@@ -71,6 +67,41 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
           _loadError = error.toString();
           _loading = false;
         });
+    }
+  }
+
+  /// Sinkronkan otomatis semua transaksi Midtrans yang pending ke laporan pembayaran.
+  Future<void> _autoReconcile() async {
+    setState(() => _autoReconciling = true);
+    try {
+      final response = await Supabase.instance.client.functions.invoke(
+        'midtrans-payment',
+        body: {'action': 'admin_reconcile'},
+      );
+      final result = response.data;
+      if (result is Map) {
+        final checked = result['checked'] ?? 0;
+        final settled = result['settled'] ?? 0;
+        final failed = result['failed'] ?? 0;
+        final message = failed > 0
+            ? '$settled berhasil, $failed gagal diverifikasi dari $checked transaksi Midtrans.'
+            : settled == 0
+                ? 'Diperiksa $checked transaksi — semua sudah sinkron.'
+                : 'Berhasil: $settled dari $checked transaksi Midtrans disinkronkan ke laporan.';
+        _message(message);
+        await _load();
+      } else {
+        _message('Sinkronisasi selesai.');
+        await _load();
+      }
+    } catch (error) {
+      final details = error is FunctionException ? error.details : null;
+      final message = details is Map && details['error'] is String
+          ? details['error'] as String
+          : 'Sinkronisasi otomatis gagal: $error';
+      _message(message);
+    } finally {
+      if (mounted) setState(() => _autoReconciling = false);
     }
   }
 
@@ -183,19 +214,16 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
   };
 
   void _navigate(int index) {
-    final page = switch (index) {
-      0 => const DashboardAdminScreens(),
-      1 => const MitraAdminScreens(),
-      2 => const PerizinanAdminScreens(),
-      3 => const LaporanAdminScreens(),
-      4 => const ProfilAdminScreens(),
+    final route = switch (index) {
+      0 => '/admin/dashboard',
+      1 => '/admin/mitra',
+      2 => '/admin/perizinan',
+      3 => '/admin/laporan',
+      4 => '/admin/profil',
       _ => null,
     };
-    if (page != null && index != 3) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => page),
-      );
+    if (route != null && index != 3) {
+      Navigator.pushReplacementNamed(context, route);
     }
   }
 
@@ -316,10 +344,7 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
         ),
         const Spacer(),
         AdminNotificationButton(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const NotifikasiAdminScreens()),
-          ),
+          onPressed: () => Navigator.pushNamed(context, '/admin/notifikasi'),
         ),
         const SizedBox(width: 8),
         const CircleAvatar(
@@ -474,30 +499,72 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
     );
   }
 
-  Widget _recentPayments(LaporanAdminData data) => _Panel(
+  Widget _recentPayments(LaporanAdminData data) {
+    final controls = <Widget>[
+      _pill('${data.pembayaranTerbaru.length} terbaru'),
+      // Tombol auto-sync: sinkronkan semua transaksi Midtrans pending
+      TextButton.icon(
+        onPressed: _autoReconciling || _loading ? null : _autoReconcile,
+        icon: _autoReconciling
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.cloud_sync_rounded, size: 16),
+        label: Text(_autoReconciling ? 'Menyinkronkan...' : 'Sync Midtrans'),
+      ),
+      // Tombol pulihkan manual (fallback jika auto-sync gagal)
+      TextButton.icon(
+        onPressed: _recovering || _loading ? null : _recoverMidtransPayment,
+        icon: _recovering
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.build_circle_outlined, size: 16),
+        label: Text(_recovering ? 'Memeriksa...' : 'Pulihkan manual'),
+      ),
+    ];
+
+    return _Panel(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _section(
-          'Pembayaran terbaru',
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _pill('${data.pembayaranTerbaru.length} terbaru'),
-              const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: _recovering ? null : _recoverMidtransPayment,
-                icon: _recovering
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.sync_rounded, size: 16),
-                label: Text(_recovering ? 'Memeriksa...' : 'Pulihkan Midtrans'),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 600) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pembayaran terbaru',
+                    style: GoogleFonts.manrope(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: _ink,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(spacing: 2, runSpacing: 0, children: controls),
+                ],
+              );
+            }
+            return _section(
+              'Pembayaran terbaru',
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  controls[0],
+                  const SizedBox(width: 8),
+                  controls[1],
+                  const SizedBox(width: 4),
+                  controls[2],
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
         const SizedBox(height: 8),
         if (data.pembayaranTerbaru.isEmpty)
@@ -517,6 +584,7 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
       ],
     ),
   );
+  }
 
   Widget _paymentRow(LaporanPembayaranRingkas payment) {
     final date = payment.waktu;
@@ -732,6 +800,8 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
     final change = previous == 0
         ? null
         : (data.keuntungan - previous) / previous * 100;
+    // Hitung porsi mitra = nilaiTransaksi - keuntungan (biaya layanan admin)
+    final porsiMitra = data.nilaiTransaksi - data.keuntungan;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(22, 18, 22, 16),
@@ -771,8 +841,76 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
           ),
           const SizedBox(height: 3),
           Text(
-            'Akumulasi biaya layanan dari pembayaran lunas',
+            'Biaya layanan platform dari pembayaran lunas',
             style: GoogleFonts.manrope(color: Colors.white70, fontSize: 11),
+          ),
+          const Divider(color: Colors.white24, height: 18),
+          // Split pendapatan
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'PORSI MITRA',
+                      style: GoogleFonts.manrope(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                        color: Colors.white54,
+                      ),
+                    ),
+                    Text(
+                      _rupiah(porsiMitra < 0 ? 0 : porsiMitra),
+                      style: GoogleFonts.manrope(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF9BF4D1),
+                      ),
+                    ),
+                    Text(
+                      'Harga tiket (setelah diskon)',
+                      style: GoogleFonts.manrope(fontSize: 9, color: Colors.white38),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 44,
+                color: Colors.white24,
+                margin: const EdgeInsets.symmetric(horizontal: 14),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'PORSI ADMIN',
+                      style: GoogleFonts.manrope(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                        color: Colors.white54,
+                      ),
+                    ),
+                    Text(
+                      _rupiah(data.keuntungan),
+                      style: GoogleFonts.manrope(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'Biaya layanan platform',
+                      style: GoogleFonts.manrope(fontSize: 9, color: Colors.white38),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const Divider(color: Colors.white24, height: 18),
           Row(
@@ -1012,8 +1150,11 @@ class _GrowthChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final min = values.reduce((a, b) => a < b ? a : b) - 8;
-    final max = values.reduce((a, b) => a > b ? a : b) + 8;
+    // Guard: jika semua nilai 0 / sama, beri rentang minimal agar chart tidak crash.
+    final rawMin = values.reduce((a, b) => a < b ? a : b);
+    final rawMax = values.reduce((a, b) => a > b ? a : b);
+    final min = rawMin - 8;
+    final max = rawMax == rawMin ? rawMin + 16 : rawMax + 8;
     return LineChart(
       LineChartData(
         minX: 0,

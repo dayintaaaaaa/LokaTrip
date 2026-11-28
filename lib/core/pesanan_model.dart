@@ -2,7 +2,7 @@ import 'format_rupiah.dart';
 
 enum KategoriPesanan { tiketWisata, tur }
 
-enum StatusPesanan { siapDigunakan, terkonfirmasi, selesai }
+enum StatusPesanan { siapDigunakan, terkonfirmasi, kadaluarsa, selesai }
 
 class Pesanan {
   final String id;
@@ -20,6 +20,7 @@ class Pesanan {
   final List<String> chips;
   final String labelJadwal;
   final String jadwal;
+  final DateTime? tanggalKunjungan;
   final String? jam;
   final String labelTotal;
   final String total;
@@ -47,6 +48,7 @@ class Pesanan {
     required this.chips,
     required this.labelJadwal,
     required this.jadwal,
+    this.tanggalKunjungan,
     this.jam,
     required this.labelTotal,
     required this.total,
@@ -59,7 +61,47 @@ class Pesanan {
     this.orderId = 0,
   });
 
-  bool get aktif => status != StatusPesanan.selesai;
+  bool get aktif =>
+      status == StatusPesanan.siapDigunakan ||
+      status == StatusPesanan.terkonfirmasi ||
+      status == StatusPesanan.kadaluarsa;
+
+  bool get kunjunganHariIniWib {
+    if (tanggalKunjungan == null) return false;
+    final wib = DateTime.now().toUtc().add(const Duration(hours: 7));
+    return tanggalKunjungan!.year == wib.year &&
+        tanggalKunjungan!.month == wib.month &&
+        tanggalKunjungan!.day == wib.day;
+  }
+
+  Pesanan copyWithStatus(StatusPesanan nilai, String label) => Pesanan(
+    id: id,
+    idPemesanan: idPemesanan,
+    tglBeli: tglBeli,
+    dibuat: dibuat,
+    status: nilai,
+    labelStatus: label,
+    kategori: kategori,
+    kategoriWisata: kategoriWisata,
+    labelFoto: labelFoto,
+    judul: judul,
+    fotoUrl: fotoUrl,
+    lokasi: lokasi,
+    chips: chips,
+    labelJadwal: labelJadwal,
+    jadwal: jadwal,
+    tanggalKunjungan: tanggalKunjungan,
+    jam: jam,
+    labelTotal: labelTotal,
+    total: total,
+    catatanTotal: catatanTotal,
+    metode: metode,
+    bisaUlas: true,
+    rating: rating,
+    ulasan: ulasan,
+    wisataId: wisataId,
+    orderId: orderId,
+  );
 
   factory Pesanan.fromApiJson(Map<String, dynamic> json) {
     Map<String, dynamic>? firstMap(dynamic value) {
@@ -103,14 +145,17 @@ class Pesanan {
 
     final visitDate =
         firstMap(json['kuota_harian'])?['tanggal'] as String? ?? '';
-    final visit = DateTime.tryParse(visitDate);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final selesai =
-        orderStatus == 'kadaluarsa' ||
-        (paid &&
-            visit != null &&
-            DateTime(visit.year, visit.month, visit.day).isBefore(today));
+    final visit = visitDate.length >= 10
+        ? DateTime.tryParse(visitDate.substring(0, 10))
+        : null;
+    final wib = DateTime.now().toUtc().add(const Duration(hours: 7));
+    final today = DateTime.utc(wib.year, wib.month, wib.day);
+    final visitDay = visit == null
+        ? null
+        : DateTime.utc(visit.year, visit.month, visit.day);
+    final lewat = visitDay != null && visitDay.isBefore(today);
+    final selesai = orderStatus == 'selesai';
+    final kadaluarsa = orderStatus == 'aktif' && paid && lewat;
 
     final guests = details is List
         ? details.fold<int>(
@@ -130,7 +175,16 @@ class Pesanan {
         'Pesanan LokaTrip';
 
     final location = attraction?['lokasi'] as String? ?? '';
-    final photos = firstMap(attraction?['foto_wisata']);
+    final photos = attraction?['foto_wisata'] is List
+        ? (attraction!['foto_wisata'] as List)
+              .whereType<Map>()
+              .map((row) => Map<String, dynamic>.from(row))
+              .toList()
+        : <Map<String, dynamic>>[];
+    photos.sort(
+      (a, b) =>
+          ((a['urutan'] ?? 0) as num).compareTo((b['urutan'] ?? 0) as num),
+    );
 
     final total = (json['total_bayar'] as num?)?.toInt() ?? 0;
 
@@ -145,11 +199,15 @@ class Pesanan {
           : '${orderDate.day} ${_bulanSingkat[orderDate.month - 1]} ${orderDate.year}',
       status: selesai
           ? StatusPesanan.selesai
+          : kadaluarsa
+          ? StatusPesanan.kadaluarsa
           : paid
           ? StatusPesanan.siapDigunakan
           : StatusPesanan.terkonfirmasi,
       labelStatus: selesai
-          ? (paid ? 'Selesai' : 'Kedaluwarsa')
+          ? 'Selesai'
+          : kadaluarsa
+          ? 'Kadaluarsa'
           : paid
           ? 'Siap Digunakan'
           : 'Menunggu Pembayaran',
@@ -157,11 +215,12 @@ class Pesanan {
       kategoriWisata: '',
       labelFoto: 'Tiket Wisata',
       judul: title,
-      fotoUrl: photos?['url_foto'] as String?,
+      fotoUrl: photos.isEmpty ? null : photos.first['url_foto'] as String?,
       lokasi: location,
       chips: [packageName, '$guests Pengunjung'],
       labelJadwal: 'Jadwal Kunjungan',
       jadwal: visitDate.isEmpty ? 'Belum ditentukan' : visitDate,
+      tanggalKunjungan: visit,
       labelTotal: 'Total Pesanan',
       total: formatRupiah(total),
       metode: payment?['metode_bayar'] as String? ?? 'Belum dipilih',

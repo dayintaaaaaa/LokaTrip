@@ -973,7 +973,7 @@ List<_Permit> _samplePermits() => [
     'IZ-2026-00076',
     'Wisata Bahari',
     'Liveaboard Phinisi Komodo',
-    'PT Bajo Bahari Adventure',
+    'PT Batu Wisata Adventure',
     '02 Mei 2026 — 02 Mei 2027',
     'Izin aktif; dokumen keselamatan tercatat.',
     'Dokumen terverifikasi',

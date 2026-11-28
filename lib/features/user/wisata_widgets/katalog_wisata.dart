@@ -126,7 +126,7 @@ class KatalogWisata extends StatelessWidget {
                         TextSpan(
                           text: w.lokasi,
                           style: GoogleFonts.manrope(
-                            fontSize: 10,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                             color: AppColor.ungu,
                           ),
@@ -135,7 +135,7 @@ class KatalogWisata extends StatelessWidget {
                           TextSpan(
                             text: '  •  ${w.subkategori}',
                             style: GoogleFonts.manrope(
-                              fontSize: 10,
+                              fontSize: 11,
                               color: AppColor.abu,
                             ),
                           ),
@@ -152,7 +152,7 @@ class KatalogWisata extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.manrope(
-                      fontSize: 13,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: AppColor.hitam,
                     ),
@@ -173,7 +173,7 @@ class KatalogWisata extends StatelessWidget {
                                   TextSpan(
                                     text: 'Mulai dari ',
                                     style: GoogleFonts.manrope(
-                                      fontSize: 10,
+                                      fontSize: 11,
                                       color: AppColor.abu,
                                     ),
                                   ),
@@ -189,7 +189,7 @@ class KatalogWisata extends StatelessWidget {
                                     TextSpan(
                                       text: ' ${w.satuanHarga}',
                                       style: GoogleFonts.manrope(
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         color: AppColor.abu,
                                       ),
                                     ),

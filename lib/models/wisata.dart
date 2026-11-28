@@ -166,11 +166,7 @@ class Wisata {
             ? '/malam'
             : (idKategori == 3 ? '/tiket' : '/orang'));
 
-    final ulasanKutipan =
-        m['ulasan'] ??
-        (m['deskripsi'] != null && (m['deskripsi'] as String).isNotEmpty
-            ? m['deskripsi']
-            : null);
+    final ulasanKutipan = (m['ulasan'] as String?)?.trim();
 
     return Wisata(
       id: m['id_wisata'],

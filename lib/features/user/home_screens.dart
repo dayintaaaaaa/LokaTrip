@@ -4,7 +4,6 @@ import '../../core/app_color.dart';
 import '../../core/favorite_store.dart';
 import '../../core/session_manager.dart';
 import '../../models/wisata.dart';
-import '../../models/wisata_dummy.dart';
 import '../../services/wisata_service.dart';
 import '../../widgets/bottom_navigator.dart';
 import '../../widgets/top_navigator.dart';
@@ -147,9 +146,7 @@ class _HomeScreensState extends State<HomeScreens> {
                       )
                     else
                       TripAkhirPekan(
-                        daftar: _tripAkhirPekan.isNotEmpty
-                            ? _tripAkhirPekan
-                            : WisataDummy.tripAkhirPekan,
+                        daftar: _tripAkhirPekan,
                       ),
 
                     SizedBox(height: 12),

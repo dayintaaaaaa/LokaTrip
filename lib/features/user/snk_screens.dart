@@ -86,7 +86,7 @@ class SnkScreens extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColor.latar,
+      backgroundColor: AppColor.putih,
       body: Column(
         children: [
           const SubAppBar(

@@ -8,7 +8,6 @@ import 'ulasan_wisata_screens.dart';
 import '../../services/pesanan_service.dart';
 import '../../services/maps_service.dart';
 import '../../widgets/qr_palsu.dart';
-import '../../widgets/gambar_wisata.dart';
 import 'home_screens.dart';
 
 TextStyle _gaya(
@@ -24,21 +23,6 @@ TextStyle _gaya(
   height: h,
   letterSpacing: ls,
 );
-
-const _bulan = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'Mei',
-  'Jun',
-  'Jul',
-  'Agu',
-  'Sep',
-  'Okt',
-  'Nov',
-  'Des',
-];
 
 class PesananScreens extends StatefulWidget {
   final bool mulaiDiRiwayat; // true = buka tab Riwayat Selesai
@@ -56,6 +40,7 @@ class _PesananScreensState extends State<PesananScreens> {
   List<String> _semuaKategori = [];
   bool _memuat = true;
   String? _error;
+  final Set<int> _pesananMemproses = {};
 
   @override
   void initState() {
@@ -178,7 +163,9 @@ class _PesananScreensState extends State<PesananScreens> {
             Text('E-Tiket Wisata', style: _gaya(16, w: FontWeight.w800)),
             const SizedBox(height: 3),
             Text(
-              'Tunjukkan tiket ini kepada petugas di pintu masuk',
+              p.status == StatusPesanan.kadaluarsa
+                  ? 'Tiket ini sudah tidak berlaku karena tanggal kunjungan telah lewat'
+                  : 'Tunjukkan tiket ini kepada petugas di pintu masuk',
               textAlign: TextAlign.center,
               style: _gaya(10.5, c: AppColor.abu),
             ),
@@ -217,9 +204,15 @@ class _PesananScreensState extends State<PesananScreens> {
                             _chipETiket(
                               p.status == StatusPesanan.selesai
                                   ? 'TELAH DIKUNJUNGI'
+                                  : p.status == StatusPesanan.kadaluarsa
+                                  ? 'TIKET KADALUARSA'
                                   : 'TIKET AKTIF',
-                              AppColor.kuning.withValues(alpha: 0.2),
-                              AppColor.kuning,
+                              p.status == StatusPesanan.kadaluarsa
+                                  ? const Color(0xFFF1F5F9)
+                                  : AppColor.kuning.withValues(alpha: 0.2),
+                              p.status == StatusPesanan.kadaluarsa
+                                  ? const Color(0xFF64748B)
+                                  : AppColor.kuning,
                               titik: true,
                             ),
                             const SizedBox(width: 6),
@@ -379,7 +372,9 @@ class _PesananScreensState extends State<PesananScreens> {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          'Tunjukkan QR code ini kepada petugas saat masuk',
+                          p.status == StatusPesanan.kadaluarsa
+                              ? 'QR ini sudah tidak berlaku karena tanggal kunjungan telah lewat'
+                              : 'Tunjukkan QR code ini kepada petugas saat masuk',
                           textAlign: TextAlign.center,
                           style: _gaya(
                             10,
@@ -565,32 +560,6 @@ class _PesananScreensState extends State<PesananScreens> {
     );
   }
 
-  Future<void> _reschedule(Pesanan p) async {
-    final besok = DateTime.now().add(const Duration(days: 1));
-    final pilih = await showDatePicker(
-      context: context,
-      initialDate: besok,
-      firstDate: besok,
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      helpText: 'Pilih tanggal baru',
-      builder: (c, child) => Theme(
-        data: Theme.of(c).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: AppColor.ungu,
-            onPrimary: AppColor.putih,
-            onSurface: AppColor.hitam,
-          ),
-        ),
-        child: child!,
-      ),
-    );
-    if (pilih == null || !mounted) return;
-    // TODO: kirim pengajuan reschedule ke backend
-    _info(
-      'Pengajuan reschedule ke ${pilih.day} ${_bulan[pilih.month - 1]} ${pilih.year} dikirim',
-    );
-  }
-
   Future<void> _petunjuk(Pesanan p) async {
     final tujuan = [
       p.judul,
@@ -599,11 +568,6 @@ class _PesananScreensState extends State<PesananScreens> {
     final berhasil = await bukaGoogleMaps(tujuan, petunjukArah: true);
     if (!mounted || berhasil) return;
     _info('Petunjuk arah belum bisa dibuka. Coba lagi sebentar.');
-  }
-
-  void _pesanLagi(Pesanan p) {
-    // TODO: arahkan ke halaman detail wisata kalau sudah ada
-    _info('Membuka ${p.judul}...');
   }
 
   Future<void> _ulasan(Pesanan p) async {
@@ -616,6 +580,64 @@ class _PesananScreensState extends State<PesananScreens> {
     if (mounted) _muat(tampilLoading: false); // refresh status ulasan
   }
 
+  Future<void> _tandaiSelesai(Pesanan p) async {
+    if (_pesananMemproses.contains(p.idPemesanan)) return;
+    final setuju = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Tandai pesanan selesai?',
+          style: _gaya(15, w: FontWeight.w800),
+        ),
+        content: Text('Tandai pesanan ini sebagai selesai?', style: _gaya(12)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Batal', style: _gaya(12, c: AppColor.abu)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Ya, Selesai',
+              style: _gaya(12, w: FontWeight.w800, c: AppColor.ungu),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (setuju != true ||
+        !mounted ||
+        _pesananMemproses.contains(p.idPemesanan)) {
+      return;
+    }
+    setState(() => _pesananMemproses.add(p.idPemesanan));
+    try {
+      await _service.tandaiSelesai(p.idPemesanan);
+      if (!mounted) return;
+      setState(() {
+        final index = _semua.indexWhere(
+          (pesanan) => pesanan.idPemesanan == p.idPemesanan,
+        );
+        if (index != -1) {
+          _semua[index] = _semua[index].copyWithStatus(
+            StatusPesanan.selesai,
+            'Selesai',
+          );
+        }
+      });
+      _info('Pesanan ditandai selesai');
+    } on PesananGagal catch (e) {
+      if (mounted) _info(e.pesan);
+    } catch (e) {
+      debugPrint('Tandai pesanan selesai gagal: $e');
+      if (mounted) {
+        _info('Gagal menandai pesanan selesai. Coba lagi nanti.');
+      }
+    } finally {
+      if (mounted) setState(() => _pesananMemproses.remove(p.idPemesanan));
+    }
+  }
+
   // ---------------- build ----------------
   @override
   Widget build(BuildContext context) {
@@ -624,7 +646,7 @@ class _PesananScreensState extends State<PesananScreens> {
     final tampilBanner = _tabAktif && baru != null && daftar.contains(baru);
 
     return Scaffold(
-      backgroundColor: AppColor.ungu.withValues(alpha: 0.05),
+      backgroundColor: AppColor.putih,
       body: SafeArea(
         child: Column(
           children: [
@@ -711,7 +733,7 @@ class _PesananScreensState extends State<PesananScreens> {
                 Text('Pesanan Saya', style: _gaya(16, w: FontWeight.w800)),
                 if (!_tabAktif)
                   Text(
-                    '${_hitung(false, null)} Tiket Selesai Dikunjungi',
+                    '${_hitung(false, null)} Pesanan di Riwayat',
                     style: _gaya(10.5, c: AppColor.abu),
                   ),
               ],
@@ -958,6 +980,8 @@ class _PesananScreensState extends State<PesananScreens> {
   // ---------------- kartu pesanan aktif ----------------
   Widget _kartuAktif(Pesanan p) {
     final tur = p.kategori == KategoriPesanan.tur;
+    final bisaTandaiSelesai =
+        p.status == StatusPesanan.siapDigunakan && p.kunjunganHariIniWib;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -1040,23 +1064,49 @@ class _PesananScreensState extends State<PesananScreens> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: _btnOutline(
-                    tur ? 'Bisa Reschedule' : 'Petunjuk Arah',
-                    tur ? Icons.event_repeat_outlined : Icons.near_me_outlined,
-                    () => tur ? _reschedule(p) : _petunjuk(p),
+                if (p.status == StatusPesanan.kadaluarsa)
+                  SizedBox(
+                    width: double.infinity,
+                    child: _btnIsi(
+                      'Lihat E-Tiket',
+                      Icons.qr_code_2,
+                      () => _eTiket(p),
+                    ),
+                  )
+                else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _btnOutline(
+                          'Petunjuk Arah',
+                          Icons.near_me_outlined,
+                          () => _petunjuk(p),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _btnIsi(
+                          'Lihat E-Tiket',
+                          Icons.qr_code_2,
+                          () => _eTiket(p),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _btnIsi(
-                    'Lihat E-Tiket',
-                    Icons.qr_code_2,
-                    () => _eTiket(p),
+                if (bisaTandaiSelesai) ...[
+                  const SizedBox(height: 9),
+                  SizedBox(
+                    width: double.infinity,
+                    child: _btnOutline(
+                      'Tandai Selesai',
+                      Icons.check_circle_outline,
+                      () => _tandaiSelesai(p),
+                      memuat: _pesananMemproses.contains(p.idPemesanan),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -1275,7 +1325,11 @@ class _PesananScreensState extends State<PesananScreens> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _btnOutline('Pesan Lagi', Icons.refresh, () => _pesanLagi(p)),
+                _btnOutline(
+                  'Lihat E-Tiket',
+                  Icons.qr_code_2,
+                  () => _eTiket(p),
+                ),
               ],
             ),
           ),
@@ -1286,7 +1340,8 @@ class _PesananScreensState extends State<PesananScreens> {
 
   // ---------------- elemen tambahan ----------------
   Widget _jadwalTotal(Pesanan p) {
-    final huruf = !p.aktif;
+    final huruf = p.status == StatusPesanan.kadaluarsa ||
+        p.status == StatusPesanan.selesai;
     String t(String s) => huruf ? s.toUpperCase() : s;
 
     return Row(
@@ -1311,7 +1366,9 @@ class _PesananScreensState extends State<PesananScreens> {
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
-                      huruf ? '${p.jadwal} (Selesai)' : p.jadwal,
+                      huruf
+                          ? '${p.jadwal} (${p.status == StatusPesanan.kadaluarsa ? 'Kadaluarsa' : 'Selesai'})'
+                          : p.jadwal,
                       style: _gaya(11.5, w: FontWeight.w800),
                     ),
                   ),
@@ -1360,9 +1417,14 @@ class _PesananScreensState extends State<PesananScreens> {
         AppColor.hitam,
         Icons.check_circle_outline,
       ),
+      StatusPesanan.kadaluarsa => (
+        const Color(0xFFF1F5F9),
+        const Color(0xFF64748B),
+        Icons.event_busy_outlined,
+      ),
       StatusPesanan.selesai => (
-        AppColor.ungu.withValues(alpha: 0.1),
-        AppColor.ungu,
+        const Color(0xFFDCFCE7),
+        const Color(0xFF15803D),
         Icons.verified_outlined,
       ),
     };
@@ -1453,10 +1515,21 @@ class _PesananScreensState extends State<PesananScreens> {
     ],
   );
 
-  Widget _btnOutline(String teks, IconData ic, VoidCallback onTap) {
+  Widget _btnOutline(
+    String teks,
+    IconData ic,
+    VoidCallback onTap, {
+    bool memuat = false,
+  }) {
     return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: Icon(ic, size: 15),
+      onPressed: memuat ? null : onTap,
+      icon: memuat
+          ? const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(ic, size: 15),
       label: Text(
         teks,
         style: _gaya(11, w: FontWeight.w700, c: AppColor.ungu),
@@ -1572,6 +1645,21 @@ class _Foto extends StatelessWidget {
       ),
     );
 
+    final placeholder = Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColor.biru, AppColor.ungu],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Icon(
+        Icons.landscape_outlined,
+        size: height > 100 ? 36 : 22,
+        color: AppColor.putih.withValues(alpha: 0.6),
+      ),
+    );
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: SizedBox(
@@ -1581,21 +1669,16 @@ class _Foto extends StatelessWidget {
           children: [
             Positioned.fill(
               child: path == null || path!.trim().isEmpty
-                  ? Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [AppColor.biru, AppColor.ungu],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.landscape_outlined,
-                        size: height > 100 ? 36 : 22,
-                        color: AppColor.putih.withValues(alpha: 0.6),
-                      ),
-                    )
-                  : GambarWisata(path: path),
+                  ? placeholder
+                  : Image.network(
+                      path!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      loadingBuilder: (_, child, progress) =>
+                          progress == null ? child : placeholder,
+                      errorBuilder: (_, _, _) => placeholder,
+                    ),
             ),
             if (labelKanan)
               Positioned(right: 8, bottom: 8, child: chip)

@@ -17,13 +17,9 @@ class HomeHeader extends StatelessWidget {
 
   // isi chip cepat
   static const _chips = [
-    _ChipData(Icons.trending_up, 'Trending Labuan Bajo', 'Labuan Bajo'),
-    _ChipData(Icons.bolt, 'Tiket Dufan Ancol', 'Dufan Ancol'),
-    _ChipData(
-      Icons.verified_outlined,
-      'Borobudur Sunrise',
-      'Borobudur Sunrise',
-    ),
+    _ChipData(Icons.trending_up, 'Trending Wisata Batu', 'Kota Batu'),
+    _ChipData(Icons.bolt, 'Coban Rondo', 'Coban Rondo'),
+    _ChipData(Icons.verified_outlined, 'Malang Smart Arena', 'Malang Smart Arena'),
   ];
 
   @override
@@ -66,7 +62,7 @@ class HomeHeader extends StatelessWidget {
                       Text(
                         'Mau eksplor liburan seru ke mana hari ini?',
                         style: GoogleFonts.manrope(
-                          fontSize: 12,
+                          fontSize: 14,
                           color: AppColor.putih,
                         ),
                       ),
@@ -88,6 +84,7 @@ class HomeHeader extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColor.putih,
                 borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: const Color(0xFFE0E0E0)),
                 boxShadow: [
                   BoxShadow(
                     color: AppColor.hitam.withValues(alpha: 0.12),
@@ -97,21 +94,28 @@ class HomeHeader extends StatelessWidget {
                 ],
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Icon(Icons.search, size: 20, color: AppColor.abu),
                   SizedBox(width: 8),
                   Expanded(
                     child: TextField(
-                      style: GoogleFonts.manrope(fontSize: 12),
+                      style: GoogleFonts.manrope(fontSize: 14),
                       textInputAction: TextInputAction.search,
                       onSubmitted: (kata) => onSearch(kata.trim()),
                       decoration: InputDecoration(
                         border: InputBorder.none,
-                        isDense: true,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
+                        filled: false,
+                        isCollapsed: true,
                         contentPadding: EdgeInsets.zero,
                         hintText: 'Cari tiket wisata, wahana, open trip..',
                         hintStyle: GoogleFonts.manrope(
-                          fontSize: 12,
+                          fontSize: 14,
                           color: AppColor.abu,
                         ),
                       ),
@@ -163,7 +167,7 @@ class HomeHeader extends StatelessWidget {
                         Text(
                           c.label,
                           style: GoogleFonts.manrope(
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: AppColor.putih,
                           ),

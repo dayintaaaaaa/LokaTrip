@@ -40,6 +40,20 @@ class PesananService {
 
   static String _tgl(DateTime d) => '${d.day} ${_bulan[d.month - 1]} ${d.year}';
 
+  // kuota_harian.tanggal is a PostgreSQL date, so preserve its calendar day
+  // and compare date-only values against the WIB calendar day.
+  static DateTime? _tanggalWib(dynamic value) {
+    if (value is! String || value.length < 10) return null;
+    final tanggal = DateTime.tryParse(value.substring(0, 10));
+    if (tanggal == null) return null;
+    return DateTime.utc(tanggal.year, tanggal.month, tanggal.day);
+  }
+
+  static DateTime _hariIniWib() {
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+    return DateTime.utc(now.year, now.month, now.day);
+  }
+
   // Relasi bisa datang sebagai Map atau List.
   static Map<String, dynamic>? _satu(dynamic v) {
     if (v is List) {
@@ -111,12 +125,12 @@ class PesananService {
           .select(
             'id_pemesanan, kode_pesan, tgl_pesan, total_bayar, status_pesan, '
             'dibuat_pada, '
-            'kuota_harian(tanggal, paket_wisata(nama_paket, tipe_paket, '
-            'wisata(id_wisata, nama_wisata, lokasi, kota, jenis, jam_buka, jam_tutup, '
-            'foto_wisata(url_foto, urutan), '
-            'kategori(nama_kategori)))), '
+            'kuota_harian(tanggal), '
             'pembayaran(metode_bayar, penyedia, status_bayar), '
-            'detail_pemesanan(tipe_pengunjung, jumlah)',
+            'detail_pemesanan(tipe_pengunjung, jumlah, '
+            'detail_paket(id_detail_paket, paket_wisata(id_paket, nama_paket, tipe_paket, '
+            'wisata(id_wisata, nama_wisata, lokasi, kota, jenis, jam_buka, jam_tutup, '
+            'foto_wisata(url_foto, urutan), kategori(nama_kategori)))))',
           )
           .order('dibuat_pada', ascending: false);
     } on PostgrestException catch (e) {
@@ -148,7 +162,7 @@ class PesananService {
     }
 
     final sekarang = DateTime.now();
-    final hariIni = DateTime(sekarang.year, sekarang.month, sekarang.day);
+    final sekarangWib = _hariIniWib();
     final hasil = <Pesanan>[];
 
     for (final item in data) {
@@ -156,33 +170,46 @@ class PesananService {
 
       final statusDb = m['status_pesan'] as String;
       final dibuat = DateTime.parse(m['dibuat_pada'] as String).toLocal();
-
-      if (statusDb == 'kadaluarsa') continue;
+      final bayar = _daftar(m['pembayaran']);
+      final sudahBayar = bayar.any(
+        (x) => const ['berhasil', 'dibayar', 'lunas', 'paid']
+            .contains('${x['status_bayar']}'.toLowerCase()),
+      );
 
       if (statusDb == 'menunggu_pembayaran' &&
           sekarang.difference(dibuat).inMinutes >= 15) {
         continue;
       }
+      // Status DB 'kadaluarsa' tetap diperlakukan sebagai pembayaran yang
+      // kedaluwarsa; kedaluwarsa kunjungan dihitung dari pesanan aktif + tanggal.
+      if (statusDb == 'kadaluarsa') continue;
 
       final kuota = _satu(m['kuota_harian']);
-      final paket = _satu(kuota?['paket_wisata']);
+      final detailList = _daftar(m['detail_pemesanan']);
+      final detailPertama = detailList.isEmpty ? null : detailList.first;
+      final detailPaket = _satu(detailPertama?['detail_paket']);
+      final paket = _satu(detailPaket?['paket_wisata']);
       final wisata = _satu(paket?['wisata']);
 
-      final tglKunjungan = kuota?['tanggal'] is String
-          ? DateTime.parse(kuota!['tanggal'] as String)
-          : null;
-
-      final lewat = tglKunjungan != null && tglKunjungan.isBefore(hariIni);
+      final tglKunjungan = _tanggalWib(kuota?['tanggal']);
+      final lewat =
+          tglKunjungan != null && tglKunjungan.isBefore(sekarangWib);
+      final selesai = statusDb == 'selesai';
+      final kadaluarsa =
+          statusDb == 'aktif' && sudahBayar && lewat;
 
       final StatusPesanan status;
       final String labelStatus;
 
-      if (statusDb == 'menunggu_pembayaran') {
-        status = StatusPesanan.terkonfirmasi;
-        labelStatus = 'Menunggu Pembayaran';
-      } else if (lewat) {
+      if (selesai) {
         status = StatusPesanan.selesai;
         labelStatus = 'Selesai';
+      } else if (kadaluarsa) {
+        status = StatusPesanan.kadaluarsa;
+        labelStatus = 'Kadaluarsa';
+      } else if (statusDb == 'menunggu_pembayaran') {
+        status = StatusPesanan.terkonfirmasi;
+        labelStatus = 'Menunggu Pembayaran';
       } else {
         status = StatusPesanan.siapDigunakan;
         labelStatus = 'Siap Digunakan';
@@ -209,19 +236,9 @@ class PesananService {
       ].join(', ');
 
       // Pembayaran: pilih yang berhasil, kalau belum ada ambil yang pertama.
-      final bayar = _daftar(m['pembayaran']);
-
       final b = bayar.firstWhere(
         (x) => x['status_bayar'] == 'berhasil',
         orElse: () => bayar.isNotEmpty ? bayar.first : <String, dynamic>{},
-      );
-      final sudahBayar = bayar.any(
-        (x) => const [
-          'berhasil',
-          'dibayar',
-          'lunas',
-          'paid',
-        ].contains('${x['status_bayar']}'.toLowerCase()),
       );
       final wisataId = (wisata?['id_wisata'] as num?)?.toInt() ?? 0;
       final fotoWisata = _daftar(wisata?['foto_wisata'])
@@ -261,6 +278,7 @@ class PesananService {
           ],
           labelJadwal: tur ? 'Jadwal Tur' : 'Jadwal Kunjungan',
           jadwal: tglKunjungan == null ? '-' : _tgl(tglKunjungan),
+          tanggalKunjungan: tglKunjungan,
           jam: (buka != null && tutup != null) ? '$buka - $tutup' : null,
           labelTotal: statusDb == 'menunggu_pembayaran'
               ? 'Total Tagihan'
@@ -281,6 +299,42 @@ class PesananService {
     }
 
     return hasil;
+  }
+
+  Future<void> tandaiSelesai(int idPemesanan) async {
+    try {
+      await _db.rpc(
+        'tandai_selesai',
+        params: {'p_id_pemesanan': idPemesanan},
+      );
+    } on PostgrestException catch (e) {
+      debugPrint(
+        'RPC tandai_selesai gagal: ${e.code} ${e.message} ${e.details}',
+      );
+      final pesan = e.message.toLowerCase();
+      if (pesan.contains('hari kunjungan') ||
+          pesan.contains('tanggal kunjungan')) {
+        throw PesananGagal(
+          'Pesanan hanya bisa ditandai selesai pada hari kunjungan.',
+        );
+      }
+      if (pesan.contains('bukan milik') || pesan.contains('tidak terkait')) {
+        throw PesananGagal('Pesanan ini bukan milik akun Anda.');
+      }
+      if (pesan.contains('sudah selesai') ||
+          pesan.contains('hanya pesanan aktif')) {
+        throw PesananGagal('Pesanan ini sudah tidak dapat ditandai selesai.');
+      }
+      if (pesan.contains('tidak ditemukan')) {
+        throw PesananGagal('Pesanan tidak ditemukan.');
+      }
+      throw PesananGagal(
+        'Gagal menandai pesanan selesai. Coba lagi nanti.',
+      );
+    } catch (e) {
+      debugPrint('RPC tandai_selesai error: $e');
+      throw PesananGagal('Gagal menandai pesanan selesai. Coba lagi.');
+    }
   }
 
   static const _select = '''

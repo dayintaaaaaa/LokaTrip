@@ -444,7 +444,7 @@ class _AkunScreensState extends State<AkunScreens> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColor.latar,
+      backgroundColor: AppColor.putih,
       body: SafeArea(
         child: Column(
           children: [

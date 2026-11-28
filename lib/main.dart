@@ -8,6 +8,12 @@ import 'package:lokatrip/services/auth_service.dart';
 import 'core/app_color.dart';
 import 'features/reset_password_screens.dart';
 import 'features/splash_screens.dart';
+import 'features/admin/dashboard_admin_screens.dart';
+import 'features/admin/mitra_admin_screens.dart';
+import 'features/admin/perizinan_admin_screens.dart';
+import 'features/admin/laporan_admin_screens.dart';
+import 'features/admin/profil_screens.dart';
+import 'features/admin/notifikasi_admin_screens.dart';
 
 const _supabaseUrl = String.fromEnvironment(
   'SUPABASE_URL',
@@ -106,6 +112,14 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
+      routes: {
+        '/admin/dashboard': (_) => const DashboardAdminScreens(),
+        '/admin/mitra': (_) => const MitraAdminScreens(),
+        '/admin/perizinan': (_) => const PerizinanAdminScreens(),
+        '/admin/laporan': (_) => const LaporanAdminScreens(),
+        '/admin/profil': (_) => const ProfilAdminScreens(),
+        '/admin/notifikasi': (_) => const NotifikasiAdminScreens(),
+      },
       home: const SplashScreens(),
     );
   }

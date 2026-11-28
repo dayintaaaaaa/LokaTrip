@@ -54,7 +54,7 @@ class _WishlistScreensState extends State<WishlistScreens> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColor.latar,
+      backgroundColor: AppColor.putih,
       body: Column(
         children: [
           const SubAppBar(title: 'Wishlist Saya', showAvatar: false),

@@ -19,7 +19,7 @@ class SubAppBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: AppColor.latar,
+      color: AppColor.putih,
       child: SafeArea(
         bottom: false,
         child: Padding(

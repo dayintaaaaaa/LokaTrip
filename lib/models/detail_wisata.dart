@@ -60,18 +60,22 @@ class GrupTiket {
 }
 
 class UlasanDetail {
+  final int? id;
   final String nama;
   final String asal; // contoh: 'Wisatawan Domestik'
   final String waktu; // contoh: '3 hari lalu'
   final double rating;
   final String teks;
+  final String? fotoProfil;
 
   const UlasanDetail({
+    this.id,
     required this.nama,
     required this.asal,
     required this.waktu,
     required this.rating,
     required this.teks,
+    this.fotoProfil,
   });
 }
 

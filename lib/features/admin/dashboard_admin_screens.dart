@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/admin_auth_service.dart';
 import '../../core/session_manager.dart';
-import '../../core/format_rupiah.dart';
 import '../../widgets/admin_bottom_navigator.dart';
 import '../../widgets/admin_notification_button.dart';
 import '../../widgets/gambar_wisata.dart';
@@ -562,8 +561,6 @@ class _SummaryGridState extends State<_SummaryGrid> {
         final data = snapshot.data ?? const <String, dynamic>{};
         String count(String key) =>
             (data[key] as num?)?.toInt().toString() ?? '0';
-        String rupiah(String key) =>
-            formatRupiah((data[key] as num?)?.toInt() ?? 0);
         final reviews =
             ((data['wisata_menunggu_verifikasi'] as num?)?.toInt() ?? 0) +
             ((data['dokumen_menunggu_verifikasi'] as num?)?.toInt() ?? 0);
@@ -604,20 +601,6 @@ class _SummaryGridState extends State<_SummaryGrid> {
             SizedBox(height: 10),
             Row(
               children: [
-                Expanded(
-                  child: _SummaryCard(
-                    icon: Icons.account_balance_wallet_outlined,
-                    iconColor: Color(0xFF047857),
-                    iconBackground: Color(0xFF9BF4D1),
-                    badge: 'Biaya layanan',
-                    badgeColor: Color(0xFFD8F4E9),
-                    value: rupiah('pendapatan_loka'),
-                    label: 'Pendapatan LokaTrip',
-                    note: 'Dari pesanan dibayar',
-                    noteIcon: Icons.payments_outlined,
-                  ),
-                ),
-                SizedBox(width: 10),
                 Expanded(
                   child: _SummaryCard(
                     icon: Icons.verified_rounded,
