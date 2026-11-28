@@ -357,11 +357,7 @@ class _MitraAdminScreensState extends State<MitraAdminScreens> {
     };
     Navigator.pushReplacement(
       context,
-      PageRouteBuilder(
-        pageBuilder: (_, _, _) => destination,
-        transitionDuration: Duration.zero,
-        reverseTransitionDuration: Duration.zero,
-      ),
+      MaterialPageRoute(builder: (_) => destination),
     );
   }
 

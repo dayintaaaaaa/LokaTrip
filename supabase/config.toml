@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.midtrans-notif]
 verify_jwt = false
+
+[functions.midtrans-payment]
+verify_jwt = false

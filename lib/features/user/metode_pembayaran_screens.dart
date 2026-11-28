@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_color.dart';
 import '../../core/format_rupiah.dart';
@@ -68,6 +66,32 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
     _ => 'PayLater',
   };
 
+  String get _metodeDb => switch (_metode) {
+    0 => 'qris',
+    1 => 'virtual_account',
+    2 => 'dompet_digital',
+    3 => 'kartu_kredit',
+    _ => 'paylater',
+  };
+
+  String get _paymentOption => switch (_metode) {
+    0 => 'qris',
+    1 => switch (_pilihan[1]) {
+      'Mandiri' => 'virtual_account_mandiri',
+      'BNI' => 'virtual_account_bni',
+      'BRI' => 'virtual_account_bri',
+      _ => 'virtual_account_bca',
+    },
+    2 => switch (_pilihan[2]) {
+      'OVO' => 'ovo',
+      'DANA' => 'dana',
+      'ShopeePay' => 'shopeepay',
+      _ => 'gopay',
+    },
+    3 => 'kartu_kredit',
+    _ => 'paylater',
+  };
+
   void _pesan(String teks) {
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -116,45 +140,18 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
     final kode = await _siapkanPesanan();
     if (kode == null || !mounted) return;
 
-    // QRIS uses Midtrans Core API Sandbox; DOKU Checkout sandbox does not expose QRIS.
-    if (_d.pesanan.paket.idPaket == null || _metode == 0) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => QrisScreens(data: _d, orderId: kode),
-        ),
-      );
-      return;
-    }
-
-    setState(() => _memproses = true);
-    try {
-      final response = await Supabase.instance.client.functions.invoke(
-        'create-payment',
-        body: {'invoice_number': kode, 'name': _d.nama, 'email': _d.email},
-      );
-      final data = response.data;
-      if (data is! Map) throw Exception('Respons DOKU tidak valid.');
-      final responseData = data['response'];
-      final payment = responseData is Map ? responseData['payment'] : null;
-      final paymentUrl = payment is Map ? payment['url']?.toString() : null;
-      final uri = paymentUrl == null ? null : Uri.tryParse(paymentUrl);
-      if (uri == null || uri.scheme != 'https') {
-        throw Exception(
-          data['error']?.toString() ?? 'Link checkout tidak ditemukan.',
-        );
-      }
-
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!opened) throw Exception('Halaman pembayaran DOKU gagal dibuka.');
-      _pesan(
-        'Checkout DOKU terbuka. Selesaikan pembayaran, lalu kembali ke LokaTrip.',
-      );
-    } catch (error) {
-      _pesan('Gagal membuka pembayaran: $error');
-    } finally {
-      if (mounted) setState(() => _memproses = false);
-    }
+    await prosesBayarMidtrans(
+      context: context,
+      data: _d,
+      orderId: kode,
+      metodeLabel: _labelMetode,
+      metodeDb: _metodeDb,
+      paymentOption: _paymentOption,
+      penyedia: _labelMetode,
+      sedangMemproses: (value) {
+        if (mounted) setState(() => _memproses = value);
+      },
+    );
   }
 
   @override
@@ -185,8 +182,45 @@ class _MetodePembayaranScreensState extends State<MetodePembayaranScreens> {
                     index: 0,
                     icon: Icons.qr_code_2,
                     judul: 'QRIS Instan',
-                    sub: 'Scan dengan aplikasi pembayaran QRIS',
-                    info: const ['QRIS'],
+                    sub: 'Scan otomatis lewat GoPay, OVO, BCA, DANA, ShopeePay',
+                    info: const ['GOPAY', 'OVO', 'BCA', 'DANA'],
+                  ),
+                  _metodeKartu(
+                    index: 1,
+                    icon: Icons.account_balance_outlined,
+                    judul: 'Virtual Account Bank',
+                    sub: 'BCA, Mandiri, BNI, BRI',
+                    dropdown: const ['BCA', 'Mandiri', 'BNI', 'BRI'],
+                  ),
+                  _metodeKartu(
+                    index: 2,
+                    icon: Icons.account_balance_wallet_outlined,
+                    judul: 'Dompet Digital',
+                    sub: 'GoPay, ShopeePay, OVO, DANA',
+                    dropdown: const ['GoPay', 'ShopeePay', 'OVO', 'DANA'],
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _metodeKecil(
+                          3,
+                          Icons.credit_card,
+                          'Kartu Kredit',
+                          'Visa/Master',
+                          AppColor.abu,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _metodeKecil(
+                          4,
+                          Icons.access_time,
+                          'PayLater',
+                          'Cicilan 0%',
+                          AppColor.kuning,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

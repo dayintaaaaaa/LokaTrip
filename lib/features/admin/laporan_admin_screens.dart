@@ -6,6 +6,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../widgets/admin_bottom_navigator.dart';
 import '../../widgets/admin_notification_button.dart';
@@ -14,6 +15,7 @@ import 'mitra_admin_screens.dart';
 import 'notifikasi_admin_screens.dart';
 import 'perizinan_admin_screens.dart';
 import 'profil_screens.dart';
+import 'laporan_admin_service.dart';
 
 const _blue = Color(0xFF1D4ED8);
 const _ink = Color(0xFF12243A);
@@ -23,70 +25,11 @@ const _border = Color(0xFFE7EBF2);
 const _green = Color(0xFF087457);
 const _red = Color(0xFFCB3038);
 
-enum _Period { week, month, year }
-
-extension on _Period {
-  String get label => switch (this) {
-    _Period.week => 'Minggu',
-    _Period.month => 'Bulan',
-    _Period.year => 'Tahun',
-  };
-  String get range => switch (this) {
-    _Period.week => '22–28 Sep 2026',
-    _Period.month => 'September 2026',
-    _Period.year => 'Januari–September 2026',
-  };
-  String get fileName => switch (this) {
-    _Period.week => 'mingguan',
-    _Period.month => 'bulanan',
-    _Period.year => 'tahunan',
-  };
-  List<String> get labels => switch (this) {
-    _Period.week => ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
-    _Period.month => ['Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep'],
-    _Period.year => [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'Mei',
-      'Jun',
-      'Jul',
-      'Agu',
-      'Sep',
-    ],
-  };
-  List<double> get values => switch (this) {
-    _Period.week => [141, 142, 143, 143, 145, 147, 148],
-    _Period.month => [80, 95, 110, 128, 139, 148],
-    _Period.year => [68, 72, 80, 95, 110, 118, 128, 139, 148],
-  };
-  String get partners => switch (this) {
-    _Period.week => '+7 pekan ini',
-    _Period.month => '+12 bulan ini',
-    _Period.year => '+148 tahun ini',
-  };
-  String get orders => switch (this) {
-    _Period.week => '1.284',
-    _Period.month => '4.850',
-    _Period.year => '48.510',
-  };
-  String get tickets => switch (this) {
-    _Period.week => '3.620',
-    _Period.month => '14.280',
-    _Period.year => '142.800',
-  };
-  String get gmv => switch (this) {
-    _Period.week => 'Rp 356,2 Juta',
-    _Period.month => 'Rp 1,42 Miliar',
-    _Period.year => 'Rp 13,82 Miliar',
-  };
-  String get growth => switch (this) {
-    _Period.week => '+4,2%',
-    _Period.month => '+18,4%',
-    _Period.year => '+21,6%',
-  };
-}
+String _number(int value) => value.toString().replaceAllMapped(
+  RegExp(r'\B(?=(\d{3})+(?!\d))'),
+  (_) => '.',
+);
+String _rupiah(int value) => 'Rp ${_number(value)}';
 
 class LaporanAdminScreens extends StatefulWidget {
   const LaporanAdminScreens({super.key});
@@ -96,8 +39,148 @@ class LaporanAdminScreens extends StatefulWidget {
 }
 
 class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
-  var _period = _Period.month;
+  var _period = LaporanPeriode.bulan;
+  var _loading = true;
+  String? _loadError;
+  LaporanAdminData? _data;
   var _exporting = false;
+  var _recovering = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+      _data = null;
+    });
+    try {
+      final result = await LaporanAdminData.load(_period);
+      if (mounted)
+        setState(() {
+          _data = result;
+          _loading = false;
+        });
+    } catch (error) {
+      if (mounted)
+        setState(() {
+          _loadError = error.toString();
+          _loading = false;
+        });
+    }
+  }
+
+  Future<void> _recoverMidtransPayment() async {
+    final orderCode = TextEditingController();
+    final midtransOrderId = TextEditingController();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Pulihkan pembayaran Midtrans'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: orderCode,
+                textCapitalization: TextCapitalization.characters,
+                autocorrect: false,
+                decoration: const InputDecoration(
+                  labelText: 'Kode pesanan LokaTrip',
+                  hintText: 'LT-XXXXXXXX',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: midtransOrderId,
+                textCapitalization: TextCapitalization.characters,
+                autocorrect: false,
+                decoration: const InputDecoration(
+                  labelText: 'Order ID Midtrans lengkap',
+                  hintText: 'LT-XXXXXXXX-xxxxxxxx',
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Status dan nominal diverifikasi ke Midtrans sebelum pembayaran disimpan.',
+                style: GoogleFonts.manrope(fontSize: 11, color: _muted),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Verifikasi & pulihkan'),
+          ),
+        ],
+      ),
+    );
+    final code = orderCode.text.trim();
+    final midtransId = midtransOrderId.text.trim();
+    orderCode.dispose();
+    midtransOrderId.dispose();
+    if (confirm != true || !mounted) return;
+    if (code.isEmpty || midtransId.isEmpty) {
+      _message('Kode pesanan dan Order ID Midtrans wajib diisi.');
+      return;
+    }
+
+    setState(() => _recovering = true);
+    try {
+      final response = await Supabase.instance.client.functions.invoke(
+        'midtrans-payment',
+        body: {
+          'action': 'admin_recover',
+          'kode_pesan': code,
+          'midtrans_order_id': midtransId,
+        },
+      );
+      final result = response.data;
+      if (result is Map && result['status'] == 'settlement') {
+        _message(
+          result['already_recorded'] == true
+              ? 'Pembayaran itu sudah tercatat di LokaTrip.'
+              : 'Pembayaran Midtrans berhasil dipulihkan.',
+        );
+        await _load();
+      } else {
+        final message = result is Map && result['error'] is String
+            ? result['error'] as String
+            : 'Midtrans belum mengonfirmasi pembayaran ini.';
+        _message(message);
+      }
+    } catch (error) {
+      final details = error is FunctionException ? error.details : null;
+      final message = details is Map && details['error'] is String
+          ? details['error'] as String
+          : 'Pemulihan pembayaran gagal: $error';
+      _message(message);
+    } finally {
+      if (mounted) setState(() => _recovering = false);
+    }
+  }
+
+  String get _periodLabel => switch (_period) {
+    LaporanPeriode.minggu => 'Minggu',
+    LaporanPeriode.bulan => 'Bulan',
+    LaporanPeriode.tahun => 'Tahun',
+  };
+
+  String get _periodFileName => switch (_period) {
+    LaporanPeriode.minggu => 'mingguan',
+    LaporanPeriode.bulan => 'bulanan',
+    LaporanPeriode.tahun => 'tahunan',
+  };
 
   void _navigate(int index) {
     final page = switch (index) {
@@ -111,11 +194,7 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
     if (page != null && index != 3) {
       Navigator.pushReplacement(
         context,
-        PageRouteBuilder(
-          pageBuilder: (_, _, _) => page,
-          transitionDuration: Duration.zero,
-          reverseTransitionDuration: Duration.zero,
-        ),
+        MaterialPageRoute(builder: (_) => page),
       );
     }
   }
@@ -133,7 +212,7 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
     setState(() => _exporting = true);
     try {
       final location = await getSaveLocation(
-        suggestedName: 'laporan-lokatrip-${_period.fileName}-2026.csv',
+        suggestedName: 'laporan-lokatrip-$_periodFileName.csv',
         confirmButtonText: 'Simpan laporan',
         acceptedTypeGroups: const [
           XTypeGroup(label: 'CSV', extensions: ['csv']),
@@ -155,25 +234,28 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
   }
 
   String _csv() {
+    final data = _data;
+    if (data == null) return '';
     final rows = [
-      ['Laporan LokaTrip Admin', _period.range],
-      ['Catatan', 'Data contoh; belum terhubung ke backend'],
+      ['Laporan LokaTrip Admin', data.range],
+      ['Sumber', 'Supabase'],
       [],
       ['Metrik', 'Nilai'],
-      ['Total mitra', '148'],
-      ['Wisata aktif', '215'],
-      ['Izin aktif', '120'],
-      ['Menunggu verifikasi izin', '12'],
-      ['Izin hampir habis', '8'],
-      ['Izin kedaluwarsa', '3'],
-      ['Total pesanan', _period.orders],
-      ['Tiket terjual', _period.tickets],
-      ['Nilai transaksi bruto', _period.gmv],
-      ['Pertumbuhan nilai transaksi', _period.growth],
+      ['Total mitra', '${data.totalMitra}'],
+      ['Wisata aktif', '${data.wisataAktif}'],
+      ['Total dokumen izin', '${data.totalDokumen}'],
+      ['Izin aktif', '${data.izinAktif}'],
+      ['Menunggu verifikasi izin', '${data.izinMenunggu}'],
+      ['Izin hampir habis', '${data.izinHampirHabis}'],
+      ['Izin kedaluwarsa', '${data.izinKedaluwarsa}'],
+      ['Transaksi lunas', '${data.pesananLunas}'],
+      ['Tiket terjual', '${data.tiketTerjual}'],
+      ['Nilai transaksi bruto', '${data.nilaiTransaksi}'],
+      ['Pendapatan biaya layanan', '${data.keuntungan}'],
     ];
     String quote(String value) => '"${value.replaceAll('"', '""')}"';
     return rows
-        .map((row) => row.map((field) => quote(field)).join(','))
+        .map((row) => row.map((field) => quote(field.toString())).join(','))
         .join('\r\n');
   }
 
@@ -314,6 +396,7 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
   );
 
   Widget _content(bool desktop, double width) {
+    final data = _data;
     final contentWidth = (width > 1320 ? 1320.0 : width) - (desktop ? 72 : 48);
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
@@ -330,49 +413,175 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
             children: [
               _title(desktop),
               const SizedBox(height: 22),
-              _periodPicker(),
-              const SizedBox(height: 25),
-              _section('Ringkasan platform', trailing: _pill(_period.range)),
-              const SizedBox(height: 12),
-              _metrics(contentWidth),
-              const SizedBox(height: 14),
-              _gmvCard(),
-              const SizedBox(height: 24),
-              _analytics(contentWidth),
-              const SizedBox(height: 18),
-              _transactionDetails(),
-              const SizedBox(height: 16),
               Row(
                 children: [
-                  const Icon(Icons.info_outline, size: 15, color: _muted),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      'Data contoh untuk rancangan laporan; belum terhubung ke backend.',
-                      style: GoogleFonts.manrope(fontSize: 11, color: _muted),
-                    ),
-                  ),
-                  FilledButton.icon(
-                    onPressed: _exporting ? null : _export,
-                    icon: _exporting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.download_outlined, size: 18),
-                    label: Text(
-                      _exporting ? 'Menyimpan…' : 'Simpan laporan CSV',
-                    ),
+                  _periodPicker(),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Muat ulang laporan',
+                    onPressed: _loading ? null : _load,
+                    icon: const Icon(Icons.refresh_rounded),
                   ),
                 ],
               ),
+              const SizedBox(height: 25),
+              if (_loading) const LinearProgressIndicator(),
+              if (_loadError != null) _errorPanel(),
+              if (data != null) ...[
+                _section('Ringkasan platform', trailing: _pill(data.range)),
+                const SizedBox(height: 12),
+                _metrics(contentWidth, data),
+                const SizedBox(height: 14),
+                _gmvCard(data),
+                const SizedBox(height: 24),
+                _analytics(contentWidth, data),
+                const SizedBox(height: 18),
+                _transactionDetails(data),
+                const SizedBox(height: 18),
+                _recentPayments(data),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Icon(Icons.info_outline, size: 15, color: _muted),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        data.midtransSyncWarning ??
+                            'Midtrans diperiksa: ${data.midtransChecked}; ${data.midtransSettled} disinkronkan. Terbaru: ${data.midtransLatestOrderCode ?? 'tidak ditemukan'} (${data.midtransLatestStatus ?? 'tidak ada'}).',
+                        style: GoogleFonts.manrope(fontSize: 11, color: _muted),
+                      ),
+                    ),
+                    FilledButton.icon(
+                      onPressed: _exporting || _loading ? null : _export,
+                      icon: _exporting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.download_outlined, size: 18),
+                      label: Text(
+                        _exporting ? 'Menyimpan...' : 'Simpan laporan CSV',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _recentPayments(LaporanAdminData data) => _Panel(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _section(
+          'Pembayaran terbaru',
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _pill('${data.pembayaranTerbaru.length} terbaru'),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: _recovering ? null : _recoverMidtransPayment,
+                icon: _recovering
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync_rounded, size: 16),
+                label: Text(_recovering ? 'Memeriksa...' : 'Pulihkan Midtrans'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (data.pembayaranTerbaru.isEmpty)
+          Text(
+            'Belum ada pembayaran lunas pada periode ini.',
+            style: GoogleFonts.manrope(fontSize: 12, color: _muted),
+          )
+        else
+          for (
+            var index = 0;
+            index < data.pembayaranTerbaru.length;
+            index++
+          ) ...[
+            if (index > 0) const Divider(height: 18),
+            _paymentRow(data.pembayaranTerbaru[index]),
+          ],
+      ],
+    ),
+  );
+
+  Widget _paymentRow(LaporanPembayaranRingkas payment) {
+    final date = payment.waktu;
+    final timestamp =
+        '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} '
+        '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    return Row(
+      children: [
+        const Icon(Icons.check_circle_outline, color: _green, size: 19),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                payment.kodePesan,
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: _ink,
+                ),
+              ),
+              Text(
+                '$timestamp · ${payment.metode}',
+                style: GoogleFonts.manrope(fontSize: 10, color: _muted),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          _rupiah(payment.jumlah),
+          style: GoogleFonts.manrope(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: _ink,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _errorPanel() => Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 18),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border.all(color: _border),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.cloud_off_outlined, color: _red),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Laporan gagal dimuat. Periksa koneksi atau sesi admin, lalu coba lagi.',
+            style: GoogleFonts.manrope(fontSize: 12, color: _ink),
+          ),
+        ),
+        TextButton(onPressed: _load, child: const Text('Coba lagi')),
+      ],
+    ),
+  );
 
   Widget _title(bool desktop) => Row(
     children: [
@@ -396,7 +605,7 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
         ),
       ),
       Text(
-        _period.range,
+        _data?.range ?? '',
         style: GoogleFonts.manrope(
           fontSize: 12,
           fontWeight: FontWeight.w700,
@@ -406,13 +615,23 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
     ],
   );
 
-  Widget _periodPicker() => SegmentedButton<_Period>(
+  Widget _periodPicker() => SegmentedButton<LaporanPeriode>(
     segments: [
-      for (final period in _Period.values)
-        ButtonSegment(value: period, label: Text(period.label)),
+      for (final period in LaporanPeriode.values)
+        ButtonSegment(
+          value: period,
+          label: Text(switch (period) {
+            LaporanPeriode.minggu => 'Minggu',
+            LaporanPeriode.bulan => 'Bulan',
+            LaporanPeriode.tahun => 'Tahun',
+          }),
+        ),
     ],
     selected: {_period},
-    onSelectionChanged: (value) => setState(() => _period = value.first),
+    onSelectionChanged: (value) {
+      setState(() => _period = value.first);
+      _load();
+    },
     showSelectedIcon: false,
     style: SegmentedButton.styleFrom(
       selectedBackgroundColor: _blue,
@@ -452,7 +671,7 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
     ),
   );
 
-  Widget _metrics(double width) {
+  Widget _metrics(double width, LaporanAdminData data) {
     final columns = width >= 1050
         ? 4
         : width >= 650
@@ -467,8 +686,8 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
           width: cardWidth,
           child: _MetricCard(
             'Total mitra',
-            '148',
-            _period.partners,
+            _number(data.totalMitra),
+            'Mitra terdaftar',
             Icons.storefront_outlined,
             _blue,
             positive: true,
@@ -478,7 +697,7 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
           width: cardWidth,
           child: _MetricCard(
             'Wisata aktif',
-            '215',
+            _number(data.wisataAktif),
             'Destinasi terdaftar',
             Icons.explore_outlined,
             const Color(0xFF1375A8),
@@ -488,8 +707,8 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
           width: cardWidth,
           child: _MetricCard(
             'Izin legal',
-            '120',
-            'Izin aktif · kepatuhan SLA 94%',
+            _number(data.izinAktif),
+            '${_number(data.izinMenunggu)} menunggu, ${_number(data.izinKedaluwarsa)} kedaluwarsa',
             Icons.verified_outlined,
             _green,
           ),
@@ -497,9 +716,9 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
         SizedBox(
           width: cardWidth,
           child: _MetricCard(
-            'Total pesanan',
-            _period.orders,
-            'Transaksi lunas',
+            'Pembayaran berhasil',
+            _number(data.pesananLunas),
+            'Transaksi lunas dalam periode ini',
             Icons.receipt_long_outlined,
             const Color(0xFF1375A8),
           ),
@@ -508,110 +727,135 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
     );
   }
 
-  Widget _gmvCard() => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.fromLTRB(22, 18, 22, 16),
-    decoration: BoxDecoration(
-      color: _blue,
-      borderRadius: BorderRadius.circular(15),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'NILAI TRANSAKSI BRUTO',
-                style: GoogleFonts.manrope(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.7,
-                  color: Colors.white70,
+  Widget _gmvCard(LaporanAdminData data) {
+    final previous = data.keuntunganSebelumnya;
+    final change = previous == 0
+        ? null
+        : (data.keuntungan - previous) / previous * 100;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(22, 18, 22, 16),
+      decoration: BoxDecoration(
+        color: _blue,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'KEUNTUNGAN PLATFORM',
+                  style: GoogleFonts.manrope(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.7,
+                    color: Colors.white70,
+                  ),
                 ),
               ),
-            ),
-            const Icon(
-              Icons.account_balance_wallet_outlined,
+              const Icon(
+                Icons.account_balance_wallet_outlined,
+                color: Colors.white,
+              ),
+            ],
+          ),
+          Text(
+            _rupiah(data.keuntungan),
+            style: GoogleFonts.manrope(
+              fontSize: 29,
+              fontWeight: FontWeight.w800,
               color: Colors.white,
             ),
-          ],
-        ),
-        Text(
-          _period.gmv,
-          style: GoogleFonts.manrope(
-            fontSize: 29,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
           ),
-        ),
-        const Divider(color: Colors.white24, height: 18),
-        Row(
-          children: [
-            const Icon(Icons.trending_up, size: 17, color: Color(0xFF9BF4D1)),
-            const SizedBox(width: 5),
-            Text(
-              _period.growth,
-              style: GoogleFonts.manrope(
+          const SizedBox(height: 3),
+          Text(
+            'Akumulasi biaya layanan dari pembayaran lunas',
+            style: GoogleFonts.manrope(color: Colors.white70, fontSize: 11),
+          ),
+          const Divider(color: Colors.white24, height: 18),
+          Row(
+            children: [
+              Icon(
+                change == null || change >= 0
+                    ? Icons.trending_up
+                    : Icons.trending_down,
+                size: 17,
                 color: const Color(0xFF9BF4D1),
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
               ),
-            ),
-            const SizedBox(width: 7),
-            Text(
-              'dibanding periode sebelumnya',
-              style: GoogleFonts.manrope(color: Colors.white70, fontSize: 11),
-            ),
-            const Spacer(),
-            Text(
-              '${_period.orders} pesanan',
-              style: GoogleFonts.manrope(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+              const SizedBox(width: 5),
+              Text(
+                change == null
+                    ? 'Belum ada pembanding'
+                    : '${change >= 0 ? '+' : ''}${change.toStringAsFixed(1)}% dibanding periode sebelumnya',
+                style: GoogleFonts.manrope(
+                  color: const Color(0xFF9BF4D1),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
+              const Spacer(),
+              Text(
+                '${_number(data.pesananLunas)} pembayaran lunas',
+                style: GoogleFonts.manrope(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Nilai transaksi bruto: ${_rupiah(data.nilaiTransaksi)}',
+            style: GoogleFonts.manrope(color: Colors.white70, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
 
-  Widget _analytics(double width) {
+  Widget _analytics(double width, LaporanAdminData data) {
     final chart = _Panel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _section('Pertumbuhan mitra', trailing: _pill(_period.label)),
+          _section(
+            'Pembayaran lunas dari waktu ke waktu',
+            trailing: _pill(_periodLabel),
+          ),
           const SizedBox(height: 4),
           Text(
-            'Jumlah mitra terdaftar · ${_period.range}',
+            'Jumlah pembayaran lunas - ${data.range}',
             style: GoogleFonts.manrope(fontSize: 12, color: _muted),
           ),
           const SizedBox(height: 18),
           SizedBox(
             height: 240,
-            child: _GrowthChart(labels: _period.labels, values: _period.values),
+            child: _GrowthChart(
+              labels: data.chartLabels,
+              values: data.chartOrders,
+              valueSuffix: 'pembayaran',
+            ),
           ),
         ],
       ),
     );
-    const legal = _LicensePanel();
-    if (width < 900) {
+    final legal = _LicensePanel(data: data);
+    if (width < 900)
       return Column(children: [chart, const SizedBox(height: 14), legal]);
-    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(flex: 7, child: chart),
         const SizedBox(width: 14),
-        const Expanded(flex: 5, child: legal),
+        Expanded(flex: 5, child: legal),
       ],
     );
   }
 
-  Widget _transactionDetails() => _Panel(
+  Widget _transactionDetails(LaporanAdminData data) => _Panel(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -632,8 +876,8 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
                   child: _TransactionTile(
                     Icons.receipt_long_outlined,
                     'Total transaksi',
-                    'Pesanan valid & lunas',
-                    _period.orders,
+                    'Pembayaran berhasil',
+                    _number(data.pesananLunas),
                     _blue,
                   ),
                 ),
@@ -643,7 +887,7 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
                     Icons.confirmation_number_outlined,
                     'Tiket terjual',
                     'Wisatawan nusantara & asing',
-                    _period.tickets,
+                    _number(data.tiketTerjual),
                     const Color(0xFF1375A8),
                   ),
                 ),
@@ -651,9 +895,9 @@ class _LaporanAdminScreensState extends State<LaporanAdminScreens> {
                   width: tileWidth,
                   child: _TransactionTile(
                     Icons.account_balance_wallet_outlined,
-                    'Nilai transaksi bruto',
-                    'Take rate rata-rata 12%',
-                    _period.gmv,
+                    'Pendapatan biaya layanan',
+                    'Dari pembayaran lunas',
+                    _rupiah(data.keuntungan),
                     _green,
                   ),
                 ),
@@ -759,7 +1003,12 @@ class _Panel extends StatelessWidget {
 class _GrowthChart extends StatelessWidget {
   final List<String> labels;
   final List<double> values;
-  const _GrowthChart({required this.labels, required this.values});
+  final String valueSuffix;
+  const _GrowthChart({
+    required this.labels,
+    required this.values,
+    required this.valueSuffix,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -815,7 +1064,7 @@ class _GrowthChart extends StatelessWidget {
             getTooltipItems: (spots) => spots
                 .map(
                   (spot) => LineTooltipItem(
-                    '${labels[spot.x.toInt()]} · ${spot.y.toInt()} mitra',
+                    '${labels[spot.x.toInt()]} · ${spot.y.toInt()} $valueSuffix',
                     GoogleFonts.manrope(
                       color: Colors.white,
                       fontSize: 11,
@@ -849,59 +1098,72 @@ class _GrowthChart extends StatelessWidget {
 }
 
 class _LicensePanel extends StatelessWidget {
-  const _LicensePanel();
+  const _LicensePanel({required this.data});
+  final LaporanAdminData data;
 
   @override
-  Widget build(BuildContext context) => _Panel(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.assignment_turned_in_outlined, color: _green),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Text(
-                'Status legalitas & izin',
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: _ink,
+  Widget build(BuildContext context) {
+    final total = data.totalDokumen;
+    final compliance = total == 0 ? 0.0 : data.izinAktif / total;
+    return _Panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.assignment_turned_in_outlined, color: _green),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  'Status legalitas & izin',
+                  style: GoogleFonts.manrope(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: _ink,
+                  ),
                 ),
               ),
-            ),
-            Text(
-              '143 dokumen',
-              style: GoogleFonts.manrope(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
+              Text(
+                '${_number(total)} dokumen',
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Kepatuhan izin mitra se-Indonesia',
-          style: GoogleFonts.manrope(fontSize: 11, color: _muted),
-        ),
-        const SizedBox(height: 18),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: const LinearProgressIndicator(
-            value: 0.84,
-            minHeight: 10,
-            backgroundColor: Color(0xFFE7EBF2),
-            color: _green,
+            ],
           ),
-        ),
-        const SizedBox(height: 12),
-        const _LicenseLine('Izin aktif', '120', _green),
-        const _LicenseLine('Menunggu verifikasi', '12', Color(0xFF1375A8)),
-        const _LicenseLine('Hampir habis', '8', Color(0xFF6478C8)),
-        const _LicenseLine('Kedaluwarsa', '3', _red),
-      ],
-    ),
-  );
+          const SizedBox(height: 4),
+          Text(
+            'Status dokumen mitra di database',
+            style: GoogleFonts.manrope(fontSize: 11, color: _muted),
+          ),
+          const SizedBox(height: 18),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              value: compliance,
+              minHeight: 10,
+              backgroundColor: const Color(0xFFE7EBF2),
+              color: _green,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _LicenseLine('Izin aktif', _number(data.izinAktif), _green),
+          _LicenseLine(
+            'Menunggu verifikasi',
+            _number(data.izinMenunggu),
+            const Color(0xFF1375A8),
+          ),
+          _LicenseLine(
+            'Hampir habis (30 hari)',
+            _number(data.izinHampirHabis),
+            const Color(0xFF6478C8),
+          ),
+          _LicenseLine('Kedaluwarsa', _number(data.izinKedaluwarsa), _red),
+        ],
+      ),
+    );
+  }
 }
 
 class _LicenseLine extends StatelessWidget {

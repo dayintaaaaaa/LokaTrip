@@ -1,7 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,75 +8,286 @@ import '../../core/app_color.dart';
 import '../../core/format_rupiah.dart';
 import '../../core/format_waktu.dart';
 import '../../models/data_checkout.dart';
-import '../../services/pemesanan_service.dart';
+import '../../widgets/qr_palsu.dart';
 import 'bukti_transaksi_screens.dart';
-import 'lokapay_demo_scanner.dart';
 
-// Catat pembayaran ke Supabase (simulasi, khusus pengembangan), lalu buka
-// bukti transaksi. Wisata dummy (tanpa idPaket) tidak punya pesanan di
-// database, jadi langsung ke bukti transaksi seperti sebelumnya.
-Future<void> _prosesBayar({
+// Buat transaksi melalui server Supabase, lalu tunggu webhook Midtrans.
+Future<void> prosesBayarMidtrans({
   required BuildContext context,
   required DataCheckout data,
   required String orderId,
   required String metodeLabel,
   required String metodeDb,
+  required String paymentOption,
   String? penyedia,
   required ValueChanged<bool> sedangMemproses,
 }) async {
-  debugPrint(
-    'Simulasi bayar ditekan: orderId=$orderId '
-    'idPaket=${data.pesanan.paket.idPaket} metode=$metodeDb',
-  );
+  if (data.pesanan.paket.idPaket == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Pembayaran sandbox hanya tersedia untuk pesanan dari database.',
+          style: GoogleFonts.manrope(),
+        ),
+      ),
+    );
+    return;
+  }
 
-  if (data.pesanan.paket.idPaket != null) {
-    sedangMemproses(true);
+  sedangMemproses(true);
+  try {
+    final response = await Supabase.instance.client.functions.invoke(
+      'midtrans-payment',
+      body: {
+        'action': 'create',
+        'kode_pesan': orderId,
+        'payment_method': paymentOption,
+        'penyedia': penyedia,
+      },
+    );
+    final result = response.data;
+    if (result is! Map || result['redirect_url'] is! String) {
+      final message = result is Map && result['error'] is String
+          ? result['error'] as String
+          : 'Server tidak mengirim tautan pembayaran.';
+      throw Exception(message);
+    }
+    final redirect = Uri.tryParse(result['redirect_url'] as String);
+    if (redirect == null ||
+        !await launchUrl(redirect, mode: LaunchMode.externalApplication)) {
+      throw Exception('Halaman pembayaran Midtrans tidak dapat dibuka.');
+    }
+    if (!context.mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MenungguMidtransScreens(
+          data: data,
+          orderId: orderId,
+          metode: metodeLabel,
+          redirectUrl: redirect,
+        ),
+      ),
+    );
+  } on FunctionException catch (e) {
+    final details = e.details;
+    final message = details is Map && details['error'] is String
+        ? details['error'] as String
+        : e.reasonPhrase ?? 'Gagal membuat transaksi sandbox.';
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message, style: GoogleFonts.manrope())),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst('Exception: ', ''),
+            style: GoogleFonts.manrope(),
+          ),
+        ),
+      );
+    }
+  } finally {
+    sedangMemproses(false);
+  }
+}
+
+class MenungguMidtransScreens extends StatefulWidget {
+  final DataCheckout data;
+  final String orderId;
+  final String metode;
+  final Uri redirectUrl;
+
+  const MenungguMidtransScreens({
+    super.key,
+    required this.data,
+    required this.orderId,
+    required this.metode,
+    required this.redirectUrl,
+  });
+
+  @override
+  State<MenungguMidtransScreens> createState() =>
+      _MenungguMidtransScreensState();
+}
+
+class _MenungguMidtransScreensState extends State<MenungguMidtransScreens>
+    with WidgetsBindingObserver {
+  Timer? _poller;
+  bool _checking = false;
+  bool _opening = false;
+  String _status = 'menunggu_pembayaran';
+  String _paymentStatus = 'pending';
+  String? _sandboxQrImageUrl;
+
+  bool get _paymentFailed => const {
+    'deny',
+    'expire',
+    'cancel',
+    'failure',
+  }.contains(_paymentStatus.toLowerCase());
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _poller = Timer.periodic(const Duration(seconds: 5), (_) => _cekStatus());
+    _cekStatus();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _poller?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _cekStatus();
+  }
+
+  Future<void> _bukaPembayaran() async {
+    setState(() => _opening = true);
     try {
-      // DIAGNOSIS (hapus setelah masalah ketemu): hanya mencetak ada/tidaknya,
-      // JANGAN mencetak isi header karena berisi token login.
-      final klien = Supabase.instance.client;
-      final h = klien.rest.headers;
-      debugPrint(
-        'apikey ada? ${(h['apikey'] ?? '').isNotEmpty} | '
-        'sesi login ada? ${klien.auth.currentSession != null}',
-      );
+      await launchUrl(widget.redirectUrl, mode: LaunchMode.externalApplication);
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
 
-      await PemesananService().bayarSimulasi(
-        kodePesan: orderId,
-        metode: metodeDb,
-        penyedia: penyedia,
+  Future<void> _salinLinkQr() async {
+    final url = _sandboxQrImageUrl;
+    if (url == null) return;
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Link gambar QR disalin untuk simulator Sandbox.'),
+      ),
+    );
+  }
+
+  Future<void> _cekStatus() async {
+    if (_checking) return;
+    _checking = true;
+    try {
+      final response = await Supabase.instance.client.functions.invoke(
+        'midtrans-payment',
+        body: {'action': 'status', 'kode_pesan': widget.orderId},
       );
-      debugPrint('Simulasi bayar berhasil');
-    } on PemesananGagal catch (e) {
-      debugPrint('Simulasi bayar gagal: ${e.pesan}');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e.teknis == null ? e.pesan : '${e.pesan}\n[${e.teknis}]',
-              style: GoogleFonts.manrope(),
+      final result = response.data;
+      final status = result is Map ? result['status'] as String? : null;
+      if (!mounted || status == null) return;
+      final paymentStatus = result is Map
+          ? result['payment_status'] as String? ?? 'unknown'
+          : 'unknown';
+      final qrUrl = result is Map
+          ? result['sandbox_qr_image_url'] as String?
+          : null;
+      if (status != _status ||
+          paymentStatus != _paymentStatus ||
+          (qrUrl != null && qrUrl != _sandboxQrImageUrl)) {
+        setState(() {
+          _status = status;
+          _paymentStatus = paymentStatus;
+          if (qrUrl != null) _sandboxQrImageUrl = qrUrl;
+        });
+      }
+      if (status == 'aktif') {
+        _poller?.cancel();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BuktiTransaksiScreens(
+              data: widget.data,
+              orderId: widget.orderId,
+              metode: widget.metode,
             ),
           ),
         );
       }
-      return;
+    } catch (_) {
+      // Poll again; a temporary network issue must not mark the order paid.
     } finally {
-      sedangMemproses(false);
+      _checking = false;
     }
   }
 
-  if (!context.mounted) return;
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(
-      builder: (_) => BuktiTransaksiScreens(
-        data: data,
-        orderId: orderId,
-        metode: metodeLabel,
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: AppColor.latar,
+    appBar: AppBar(title: const Text('Menunggu pembayaran')),
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.hourglass_top_rounded,
+              size: 52,
+              color: AppColor.ungu,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _paymentFailed
+                  ? 'Pembayaran ${_labelStatus(_paymentStatus)}. Kamu bisa memilih metode lain.'
+                  : 'Selesaikan pembayaran di halaman Midtrans.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.manrope(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Status pesanan: $_status\nStatus pembayaran: $_paymentStatus\nKode pesanan: ${widget.orderId}',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.manrope(),
+            ),
+            const SizedBox(height: 20),
+            if (_paymentFailed)
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.swap_horiz_rounded),
+                label: const Text('Pilih metode lain'),
+              )
+            else
+              FilledButton.icon(
+                onPressed: _opening ? null : _bukaPembayaran,
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: Text(_opening ? 'Membuka...' : 'Buka pembayaran'),
+              ),
+            if (_sandboxQrImageUrl != null && !_paymentFailed) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _salinLinkQr,
+                icon: const Icon(Icons.copy_rounded),
+                label: const Text('Salin link QR untuk simulator'),
+              ),
+            ],
+            TextButton(
+              onPressed: _cekStatus,
+              child: const Text('Periksa status sekarang'),
+            ),
+          ],
+        ),
       ),
     ),
   );
 }
+
+String _labelStatus(String status) => switch (status.toLowerCase()) {
+  'deny' => 'ditolak',
+  'expire' => 'kedaluwarsa',
+  'cancel' => 'dibatalkan',
+  'failure' => 'gagal',
+  _ => status,
+};
 
 // ================== PEMBAYARAN QRIS ==================
 class QrisScreens extends StatefulWidget {
@@ -95,15 +303,7 @@ class QrisScreens extends StatefulWidget {
 class _QrisScreensState extends State<QrisScreens> {
   Duration _sisa = const Duration(minutes: 14, seconds: 59);
   Timer? _timer;
-  Timer? _statusTimer;
   bool _memproses = false;
-  bool _checkingStatus = false;
-  bool _creatingQr = false;
-  Uint8List? _midtransQrBytes;
-  String? _midtransQrUrl;
-  String? _qrError;
-
-  bool get _demoOnly => widget.data.pesanan.paket.idPaket == null;
 
   @override
   void initState() {
@@ -111,22 +311,16 @@ class _QrisScreensState extends State<QrisScreens> {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_sisa.inSeconds <= 0) {
         _timer?.cancel();
-        _statusTimer?.cancel();
         if (mounted) setState(() {});
         return;
       }
       setState(() => _sisa -= const Duration(seconds: 1));
     });
-    if (!_demoOnly) {
-      _buatQrMidtrans();
-      _pantauStatusPembayaran();
-    }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _statusTimer?.cancel();
     super.dispose();
   }
 
@@ -136,136 +330,19 @@ class _QrisScreensState extends State<QrisScreens> {
     ).showSnackBar(SnackBar(content: Text(teks, style: GoogleFonts.manrope())));
   }
 
-  Future<void> _buatQrMidtrans() async {
-    if (_creatingQr) return;
-    setState(() {
-      _creatingQr = true;
-      _qrError = null;
-    });
-    try {
-      final response = await Supabase.instance.client.functions.invoke(
-        'create-midtrans-qris',
-        body: {
-          'invoice_number': widget.orderId,
-          'name': widget.data.nama,
-          'email': widget.data.email,
-        },
-      );
-      final body = response.data;
-      if (body is! Map ||
-          body['qr_image_base64'] is! String ||
-          body['qr_image_url'] is! String) {
-        throw Exception(
-          body is Map
-              ? body['error']?.toString()
-              : 'Respons Midtrans tidak valid.',
-        );
-      }
-      final bytes = base64Decode(body['qr_image_base64'] as String);
-      if (mounted) {
-        setState(() {
-          _midtransQrBytes = bytes;
-          _midtransQrUrl = body['qr_image_url'] as String;
-        });
-      }
-    } catch (error) {
-      if (mounted)
-        setState(() => _qrError = 'QR Midtrans gagal dibuat: $error');
-    } finally {
-      if (mounted) setState(() => _creatingQr = false);
-    }
-  }
-
-  void _pantauStatusPembayaran() {
-    _statusTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
-      if (_checkingStatus || !mounted || _sisa.inSeconds <= 0) return;
-      _checkingStatus = true;
-      try {
-        final order = await Supabase.instance.client
-            .from('pemesanan')
-            .select('status_pesan')
-            .eq('kode_pesan', widget.orderId)
-            .maybeSingle();
-        if (order?['status_pesan'] == 'aktif' && mounted) {
-          _statusTimer?.cancel();
-          _simulasiBerhasil();
-        }
-      } catch (error) {
-        debugPrint('Gagal mengecek status Midtrans: $error');
-      } finally {
-        _checkingStatus = false;
-      }
-    });
-  }
-
-  Future<void> _salinUrlQr() async {
-    final url = _midtransQrUrl;
-    if (url == null) return;
-    await Clipboard.setData(ClipboardData(text: url));
-    _info('URL QR disalin. Tempelkan di Midtrans QRIS Simulator.');
-  }
-
-  Future<void> _bukaSimulatorMidtrans() async {
-    final url = Uri.parse(
-      'https://simulator.sandbox.midtrans.com/openapi/qris/index',
-    );
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      _info('Simulator Midtrans tidak dapat dibuka.');
-    }
-  }
-
-  Future<void> _bukaLokaPayDemo() async {
-    final paidOrder = await Navigator.push<String>(
-      context,
-      MaterialPageRoute(builder: (_) => const LokaPayDemoScanner()),
-    );
-    if (paidOrder == widget.orderId && mounted) {
-      _simulasiBerhasil();
-    } else if (paidOrder != null && mounted) {
-      _info('Pesanan $paidOrder dibayar dalam simulasi.');
-    }
-  }
-
+  // TODO: status lunas seharusnya datang dari webhook payment gateway.
+  // Tombol simulasi ini hanya untuk development.
   void _simulasiBerhasil() {
-    _prosesBayar(
+    prosesBayarMidtrans(
       context: context,
       data: widget.data,
       orderId: widget.orderId,
-      metodeLabel: _demoOnly ? 'QRIS Demo' : 'QRIS Midtrans Sandbox',
+      metodeLabel: 'QRIS Instan',
       metodeDb: 'qris',
-      penyedia: _demoOnly ? 'LokaPay Demo' : 'Midtrans Sandbox',
+      paymentOption: 'qris',
       sedangMemproses: (v) {
         if (mounted) setState(() => _memproses = v);
       },
-    );
-  }
-
-  Widget _qrImage() {
-    if (_demoOnly) {
-      return QrImageView(
-        data: jsonEncode({
-          'app': 'lokatrip-demo',
-          'order': widget.orderId,
-          'amount': widget.data.rincian.total,
-        }),
-        size: 180,
-        backgroundColor: Colors.white,
-        foregroundColor: AppColor.ungu,
-      );
-    }
-    final image = _midtransQrBytes;
-    if (image != null) return Image.memory(image, width: 180, height: 180);
-    if (_qrError != null) {
-      return SizedBox(
-        width: 180,
-        height: 180,
-        child: Center(child: Text(_qrError!, textAlign: TextAlign.center)),
-      );
-    }
-    return const SizedBox(
-      width: 180,
-      height: 180,
-      child: Center(child: CircularProgressIndicator()),
     );
   }
 
@@ -303,6 +380,14 @@ class _QrisScreensState extends State<QrisScreens> {
                                 color: AppColor.kuning,
                               ),
                             ),
+                            Text(
+                              '  |  GPN',
+                              style: GoogleFonts.manrope(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppColor.abu,
+                              ),
+                            ),
                             const Spacer(),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -314,9 +399,7 @@ class _QrisScreensState extends State<QrisScreens> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                _demoOnly
-                                    ? 'QR DEMO LOKATRIP'
-                                    : 'MIDTRANS SANDBOX',
+                                'STANDAR NASIONAL',
                                 style: GoogleFonts.manrope(
                                   fontSize: 8,
                                   fontWeight: FontWeight.w800,
@@ -338,14 +421,17 @@ class _QrisScreensState extends State<QrisScreens> {
                           ),
                           child: Opacity(
                             opacity: habis ? 0.25 : 1,
-                            child: _qrImage(),
+                            // TODO: ganti dengan QR asli dari payment gateway
+                            child: QrPalsu(
+                              seed: widget.orderId,
+                              ukuran: 180,
+                              warna: AppColor.ungu,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          _demoOnly
-                              ? 'LOKATRIP INDONESIA'
-                              : 'MIDTRANS QRIS SANDBOX',
+                          'LOKATRIP INDONESIA',
                           style: GoogleFonts.manrope(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
@@ -353,83 +439,88 @@ class _QrisScreensState extends State<QrisScreens> {
                           ),
                         ),
                         Text(
-                          _demoOnly
-                              ? 'QR demo lokal - bukan QRIS asli'
-                              : 'Transaksi uji coba; jangan scan dengan aplikasi pembayaran sungguhan',
-                          textAlign: TextAlign.center,
+                          'NMID: ID102003928190',
                           style: GoogleFonts.manrope(
                             fontSize: 9,
                             color: AppColor.abu,
                           ),
                         ),
-                        if (!_demoOnly && _midtransQrUrl != null) ...[
-                          const SizedBox(height: 8),
-                          OutlinedButton.icon(
-                            onPressed: _salinUrlQr,
-                            icon: const Icon(Icons.copy, size: 16),
-                            label: const Text('Salin URL QR untuk simulator'),
-                          ),
-                        ],
+                        const SizedBox(height: 10),
+                        Divider(
+                          height: 1,
+                          color: AppColor.abu.withValues(alpha: 0.2),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 6,
+                          children: ['GoPay', 'OVO', 'DANA', 'BCA', 'ShopeePay']
+                              .map(
+                                (t) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColor.latar,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    t,
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColor.hitam.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _caraBayar(
-                    _demoOnly
-                        ? [
-                            'Untuk memindai, buka LokaPay Demo di perangkat lain.',
-                            'Pindai QR demo pesanan ini.',
-                            'Ini hanya simulasi; tidak ada saldo yang terpotong.',
-                          ]
-                        : [
-                            'Salin URL QR di atas, lalu buka QRIS Simulator Midtrans.',
-                            'Tempel URL QR di simulator dan jalankan pembayaran uji.',
-                            'Kembali ke aplikasi; status akan berubah setelah webhook diterima.',
-                          ],
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _tombolSekunder(
+                          Icons.download_outlined,
+                          'Unduh QR',
+                          () => _info(
+                            'Unduh QR: sambungkan ke QR asli / backend',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _tombolSekunder(
+                          Icons.open_in_new,
+                          'Buka di E-Wallet',
+                          () => _info(
+                            'Buka e-wallet: perlu deep link dari gateway',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  if (!_demoOnly && _qrError != null)
-                    TextButton.icon(
-                      onPressed: _creatingQr ? null : _buatQrMidtrans,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Coba buat QR lagi'),
-                    ),
+                  const SizedBox(height: 12),
+                  _caraBayar([
+                    'Buka aplikasi m-Banking atau e-wallet pilihan Anda.',
+                    'Pindai (Scan) QR di atas & pastikan nominal ${formatRupiah(total)}.',
+                    'Masukkan PIN, transaksi diverifikasi otomatis secara instan.',
+                  ]),
                 ],
               ),
             ),
           ),
-          if (_demoOnly) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: OutlinedButton.icon(
-                onPressed: habis || _memproses ? null : _bukaLokaPayDemo,
-                icon: const Icon(Icons.qr_code_scanner),
-                label: const Text('Scan dengan LokaPay Demo'),
-              ),
-            ),
-            _tombolBawah(
-              icon: Icons.shield_outlined,
-              teks: 'Simulasi Bayar Berhasil',
-              onTap: habis ? null : _simulasiBerhasil,
-              memproses: _memproses,
-            ),
-          ] else
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text('Menunggu pembayaran dari Midtrans...'),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: _bukaSimulatorMidtrans,
-                      child: const Text('Buka Simulator'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          _tombolBawah(
+            icon: Icons.shield_outlined,
+            teks: 'Simulasi Bayar Berhasil',
+            onTap: habis ? null : _simulasiBerhasil,
+            memproses: _memproses,
+          ),
         ],
       ),
     );
@@ -494,12 +585,13 @@ class _PembayaranLainScreensState extends State<PembayaranLainScreens> {
 
   // TODO: status lunas seharusnya datang dari webhook payment gateway.
   void _simulasiBerhasil() {
-    _prosesBayar(
+    prosesBayarMidtrans(
       context: context,
       data: widget.data,
       orderId: widget.orderId,
       metodeLabel: widget.metode,
       metodeDb: _metodeDb,
+      paymentOption: 'virtual_account_bca',
       penyedia: widget.metode,
       sedangMemproses: (v) {
         if (mounted) setState(() => _memproses = v);
