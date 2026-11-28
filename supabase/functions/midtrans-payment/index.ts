@@ -17,9 +17,14 @@ const required = (name: string) => {
   return value;
 };
 
-const midtransHosts = () => Deno.env.get('MIDTRANS_ENVIRONMENT') === 'production'
-  ? { snap: 'https://app.midtrans.com', coreApi: 'https://api.midtrans.com' }
-  : { snap: 'https://app.sandbox.midtrans.com', coreApi: 'https://api.sandbox.midtrans.com' };
+// Sandbox adalah default. Hanya nilai "production" yang boleh mengarah ke
+// endpoint live agar salah konfigurasi tidak mengirim transaksi sungguhan.
+const midtransHosts = () => {
+  const production = Deno.env.get('MIDTRANS_ENVIRONMENT')?.trim().toLowerCase() === 'production';
+  return production
+    ? { snap: 'https://app.midtrans.com', coreApi: 'https://api.midtrans.com' }
+    : { snap: 'https://app.sandbox.midtrans.com', coreApi: 'https://api.sandbox.midtrans.com' };
+};
 
 const basicAuthorization = (serverKey: string) =>
   `Basic ${btoa(`${serverKey}:`)}`;
@@ -162,7 +167,8 @@ async function verifySignature(body: Record<string, unknown>) {
   const statusCode = String(body.status_code ?? '');
   const grossAmount = String(body.gross_amount ?? '');
   const received = String(body.signature_key ?? '');
-  const source = `${orderId}${statusCode}${grossAmount}${required('MIDTRANS_SIGNATURE_SECRET_KEY')}`;
+  // Midtrans membuat signature dengan Server Key, bukan key terpisah.
+  const source = `${orderId}${statusCode}${grossAmount}${required('MIDTRANS_SERVER_KEY')}`;
   const digest = await crypto.subtle.digest('SHA-512', new TextEncoder().encode(source));
   const expected = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
   if (received.length !== expected.length) return false;
@@ -454,9 +460,16 @@ Deno.serve(async (request) => {
         .maybeSingle();
       let paymentStatus = String(transaction?.transaction_status ?? 'unknown');
       let qrImageUrl: string | undefined;
-      if (transaction && paymentStatus === 'pending') {
+      // A webhook can save the Midtrans result before the order settlement
+      // finishes. Reconcile again while the order is still unpaid so the RPC
+      // can create the payment record, activate the order, and issue tickets.
+      const orderNeedsSettlement = order.status_pesan === 'menunggu_pembayaran';
+      if (transaction && (paymentStatus === 'pending' || orderNeedsSettlement)) {
         try {
-          const result = await reconcileTransaction(transaction.midtrans_order_id);
+          const result = await reconcileTransaction(
+            transaction.midtrans_order_id,
+            orderNeedsSettlement,
+          );
           paymentStatus = result.status;
           qrImageUrl = result.qrImageUrl;
         } catch (error) {
