@@ -18,6 +18,7 @@ import '../login_screens.dart';
 import 'edit_profile_screens.dart';
 import 'pesanan_screens.dart';
 import 'wishlist_screens.dart';
+import 'ulasan_wisata_screens.dart';
 import 'keamanan_akun_screens.dart';
 import 'snk_screens.dart';
 
@@ -41,29 +42,37 @@ class _AkunScreensState extends State<AkunScreens> {
   @override
   void initState() {
     super.initState();
+    ProfilStore.instance.muat();
     _muatRingkasan();
     _muatETiket();
   }
 
-  // Memuat jumlah ulasan dan wishlist dari API.
+  // Memuat jumlah ulasan dan wishlist dari API & database.
   Future<void> _muatRingkasan() async {
     try {
       final token = await SessionManager.currentUserToken();
 
-      if (token == null || token.isEmpty) return;
+      if (token != null && token.isNotEmpty) {
+        await FavoritStore.muat(token);
+        final result = await UserApi.summary(token);
 
-      final result = await UserApi.summary(token);
+        if (!mounted) return;
 
-      if (!mounted) return;
-
-      setState(() {
-        _jumlahWishlist = (result['wishlist_count'] as num?)?.toInt() ?? 0;
-
-        _jumlahUlasan = (result['reviews_count'] as num?)?.toInt() ?? 0;
-      });
+        setState(() {
+          final wlCount = (result['wishlist_count'] as num?)?.toInt() ?? 0;
+          _jumlahWishlist = wlCount > 0 ? wlCount : FavoritStore.ids.value.length;
+          _jumlahUlasan = (result['reviews_count'] as num?)?.toInt() ?? 0;
+        });
+        return;
+      }
     } catch (e) {
       debugPrint('Gagal memuat ringkasan akun: $e');
     }
+
+    if (!mounted) return;
+    setState(() {
+      _jumlahWishlist = FavoritStore.ids.value.length;
+    });
   }
 
   // Memuat jumlah e-tiket dari pesanan aktif.
@@ -432,18 +441,6 @@ class _AkunScreensState extends State<AkunScreens> {
     );
   }
 
-  // Pindah ke tab Pesanan.
-  void _keTabPesanan({bool riwayat = false}) {
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, _, _) => PesananScreens(mulaiDiRiwayat: riwayat),
-        transitionDuration: Duration.zero,
-        reverseTransitionDuration: Duration.zero,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -470,22 +467,35 @@ class _AkunScreensState extends State<AkunScreens> {
                             warna: AppColor.ungu,
                             angka: '$_jumlahUlasan',
                             label: 'Ulasan Wisata',
-                            onTap: () => _keTabPesanan(riwayat: true),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const UlasanWisataScreens(),
+                              ),
+                            ).then((_) => _muatRingkasan()),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: _statCard(
-                            icon: Icons.favorite,
-                            warna: AppColor.kuning,
-                            angka: '$_jumlahWishlist',
-                            label: 'Wishlist Liburan',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const WishlistScreens(),
-                              ),
-                            ),
+                          child: ValueListenableBuilder<Set<int>>(
+                            valueListenable: FavoritStore.ids,
+                            builder: (_, favIds, _) {
+                              final count = _jumlahWishlist > favIds.length
+                                  ? _jumlahWishlist
+                                  : favIds.length;
+                              return _statCard(
+                                icon: Icons.favorite,
+                                warna: AppColor.kuning,
+                                angka: '$count',
+                                label: 'Wishlist Liburan',
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const WishlistScreens(),
+                                  ),
+                                ).then((_) => _muatRingkasan()),
+                              );
+                            },
                           ),
                         ),
                       ],
@@ -503,7 +513,7 @@ class _AkunScreensState extends State<AkunScreens> {
                           MaterialPageRoute(
                             builder: (_) => const EditProfileScreens(),
                           ),
-                        ),
+                        ).then((_) => ProfilStore.instance.muat(paksa: true)),
                       ),
                     ]),
 
@@ -523,7 +533,12 @@ class _AkunScreensState extends State<AkunScreens> {
                                 color: AppColor.kuning,
                               )
                             : null,
-                        onTap: _keTabPesanan,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const PesananScreens(),
+                          ),
+                        ).then((_) => _muatETiket()),
                       ),
                     ]),
 
@@ -607,14 +622,21 @@ class _AkunScreensState extends State<AkunScreens> {
     return ValueListenableBuilder<Map<String, dynamic>?>(
       valueListenable: ProfilStore.instance.profil,
       builder: (_, profil, _) {
-        final nama = (profil?['nama_lengkap_user'] ?? '') as String;
+        final namaUser = ((profil?['nama_lengkap_user'] ?? '') as String).trim();
+        final authUser = Supabase.instance.client.auth.currentUser;
+        final namaMetadata = ((authUser?.userMetadata?['nama_lengkap_user'] ?? '') as String).trim();
+        final email = _email;
+        final nama = namaUser.isNotEmpty
+            ? namaUser
+            : (namaMetadata.isNotEmpty
+                ? namaMetadata
+                : (email.isNotEmpty ? email.split('@').first : 'Pengguna LokaTrip'));
 
         final telepon = ProfileService.keFormatLokal(
-          (profil?['no_telephone'] ?? '') as String,
+          ((profil?['no_telephone'] ?? '') as String).trim(),
         );
 
         final foto = ProfilStore.instance.fotoUrl;
-        final email = _email;
 
         return Row(
           children: [
@@ -642,9 +664,7 @@ class _AkunScreensState extends State<AkunScreens> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    profil == null
-                        ? 'Memuat...'
-                        : (nama.isEmpty ? 'Pengguna LokaTrip' : nama),
+                    nama,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.manrope(
@@ -683,7 +703,7 @@ class _AkunScreensState extends State<AkunScreens> {
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const EditProfileScreens()),
-              ),
+              ).then((_) => ProfilStore.instance.muat(paksa: true)),
               icon: const Icon(
                 Icons.edit_outlined,
                 size: 18,

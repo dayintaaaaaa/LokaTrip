@@ -189,7 +189,7 @@ class TerpopulerWisata extends StatelessWidget {
                             ],
                           ),
                         ),
-                        _tombolPilih(),
+                        _tombolPilih(context, w),
                       ],
                     ),
                   ],
@@ -202,29 +202,35 @@ class TerpopulerWisata extends StatelessWidget {
     );
   }
 
-  // Tampilan tombol "Pilih Paket". Ketukannya ditangani GestureDetector di
-  // kartu, jadi tombol dan kartu sama-sama membuka halaman detail.
-  Widget _tombolPilih() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
-      decoration: BoxDecoration(
-        color: AppColor.ungu,
+  // Tampilan tombol "Pilih Paket" dengan event klik langsung ke halaman detail.
+  Widget _tombolPilih(BuildContext context, Wisata w) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _buka(context, w),
         borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Pilih Paket',
-            style: GoogleFonts.manrope(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: AppColor.putih,
-            ),
+        child: Ink(
+          padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
+          decoration: BoxDecoration(
+            color: AppColor.ungu,
+            borderRadius: BorderRadius.circular(10),
           ),
-          const SizedBox(width: 2),
-          const Icon(Icons.chevron_right, size: 15, color: AppColor.putih),
-        ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Pilih Paket',
+                style: GoogleFonts.manrope(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppColor.putih,
+                ),
+              ),
+              const SizedBox(width: 2),
+              const Icon(Icons.chevron_right, size: 15, color: AppColor.putih),
+            ],
+          ),
+        ),
       ),
     );
   }

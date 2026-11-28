@@ -746,7 +746,7 @@ class MitraApi {
           await _supabase
               .from('paket_wisata')
               .delete()
-              .eq('id_paket', packageId!);
+              .eq('id_paket', packageId);
         }
         if (wisataId != null) {
           await _supabase.from('wisata').delete().eq('id_wisata', wisataId);
